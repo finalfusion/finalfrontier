@@ -1,0 +1,8 @@
+# Editor files
+.*
+*~
+
+# Rust files
+/target
+**/*.rs.bk
+Cargo.lock
