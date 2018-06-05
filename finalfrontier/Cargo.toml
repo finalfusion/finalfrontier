@@ -4,3 +4,8 @@ version = "0.1.0"
 authors = ["Daniël de Kok <me@danieldk.eu>"]
 
 [dependencies]
+fnv = "1"
+
+[dev-dependencies]
+lazy_static = "1"
+maplit = "1"

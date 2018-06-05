@@ -1,4 +1,7 @@
 use std::cmp;
+use std::hash::{Hash, Hasher};
+
+use fnv::FnvHasher;
 
 /// Iterator over n-grams in a sequence.
 ///
@@ -62,9 +65,41 @@ impl<'a, T> Iterator for NGrams<'a, T> {
     }
 }
 
+/// Extension trait for computing subword indices.
+pub trait SubwordIndices {
+    /// Return the subword indices of subwords (n-grams).
+    ///
+    /// The n-grams that are used are of length *[min_n, max_n]*, these are
+    /// mapped to indices into *2^buckets_exp* buckets.
+    fn subword_indices(&self, min_n: usize, max_n: usize, buckets_exp: usize) -> Vec<u64>;
+}
+
+impl<'a> SubwordIndices for &'a str {
+    fn subword_indices(&self, min_n: usize, max_n: usize, buckets_exp: usize) -> Vec<u64> {
+        let mask = if buckets_exp > 63 {
+            !0
+        } else {
+            (1 << buckets_exp) - 1
+        };
+
+        let chars: Vec<_> = self.chars().collect();
+
+        let mut hashes = Vec::new();
+        for ngram in NGrams::new(&chars, min_n as usize, max_n as usize) {
+            let mut hasher = FnvHasher::default();
+            ngram.hash(&mut hasher);
+            hashes.push(hasher.finish() & mask);
+        }
+
+        hashes
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::NGrams;
+    use std::collections::HashMap;
+
+    use super::{NGrams, SubwordIndices};
 
     #[test]
     fn ngrams_test() {
@@ -158,5 +193,53 @@ mod tests {
     #[should_panic]
     fn incorrect_max_n_test() {
         NGrams::<char>::new(&[], 2, 1);
+    }
+
+    lazy_static! {
+        static ref SUBWORD_TESTS_2: HashMap<&'static str, Vec<u64>> = hashmap!{
+            "<Daniël>" =>
+                vec![0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3],
+            "<hallo>" =>
+                vec![0, 0, 0, 0, 1, 1, 1, 2, 3, 3, 3, 3, 3, 3],
+        };
+    }
+
+    lazy_static! {
+        static ref SUBWORD_TESTS_21: HashMap<&'static str, Vec<u64>> = hashmap!{
+            "<Daniël>" =>
+                vec![214157, 233912, 311961, 488897, 620206, 741276, 841219,
+                     1167494, 1192256, 1489905, 1532271, 1644730, 1666166,
+                     1679745, 1680294, 1693100, 2026735, 2065822],
+            "<hallo>" =>
+                vec![75867, 104120, 136555, 456131, 599360, 722393, 938007,
+                     985859, 1006102, 1163391, 1218704, 1321513, 1505861,
+                     1892376],
+        };
+    }
+
+    #[test]
+    fn subword_indices_4_test() {
+        // The goal of this test is to ensure that we are correctly bucketing
+        // subwords. With a bucket exponent of 2, there are 2^2 = 4 buckets,
+        // so we should see bucket numbers [0..3].
+
+        for (word, indices_check) in SUBWORD_TESTS_2.iter() {
+            let mut indices = word.subword_indices(3, 6, 2);
+            indices.sort();
+            assert_eq!(indices_check, &indices);
+        }
+    }
+
+    #[test]
+    fn subword_indices_2m_test() {
+        // This test checks against precomputed bucket numbers. The goal of
+        // if this test is to ensure that the subword_indices() method hashes
+        // to the same buckets in the future.
+
+        for (word, indices_check) in SUBWORD_TESTS_21.iter() {
+            let mut indices = word.subword_indices(3, 6, 21);
+            indices.sort();
+            assert_eq!(indices_check, &indices);
+        }
     }
 }
