@@ -66,17 +66,31 @@ impl<'a, T> Iterator for NGrams<'a, T> {
 }
 
 /// Extension trait for computing subword indices.
+///
+/// Subword indexing assigns an identifier to each subword (n-gram) of a
+/// string. A subword is indexed by computing its hash and then mapping
+/// the hash to a bucket.
+///
+/// Since a non-perfect hash function is used, multiple subwords can
+/// map to the same index.
 pub trait SubwordIndices {
-    /// Return the subword indices of subwords (n-grams).
+    /// Return the subword indices of the subwords of a string.
     ///
     /// The n-grams that are used are of length *[min_n, max_n]*, these are
     /// mapped to indices into *2^buckets_exp* buckets.
+    ///
+    /// The largest possible bucket exponent is 64.
     fn subword_indices(&self, min_n: usize, max_n: usize, buckets_exp: usize) -> Vec<u64>;
 }
 
-impl<'a> SubwordIndices for &'a str {
+impl SubwordIndices for str {
     fn subword_indices(&self, min_n: usize, max_n: usize, buckets_exp: usize) -> Vec<u64> {
-        let mask = if buckets_exp > 63 {
+        assert!(
+            buckets_exp <= 64,
+            "The largest possible buckets exponent is 64."
+        );
+
+        let mask = if buckets_exp == 64 {
             !0
         } else {
             (1 << buckets_exp) - 1
@@ -84,14 +98,14 @@ impl<'a> SubwordIndices for &'a str {
 
         let chars: Vec<_> = self.chars().collect();
 
-        let mut hashes = Vec::new();
-        for ngram in NGrams::new(&chars, min_n as usize, max_n as usize) {
+        let mut indices = Vec::with_capacity((max_n - min_n + 1) * chars.len());
+        for ngram in NGrams::new(&chars, min_n, max_n) {
             let mut hasher = FnvHasher::default();
             ngram.hash(&mut hasher);
-            hashes.push(hasher.finish() & mask);
+            indices.push(hasher.finish() & mask);
         }
 
-        hashes
+        indices
     }
 }
 
