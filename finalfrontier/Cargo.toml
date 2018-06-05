@@ -5,3 +5,8 @@ authors = ["Daniël de Kok <me@danieldk.eu>"]
 
 [dependencies]
 rand = "0.4"
+fnv = "1"
+
+[dev-dependencies]
+lazy_static = "1"
+maplit = "1"
