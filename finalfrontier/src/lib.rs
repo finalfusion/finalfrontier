@@ -10,3 +10,5 @@ extern crate maplit;
 
 mod subword;
 pub use subword::NGrams;
+
+pub(crate) mod util;
