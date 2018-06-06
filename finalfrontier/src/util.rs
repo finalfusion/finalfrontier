@@ -1,3 +1,5 @@
+pub static EOS: &str = "</s>";
+
 #[cfg(test)]
 fn close(a: f32, b: f32, eps: f32) -> bool {
     let diff = (a - b).abs();

@@ -8,6 +8,9 @@ extern crate lazy_static;
 #[cfg(test)]
 extern crate maplit;
 
+mod io;
+pub use io::SentenceIterator;
+
 mod subword;
 pub use subword::NGrams;
 
