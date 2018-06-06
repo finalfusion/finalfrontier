@@ -4,7 +4,7 @@ use util::EOS;
 
 /// Sentence iterator.
 ///
-/// This this iterator consumes a reader with tokenized sentences:
+/// This iterator consumes a reader with tokenized sentences:
 ///
 /// - One sentence per line.
 /// - Tokens separated by a space.
@@ -34,29 +34,28 @@ where
     type Item = Result<Vec<String>, io::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut line;
-        loop {
-            line = match self.lines.next()? {
-                Ok(line) => line,
+        for line in &mut self.lines {
+            let line = match line {
+                Ok(ref line) => line.trim(),
                 Err(err) => return Some(Err(err)),
             };
 
-            // Trim leading and trailing whitespace.
-            line = line.trim().to_owned();
-
             // Skip empty lines.
             if !line.is_empty() {
-                break;
+                return Some(Ok(whitespace_tokenize(line)));
             }
         }
 
-        let mut tokens = line.split_whitespace()
-            .map(ToOwned::to_owned)
-            .collect::<Vec<_>>();
-        tokens.push(EOS.to_string());
-
-        Some(Ok(tokens))
+        None
     }
+}
+
+fn whitespace_tokenize(line: &str) -> Vec<String> {
+    let mut tokens = line.split_whitespace()
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    tokens.push(EOS.to_string());
+    tokens
 }
 
 #[cfg(test)]
