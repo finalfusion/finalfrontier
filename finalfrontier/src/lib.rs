@@ -8,6 +8,9 @@ extern crate lazy_static;
 #[cfg(test)]
 extern crate maplit;
 
+mod config;
+pub use config::{Config, LossType, ModelType};
+
 mod subword;
 pub use subword::NGrams;
 
