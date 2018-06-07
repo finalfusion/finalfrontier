@@ -19,6 +19,9 @@ extern crate ndarray_rand;
 
 extern crate rand;
 
+mod config;
+pub use config::{Config, LossType, ModelType};
+
 mod subword;
 pub use subword::NGrams;
 
