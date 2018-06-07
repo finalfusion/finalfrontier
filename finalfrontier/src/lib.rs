@@ -19,6 +19,9 @@ extern crate ndarray_rand;
 
 extern crate rand;
 
+mod io;
+pub use io::SentenceIterator;
+
 mod config;
 pub use config::{Config, LossType, ModelType};
 

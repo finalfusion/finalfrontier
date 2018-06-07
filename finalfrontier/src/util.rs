@@ -1,3 +1,5 @@
+pub static EOS: &str = "</s>";
+
 #[cfg(test)]
 pub use self::test::*;
 
