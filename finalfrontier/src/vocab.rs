@@ -78,7 +78,6 @@ impl Vocab {
             );
         }
 
-        // Invariant: we should have the same number of subwords as token.
         assert_eq!(tokens.len(), subword_indices.len());
 
         subword_indices
@@ -98,7 +97,7 @@ impl Vocab {
         token_indices
     }
 
-    /// Get the vocabularly size.
+    /// Get the vocabulary size.
     pub fn len(&self) -> usize {
         self.tokens.len()
     }
@@ -157,7 +156,7 @@ impl Vocab {
 /// This builder is used to construct a vocabulary.
 ///
 /// Tokens are added to the vocabulary and counted using the `count` method.
-/// The final vocabulary is contructed using `build`.
+/// The final vocabulary is constructed using `build`.
 pub struct VocabBuilder {
     config: Config,
     tokens: HashMap<String, usize>,
