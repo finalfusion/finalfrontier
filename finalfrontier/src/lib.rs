@@ -26,8 +26,11 @@ mod config;
 pub use config::{Config, LossType, ModelType};
 
 mod subword;
-pub use subword::NGrams;
+pub use subword::{NGrams, SubwordIndices};
 
 pub(crate) mod util;
 
 pub mod vec_simd;
+
+mod vocab;
+pub use vocab::{Token, Vocab, VocabBuilder};
