@@ -216,8 +216,8 @@ mod tests {
 
     #[test]
     fn scaled_add_f32x4_test() {
-        let mut u = Array1::random((100,), Range::new(-1.0, 1.0));
-        let v = Array1::random((100,), Range::new(-1.0, 1.0));
+        let mut u = Array1::random((102,), Range::new(-1.0, 1.0));
+        let v = Array1::random((102,), Range::new(-1.0, 1.0));
         let mut check = u.clone();
         scaled_add_unvectorized(check.as_slice_mut().unwrap(), v.as_slice().unwrap(), 2.5);
         scaled_add_f32x4(u.view_mut(), v.view(), 2.5);
@@ -227,8 +227,8 @@ mod tests {
     #[test]
     #[cfg(feature = "avx-accel")]
     fn scaled_add_f32x8_test() {
-        let mut u = Array1::random((100,), Range::new(-1.0, 1.0));
-        let v = Array1::random((100,), Range::new(-1.0, 1.0));
+        let mut u = Array1::random((102,), Range::new(-1.0, 1.0));
+        let v = Array1::random((102,), Range::new(-1.0, 1.0));
         let mut check = u.clone();
         scaled_add_unvectorized(check.as_slice_mut().unwrap(), v.as_slice().unwrap(), 2.5);
         scaled_add_f32x8(u.view_mut(), v.view(), 2.5);
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn scale_f32x4_test() {
-        let mut u = Array1::random((100,), Range::new(-1.0, 1.0));
+        let mut u = Array1::random((102,), Range::new(-1.0, 1.0));
         let mut check = u.clone();
         scale_unvectorized(check.as_slice_mut().unwrap(), 2.);
         scale_f32x4(u.view_mut(), 2.);
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     #[cfg(feature = "avx-accel")]
     fn scale_f32x8_test() {
-        let mut u = Array1::random((100,), Range::new(-1.0, 1.0));
+        let mut u = Array1::random((102,), Range::new(-1.0, 1.0));
         let mut check = u.clone();
         scale_unvectorized(check.as_slice_mut().unwrap(), 2.);
         scale_f32x8(u.view_mut(), 2.);
