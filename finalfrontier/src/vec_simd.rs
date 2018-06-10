@@ -14,7 +14,7 @@ cfg_if! {
             scale_f32x8(u, a)
         }
 
-        /// Scaled addition: *u = u + ay*
+        /// Scaled addition: *u = u + av*
         ///
         /// This function performs SIMD-vectorized scaled addition (BLAS saxpy).
         pub fn scaled_add(u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
@@ -28,7 +28,7 @@ cfg_if! {
             scale_f32x4(u, a)
         }
 
-        /// Scaled addition: *u = u + ay*
+        /// Scaled addition: *u = u + av*
         ///
         /// This function performs SIMD-vectorized scaled addition (BLAS saxpy).
         pub fn scaled_add(u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
