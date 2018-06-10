@@ -43,7 +43,9 @@ impl Vocab {
     ///
     /// Normally a `VocabBuilder` should be used. This constructor is used
     /// for deserialization.
-    pub(crate) fn new(config: Config, tokens: Vec<Token>) -> Self {
+    pub(crate) fn new(config: Config, mut tokens: Vec<Token>) -> Self {
+        tokens.sort_unstable_by(|t1, t2| t2.count.cmp(&t1.count));
+
         let index = Self::create_token_indices(&tokens);
         let subwords = Self::create_subword_indices(&config, &tokens);
 
@@ -217,23 +219,48 @@ mod tests {
     use super::{bracket, VocabBuilder};
     use {util, Config, LossType, ModelType, SubwordIndices};
 
+    const TEST_CONFIG: Config = Config {
+        buckets_exp: 21,
+        context_size: 5,
+        dims: 300,
+        epochs: 5,
+        loss: LossType::LogisticNegativeSampling,
+        lr: 0.05,
+        min_count: 2,
+        max_n: 6,
+        min_n: 3,
+        model: ModelType::SkipGram,
+        negative_samples: 5,
+    };
+
+    #[test]
+    pub fn vocab_is_sorted() {
+        let mut config = TEST_CONFIG.clone();
+        config.min_count = 1;
+
+        let mut builder = VocabBuilder::new(TEST_CONFIG.clone());
+        builder.count("to");
+        builder.count("be");
+        builder.count("or");
+        builder.count("not");
+        builder.count("to");
+        builder.count("be");
+        builder.count("</s>");
+
+        let vocab = builder.build();
+        let tokens = vocab.tokens();
+
+        for idx in 1..tokens.len() {
+            assert!(
+                tokens[idx - 1].count >= tokens[idx].count,
+                "Tokens are not frequency-sorted"
+            );
+        }
+    }
+
     #[test]
     pub fn test_vocab_builder() {
-        let config = Config {
-            buckets_exp: 21,
-            context_size: 5,
-            dims: 300,
-            epochs: 5,
-            loss: LossType::LogisticNegativeSampling,
-            lr: 0.05,
-            min_count: 2,
-            max_n: 6,
-            min_n: 3,
-            model: ModelType::SkipGram,
-            negative_samples: 5,
-        };
-
-        let mut builder = VocabBuilder::new(config.clone());
+        let mut builder = VocabBuilder::new(TEST_CONFIG.clone());
         builder.count("to");
         builder.count("be");
         builder.count("or");
@@ -284,9 +311,9 @@ mod tests {
         assert_eq!(
             bracket("too")
                 .subword_indices(
-                    config.min_n as usize,
-                    config.max_n as usize,
-                    config.buckets_exp as usize
+                    TEST_CONFIG.min_n as usize,
+                    TEST_CONFIG.max_n as usize,
+                    TEST_CONFIG.buckets_exp as usize
                 )
                 .into_iter()
                 .map(|idx| idx + 3)
