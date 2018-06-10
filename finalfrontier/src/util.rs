@@ -7,7 +7,7 @@ pub use self::test::*;
 mod test {
     use ndarray::{ArrayView, Dimension};
 
-    fn close(a: f32, b: f32, eps: f32) -> bool {
+    pub fn close(a: f32, b: f32, eps: f32) -> bool {
         let diff = (a - b).abs();
         if diff > eps {
             return false;
