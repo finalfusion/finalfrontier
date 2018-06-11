@@ -309,7 +309,6 @@ mod tests {
         assert_eq!(1, eos.count);
         assert!(vocab.subword_indices(util::EOS).is_empty());
         assert_eq!(1, vocab.indices(util::EOS).len());
-        println!("{}", vocab.discard(vocab.token_idx(util::EOS).unwrap()));
         assert!(util::close(
             0.022861,
             vocab.discard(vocab.token_idx(util::EOS).unwrap()),
