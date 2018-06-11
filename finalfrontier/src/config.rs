@@ -28,6 +28,13 @@ pub struct Config {
     /// and the 5 tokens succeeding the focus token.
     pub context_size: u32,
 
+    /// Discard threshold.
+    ///
+    /// The discard threshold is used to compute the discard probability of
+    /// a token. E.g. with a threshold of 0.00001 tokens with approximately
+    /// that probability will never be discarded.
+    pub discard_threshold: f32,
+
     /// Word embedding dimensionality.
     pub dims: u32,
 

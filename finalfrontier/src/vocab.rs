@@ -7,7 +7,7 @@ const BOW: char = '<';
 const EOW: char = '>';
 
 /// A vocabulary token.
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Token {
     token: String,
     count: usize,
@@ -31,10 +31,12 @@ impl Token {
 }
 
 /// A corpus vocabulary.
+#[derive(Clone)]
 pub struct Vocab {
     config: Config,
     tokens: Vec<Token>,
     subwords: Vec<Vec<u64>>,
+    discards: Vec<f32>,
     index: HashMap<String, usize>,
 }
 
@@ -43,16 +45,36 @@ impl Vocab {
     ///
     /// Normally a `VocabBuilder` should be used. This constructor is used
     /// for deserialization.
-    pub(crate) fn new(config: Config, tokens: Vec<Token>) -> Self {
+    pub(crate) fn new(config: Config, mut tokens: Vec<Token>) -> Self {
+        tokens.sort_unstable_by(|t1, t2| t2.count.cmp(&t1.count));
+
         let index = Self::create_token_indices(&tokens);
         let subwords = Self::create_subword_indices(&config, &tokens);
+        let discards = Self::create_discards(&config, &tokens);
 
         Vocab {
             config,
+            discards,
             tokens,
             subwords,
             index,
         }
+    }
+
+    fn create_discards(config: &Config, tokens: &[Token]) -> Vec<f32> {
+        let n_tokens: usize = tokens.iter().map(|t| t.count).sum();
+
+        let mut discards = Vec::with_capacity(tokens.len());
+
+        for token in tokens {
+            let p = token.count() as f32 / n_tokens as f32;
+            let p_discard = config.discard_threshold / p + (config.discard_threshold / p).sqrt();
+
+            // Not a proper probability, upper bound at 1.0.
+            discards.push(1f32.min(p_discard));
+        }
+
+        discards
     }
 
     fn create_subword_indices(config: &Config, tokens: &[Token]) -> Vec<Vec<u64>> {
@@ -95,6 +117,11 @@ impl Vocab {
         assert_eq!(tokens.len(), token_indices.len());
 
         token_indices
+    }
+
+    /// Get the discard probability of the token with the given index.
+    pub fn discard(&self, idx: usize) -> f32 {
+        self.discards[idx]
     }
 
     /// Get the vocabulary size.
@@ -217,23 +244,49 @@ mod tests {
     use super::{bracket, VocabBuilder};
     use {util, Config, LossType, ModelType, SubwordIndices};
 
+    const TEST_CONFIG: Config = Config {
+        buckets_exp: 21,
+        context_size: 5,
+        dims: 300,
+        discard_threshold: 1e-4,
+        epochs: 5,
+        loss: LossType::LogisticNegativeSampling,
+        lr: 0.05,
+        min_count: 2,
+        max_n: 6,
+        min_n: 3,
+        model: ModelType::SkipGram,
+        negative_samples: 5,
+    };
+
+    #[test]
+    pub fn vocab_is_sorted() {
+        let mut config = TEST_CONFIG.clone();
+        config.min_count = 1;
+
+        let mut builder = VocabBuilder::new(TEST_CONFIG.clone());
+        builder.count("to");
+        builder.count("be");
+        builder.count("or");
+        builder.count("not");
+        builder.count("to");
+        builder.count("be");
+        builder.count("</s>");
+
+        let vocab = builder.build();
+        let tokens = vocab.tokens();
+
+        for idx in 1..tokens.len() {
+            assert!(
+                tokens[idx - 1].count >= tokens[idx].count,
+                "Tokens are not frequency-sorted"
+            );
+        }
+    }
+
     #[test]
     pub fn test_vocab_builder() {
-        let config = Config {
-            buckets_exp: 21,
-            context_size: 5,
-            dims: 300,
-            epochs: 5,
-            loss: LossType::LogisticNegativeSampling,
-            lr: 0.05,
-            min_count: 2,
-            max_n: 6,
-            min_n: 3,
-            model: ModelType::SkipGram,
-            negative_samples: 5,
-        };
-
-        let mut builder = VocabBuilder::new(config.clone());
+        let mut builder = VocabBuilder::new(TEST_CONFIG.clone());
         builder.count("to");
         builder.count("be");
         builder.count("or");
@@ -256,6 +309,11 @@ mod tests {
             vocab.subword_indices("to").as_ref()
         );
         assert_eq!(4, vocab.indices("to").len());
+        assert!(util::close(
+            0.016061,
+            vocab.discard(vocab.token_idx("to").unwrap()),
+            1e-5
+        ));
 
         // Check expected properties of 'be'.
         let be = vocab.token("be").unwrap();
@@ -266,6 +324,11 @@ mod tests {
             vocab.subword_indices("be").as_ref()
         );
         assert_eq!(4, vocab.indices("be").len());
+        assert!(util::close(
+            0.016061,
+            vocab.discard(vocab.token_idx("be").unwrap()),
+            1e-5
+        ));
 
         // Check expected properties of the end of sentence marker.
         let eos = vocab.token(util::EOS).unwrap();
@@ -273,6 +336,11 @@ mod tests {
         assert_eq!(1, eos.count);
         assert!(vocab.subword_indices(util::EOS).is_empty());
         assert_eq!(1, vocab.indices(util::EOS).len());
+        assert!(util::close(
+            0.022861,
+            vocab.discard(vocab.token_idx(util::EOS).unwrap()),
+            1e-5
+        ));
 
         // Check indices for an unknown word.
         assert_eq!(
@@ -284,9 +352,9 @@ mod tests {
         assert_eq!(
             bracket("too")
                 .subword_indices(
-                    config.min_n as usize,
-                    config.max_n as usize,
-                    config.buckets_exp as usize
+                    TEST_CONFIG.min_n as usize,
+                    TEST_CONFIG.max_n as usize,
+                    TEST_CONFIG.buckets_exp as usize
                 )
                 .into_iter()
                 .map(|idx| idx + 3)
