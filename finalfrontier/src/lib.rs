@@ -25,6 +25,9 @@ pub use io::SentenceIterator;
 mod config;
 pub use config::{Config, LossType, ModelType};
 
+mod hogwild;
+pub use hogwild::{HogwildArray, HogwildArray1, HogwildArray2, HogwildArray3};
+
 mod subword;
 pub use subword::{NGrams, SubwordIndices};
 
