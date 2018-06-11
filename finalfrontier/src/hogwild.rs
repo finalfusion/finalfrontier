@@ -123,7 +123,6 @@ mod test {
     use ndarray::Array2;
 
     use super::HogwildArray2;
-    use util::all_close;
 
     #[test]
     pub fn hogwild_array_test() {
