@@ -19,6 +19,8 @@ extern crate ndarray_rand;
 
 extern crate rand;
 
+extern crate zipf;
+
 mod io;
 pub use io::SentenceIterator;
 
@@ -27,6 +29,9 @@ pub use config::{Config, LossType, ModelType};
 
 mod hogwild;
 pub use hogwild::{HogwildArray, HogwildArray1, HogwildArray2, HogwildArray3};
+
+mod sampling;
+pub use sampling::{WeightedRangeGenerator, ZipfRangeGenerator};
 
 mod subword;
 pub use subword::{NGrams, SubwordIndices};
