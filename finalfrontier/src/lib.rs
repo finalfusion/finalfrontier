@@ -30,6 +30,8 @@ pub use config::{Config, LossType, ModelType};
 mod hogwild;
 pub use hogwild::{HogwildArray, HogwildArray1, HogwildArray2, HogwildArray3};
 
+mod loss;
+
 mod sampling;
 pub use sampling::{WeightedRangeGenerator, ZipfRangeGenerator};
 
