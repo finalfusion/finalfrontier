@@ -1,5 +1,11 @@
 pub static EOS: &str = "</s>";
 
+/// Add a small value, to prevent returning Inf on underflow.
+#[inline]
+pub fn safe_ln(v: f32) -> f32 {
+    (v + 1e-5).ln()
+}
+
 #[cfg(test)]
 pub use self::test::*;
 
