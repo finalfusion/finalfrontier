@@ -1,5 +1,14 @@
 pub static EOS: &str = "</s>";
 
+/// Tolerance for small negative values.
+const NEGATIVE_TOLERANCE: f32 = 1e-5;
+
+/// Add a small value, to prevent returning Inf on underflow.
+#[inline]
+pub fn safe_ln(v: f32) -> f32 {
+    (v + NEGATIVE_TOLERANCE).ln()
+}
+
 #[cfg(test)]
 pub use self::test::*;
 
