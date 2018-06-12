@@ -11,7 +11,7 @@ use vec_simd::dot;
 /// target label, where a label of `1` means that the words co-occur
 /// and a label of `0` that they do not.
 ///
-/// This model is very resembles logistic regression, except that we
+/// This model is very similar to logistic regression, except that we
 /// optimize both u and v.
 ///
 /// The loss is as follows (y is used as the label):
