@@ -46,7 +46,7 @@ impl TrainModel where {
         let output = Array2::random((vocab.len(), config.dims as usize), range).into();
 
         TrainModel {
-            config: config,
+            config,
             vocab: Arc::new(vocab),
             input,
             output,
@@ -143,10 +143,10 @@ mod tests {
             .into();
 
         let mut model = TrainModel {
-            config: config,
+            config,
             vocab: Arc::new(vocab),
-            input: input,
-            output: output,
+            input,
+            output,
         };
 
         // Input embeddings
