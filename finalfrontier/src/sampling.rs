@@ -2,6 +2,8 @@ use rand::distributions::Sample;
 use rand::Rng;
 use zipf::ZipfDistribution;
 
+pub trait RangeGenerator: Iterator<Item = usize> {}
+
 /// An iterator that draws from *[0, n)* with integer weights.
 ///
 /// This iterator returns integers from *[0, n)*, where the probability of
@@ -61,6 +63,8 @@ where
     }
 }
 
+impl<R> RangeGenerator for WeightedRangeGenerator<R> where R: Rng {}
+
 /// An iterator that draws from *[0, n)* with a Zipfian distribution.
 ///
 /// This iterator returns integers from *[0, n)*, where the probability of
@@ -118,6 +122,8 @@ where
         Some(r - 1)
     }
 }
+
+impl<R> RangeGenerator for ZipfRangeGenerator<R> where R: Rng {}
 
 #[cfg(test)]
 mod tests {
