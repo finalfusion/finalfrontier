@@ -32,6 +32,9 @@ pub use hogwild::{HogwildArray, HogwildArray1, HogwildArray2, HogwildArray3};
 
 mod loss;
 
+mod model;
+pub use model::TrainModel;
+
 mod sampling;
 pub use sampling::{WeightedRangeGenerator, ZipfRangeGenerator};
 
