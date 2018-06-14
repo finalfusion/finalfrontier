@@ -31,12 +31,16 @@ mod hogwild;
 pub use hogwild::{HogwildArray, HogwildArray1, HogwildArray2, HogwildArray3};
 
 mod loss;
+pub use loss::log_logistic_loss;
 
 mod model;
 pub use model::TrainModel;
 
 mod sampling;
-pub use sampling::{WeightedRangeGenerator, ZipfRangeGenerator};
+pub use sampling::{RangeGenerator, WeightedRangeGenerator, ZipfRangeGenerator};
+
+mod sgd;
+pub use sgd::NegativeSamplingSGD;
 
 mod subword;
 pub use subword::{NGrams, SubwordIndices};
