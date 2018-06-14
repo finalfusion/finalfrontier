@@ -3,6 +3,22 @@ use ndarray::ArrayView1;
 use util;
 use vec_simd::dot;
 
+/// Absolute activations to round in logistic regression.
+///
+/// Since the logistic function is asymptotic, there is always (a small)
+/// gradient for larger activations. As a result, optimization of logistic
+/// regression will not converge without e.g. regularization. In the
+/// training of embeddings, this has the result of ever-increasing weights
+/// (amplified by the optimization two vectors).
+///
+/// A simpler solution than regularization is to round the output of the
+/// logistic function to 0 (negative activation) or 1 (positive activiation)
+/// for large activations, to kill gradient.
+///
+/// This constant controls at what activation the logistic function should
+/// round.
+const LOGISTIC_ROUND_ACTIVATION: f32 = 10.0;
+
 /// Return the loss and gradient of the co-occurence classification.
 ///
 /// This function returns the negative log likelihood and gradient of
@@ -75,7 +91,13 @@ fn log_logistic_loss(u: ArrayView1<f32>, v: ArrayView1<f32>, label: bool) -> (f3
 ///
 /// **σ(a) = 1 / (1 + e^{-a})**
 fn logistic_function(a: f32) -> f32 {
-    1.0 / (1.0 + (-a).exp())
+    if a > LOGISTIC_ROUND_ACTIVATION {
+        1.0
+    } else if a < -LOGISTIC_ROUND_ACTIVATION {
+        0.0
+    } else {
+        1.0 / (1.0 + (-a).exp())
+    }
 }
 
 #[cfg(test)]
@@ -88,12 +110,14 @@ mod tests {
 
     #[test]
     fn logistic_function_test() {
-        let activations = &[-5.0, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        let activations = &[
+            -11.0, -5.0, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 11.0,
+        ];
         let outputs: Vec<_> = activations.iter().map(|&a| logistic_function(a)).collect();
         assert!(all_close(
             &[
-                0.00669, 0.01799, 0.04743, 0.11920, 0.26894, 0.5, 0.73106, 0.88080, 0.95257,
-                0.982014, 0.99331
+                0.0, 0.00669, 0.01799, 0.04743, 0.11920, 0.26894, 0.5, 0.73106, 0.88080, 0.95257,
+                0.982014, 0.99331, 1.0
             ],
             outputs.as_slice(),
             1e-5
