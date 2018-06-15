@@ -74,7 +74,7 @@ const LOGISTIC_ROUND_ACTIVATION: f32 = 10.0;
 ///
 /// We return y - σ(u·v) as the gradient, so that the caller can compute
 /// the gradient for all components of u and v.
-fn log_logistic_loss(u: ArrayView1<f32>, v: ArrayView1<f32>, label: bool) -> (f32, f32) {
+pub fn log_logistic_loss(u: ArrayView1<f32>, v: ArrayView1<f32>, label: bool) -> (f32, f32) {
     let dp = dot(u, v);
     let lf = logistic_function(dp);
     let grad = (label as usize) as f32 - lf;
