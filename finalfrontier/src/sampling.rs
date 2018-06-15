@@ -4,6 +4,11 @@ use zipf::ZipfDistribution;
 
 pub trait RangeGenerator: Iterator<Item = usize> {}
 
+/// Exponent to use for the Zipf's distribution.
+///
+/// This is the exponent s in f(k) = 1 / (k^s H_{N, s})
+const ZIPF_RANGE_GENERATOR_EXPONENT: f64 = 0.5;
+
 /// An iterator that draws from *[0, n)* with integer weights.
 ///
 /// This iterator returns integers from *[0, n)*, where the probability of
@@ -88,7 +93,7 @@ where
         ZipfRangeGenerator {
             upper_bound: self.upper_bound,
             rng: self.rng.clone(),
-            dist: ZipfDistribution::new(self.upper_bound, 1.0).unwrap(),
+            dist: ZipfDistribution::new(self.upper_bound, ZIPF_RANGE_GENERATOR_EXPONENT).unwrap(),
         }
     }
 }
@@ -101,7 +106,7 @@ where
         ZipfRangeGenerator {
             upper_bound: upper,
             rng,
-            dist: ZipfDistribution::new(upper, 1.0).unwrap(),
+            dist: ZipfDistribution::new(upper, ZIPF_RANGE_GENERATOR_EXPONENT).unwrap(),
         }
     }
 
@@ -183,7 +188,7 @@ mod tests {
 
         // Probabilities should be proportional to weights.
         assert!(all_close(
-            &[0.6149, 0.1989, 0.1312, 0.055],
+            &[0.4958, 0.2302, 0.1912, 0.0828],
             probs.as_slice(),
             1e-2
         ));
