@@ -136,7 +136,7 @@ where
             log_logistic_loss(input_embed.view(), model.output_embedding(output), label);
 
         // Update the input weight: u_n += lr * u_n' v_n. We are not updating
-        // the weight immpediately, but accumulating the weight updates in
+        // the weight immediately, but accumulating the weight updates in
         // input_delta.
         scaled_add(
             input_delta,
