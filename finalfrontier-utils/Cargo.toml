@@ -1,0 +1,12 @@
+[package]
+name = "finalfrontier-utils"
+version = "0.1.0"
+authors = ["Daniël de Kok <me@danieldk.eu>"]
+
+[dependencies]
+failure = "0.1"
+finalfrontier = { path = "../finalfrontier" }
+memmap = "0.6"
+
+[features]
+avx-accel = ["finalfrontier/avx-accel"]
