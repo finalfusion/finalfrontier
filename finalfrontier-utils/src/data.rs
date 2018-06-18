@@ -21,16 +21,16 @@ pub fn thread_data(f: &File, thread: usize, n_threads: usize) -> Result<(Mmap, u
 
     let mmap = unsafe { MmapOptions::new().map(&f)? };
 
-    let mut start = thread * chunk_size;
+    if thread == 0 {
+        return Ok((mmap, 0))
+    }
 
-    // Scan forward to next newline.
-    if thread != 0 {
-        while start < mmap.len() {
-            let next = mmap[start];
-            start += 1;
-            if next == b'\n' {
-                break;
-            }
+    let mut start = thread * chunk_size;
+    while start < mmap.len() {
+        let next = mmap[start];
+        start += 1;
+        if next == b'\n' {
+            break;
         }
     }
 
