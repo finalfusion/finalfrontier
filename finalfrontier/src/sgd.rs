@@ -1,7 +1,122 @@
+use std::cmp;
+
 use ndarray::{Array1, ArrayView1, ArrayViewMut1};
+use rand::Rng;
 
 use vec_simd::scaled_add;
-use {log_logistic_loss, RangeGenerator, TrainModel};
+use {log_logistic_loss, Hogwild, RangeGenerator, TrainModel, ZipfRangeGenerator};
+
+/// Stochastic gradient descent
+///
+/// This data type applies stochastic gradient descent on sentences.
+#[derive(Clone)]
+pub struct SGD<R> {
+    rng: R,
+    model: TrainModel,
+    sgd_impl: NegativeSamplingSGD<ZipfRangeGenerator<R>>,
+    n_tokens_processed: Hogwild<usize>,
+    loss: Hogwild<f32>,
+    n_examples: Hogwild<usize>,
+}
+
+impl<R> SGD<R> {
+    /// Get the training model associated with this SGD.
+    pub fn model(&self) -> &TrainModel {
+        &self.model
+    }
+
+    /// Get the number of tokens that are processed by this SGD.
+    pub fn n_tokens_processed(&self) -> usize {
+        *self.n_tokens_processed
+    }
+
+    /// Get the average training loss of this SGD.
+    ///
+    /// This returns the average training loss over all instances seen by
+    /// this SGD instance since its construction.
+    pub fn train_loss(&self) -> f32 {
+        *self.loss / *self.n_examples as f32
+    }
+}
+
+impl<R> SGD<R>
+where
+    R: Clone + Rng,
+{
+    /// Construct a new SGD instance,
+    pub fn new(model: TrainModel, rng: R) -> Self {
+        let sgd_impl = NegativeSamplingSGD::new(
+            model.config().negative_samples as usize,
+            ZipfRangeGenerator::new(rng.clone(), model.vocab().len()),
+        );
+
+        SGD {
+            loss: Hogwild::default(),
+            model,
+            n_examples: Hogwild::default(),
+            n_tokens_processed: Hogwild::default(),
+            rng,
+            sgd_impl,
+        }
+    }
+
+    /// Update the model parameters using the given sentence.
+    ///
+    /// This applies a gradient descent step on the sentence, with the given
+    /// learning rate.
+    pub fn update_sentence<S>(&mut self, sentence: &[S], lr: f32)
+    where
+        S: AsRef<str>,
+    {
+        let mut rng = self.rng.clone();
+
+        // Convert the sentence into token identifiers, discarding tokens with
+        // the probability indicated by the dictionary.
+        let tokens: Vec<_> = sentence
+            .iter()
+            .filter_map(|t| self.model.vocab().token_idx(t.as_ref()))
+            .filter(|&idx| rng.gen_range(0f32, 1f32) < self.model.vocab().discard(idx))
+            .collect();
+
+        for i in 0..tokens.len() {
+            // The input token is represented by its index and subword
+            // indices.
+            let mut input = self
+                .model
+                .vocab()
+                .subword_indices_idx(tokens[i])
+                .unwrap()
+                .to_owned();
+            input.push(tokens[i] as u64);
+
+            let input_embed = self.model.mean_input_embedding(&input);
+
+            // Bojanowski, et al., 2017 uniformly sample the context size between 1 and c.
+            let context_size = self.rng.gen_range(1, self.model.config().context_size + 1) as usize;
+
+            let left = i - cmp::min(i, context_size);
+            let right = cmp::min(i + context_size + 1, tokens.len());
+
+            for j in left..right {
+                if i != j {
+                    // Update parameters for the token focus token i and the
+                    // context token j.
+                    *self.loss += self.sgd_impl.sgd_step(
+                        &mut self.model,
+                        &input,
+                        input_embed.view(),
+                        tokens[j],
+                        lr,
+                    )
+                }
+            }
+
+            *self.n_examples += right - left;
+        }
+
+        *self.n_tokens_processed += tokens.len();
+    }
+}
 
 /// Log-logistic loss SGD with negative sampling.
 ///
