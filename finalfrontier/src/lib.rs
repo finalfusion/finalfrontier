@@ -50,4 +50,4 @@ pub(crate) mod util;
 pub mod vec_simd;
 
 mod vocab;
-pub use vocab::{Token, Vocab, VocabBuilder};
+pub use vocab::{Type, Vocab, VocabBuilder};
