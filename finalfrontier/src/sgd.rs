@@ -11,12 +11,12 @@ use {log_logistic_loss, Hogwild, RangeGenerator, TrainModel, ZipfRangeGenerator}
 /// This data type applies stochastic gradient descent on sentences.
 #[derive(Clone)]
 pub struct SGD<R> {
-    rng: R,
-    model: TrainModel,
-    sgd_impl: NegativeSamplingSGD<ZipfRangeGenerator<R>>,
-    n_tokens_processed: Hogwild<usize>,
     loss: Hogwild<f32>,
+    model: TrainModel,
     n_examples: Hogwild<usize>,
+    n_tokens_processed: Hogwild<usize>,
+    rng: R,
+    sgd_impl: NegativeSamplingSGD<ZipfRangeGenerator<R>>,
 }
 
 impl<R> SGD<R> {

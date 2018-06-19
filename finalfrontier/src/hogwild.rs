@@ -123,7 +123,7 @@ pub type HogwildArray3<A> = HogwildArray<A, Ix3>;
 ///
 /// `Hogwild` subverts Rust's type system by allowing concurrent modification
 /// of values. This should only be used for data types that cannot end up in
-/// an inconsistent state due to data races. For arrays `HogwayArray` should
+/// an inconsistent state due to data races. For arrays `HogwildArray` should
 /// be preferred.
 #[derive(Clone)]
 pub struct Hogwild<T>(Arc<UnsafeCell<T>>);
