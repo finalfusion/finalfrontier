@@ -51,7 +51,8 @@ where
 }
 
 fn whitespace_tokenize(line: &str) -> Vec<String> {
-    let mut tokens = line.split_whitespace()
+    let mut tokens = line
+        .split_whitespace()
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
     tokens.push(EOS.to_string());

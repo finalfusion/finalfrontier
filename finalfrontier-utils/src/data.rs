@@ -22,7 +22,7 @@ pub fn thread_data(f: &File, thread: usize, n_threads: usize) -> Result<(Mmap, u
     let mmap = unsafe { MmapOptions::new().map(&f)? };
 
     if thread == 0 {
-        return Ok((mmap, 0))
+        return Ok((mmap, 0));
     }
 
     let mut start = thread * chunk_size;
