@@ -28,7 +28,7 @@ mod config;
 pub use config::{Config, LossType, ModelType};
 
 mod hogwild;
-pub use hogwild::{HogwildArray, HogwildArray1, HogwildArray2, HogwildArray3};
+pub use hogwild::{Hogwild, HogwildArray, HogwildArray1, HogwildArray2, HogwildArray3};
 
 mod loss;
 pub use loss::log_logistic_loss;
@@ -40,7 +40,7 @@ mod sampling;
 pub use sampling::{RangeGenerator, WeightedRangeGenerator, ZipfRangeGenerator};
 
 mod sgd;
-pub use sgd::NegativeSamplingSGD;
+pub use sgd::{NegativeSamplingSGD, SGD};
 
 mod subword;
 pub use subword::{NGrams, SubwordIndices};

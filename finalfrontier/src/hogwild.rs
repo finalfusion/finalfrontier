@@ -1,4 +1,5 @@
 use std::cell::UnsafeCell;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use ndarray::{Array, ArrayView, ArrayViewMut, Axis, Dimension, Ix, Ix1, Ix2, Ix3, RemoveAxis};
@@ -118,11 +119,60 @@ pub type HogwildArray2<A> = HogwildArray<A, Ix2>;
 /// Three-dimensional Hogwild array.
 pub type HogwildArray3<A> = HogwildArray<A, Ix3>;
 
+/// Hogwild for arbitrary data types.
+///
+/// `Hogwild` subverts Rust's type system by allowing concurrent modification
+/// of values. This should only be used for data types that cannot end up in
+/// an inconsistent state due to data races. For arrays `HogwildArray` should
+/// be preferred.
+#[derive(Clone)]
+pub struct Hogwild<T>(Arc<UnsafeCell<T>>);
+
+impl<T> Default for Hogwild<T>
+where
+    T: Default,
+{
+    fn default() -> Self {
+        Hogwild(Arc::new(UnsafeCell::new(T::default())))
+    }
+}
+
+impl<T> Deref for Hogwild<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        let ptr = self.0.as_ref().get();
+        unsafe { &*ptr }
+    }
+}
+
+impl<T> DerefMut for Hogwild<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        let ptr = self.0.as_ref().get();
+        unsafe { &mut *ptr }
+    }
+}
+
+unsafe impl<T> Send for Hogwild<T> {}
+
+unsafe impl<T> Sync for Hogwild<T> {}
+
 #[cfg(test)]
 mod test {
     use ndarray::Array2;
 
-    use super::HogwildArray2;
+    use super::{Hogwild, HogwildArray2};
+
+    #[test]
+    pub fn hogwild_test() {
+        let mut a1: Hogwild<usize> = Hogwild::default();
+        let mut a2 = a1.clone();
+
+        *a1 = 1;
+        assert_eq!(*a2, 1);
+        *a2 = 2;
+        assert_eq!(*a1, 2);
+    }
 
     #[test]
     pub fn hogwild_array_test() {
