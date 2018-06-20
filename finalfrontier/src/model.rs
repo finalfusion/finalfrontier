@@ -127,7 +127,7 @@ where
         for token in self.vocab.types() {
             write.write_u32::<LittleEndian>(token.token().len() as u32)?;
             write.write_all(token.token().as_bytes())?;
-            write.write_u32::<LittleEndian>(token.count() as u32)?;
+            write.write_u64::<LittleEndian>(token.count() as u64)?;
         }
 
         for &v in self.input.as_slice().unwrap() {
