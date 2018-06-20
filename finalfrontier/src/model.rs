@@ -1,11 +1,14 @@
+use std::io::Write;
 use std::sync::Arc;
 
+use byteorder::{LittleEndian, WriteBytesExt};
+use failure::Error;
 use ndarray::{Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Range;
 
 use vec_simd::{scale, scaled_add};
-use {Config, HogwildArray2, Vocab};
+use {Config, HogwildArray2, Vocab, WriteModelBinary};
 
 /// Training model.
 ///
@@ -98,6 +101,40 @@ impl TrainModel where {
     /// Get the model's vocabulary.
     pub fn vocab(&self) -> &Vocab {
         &self.vocab
+    }
+}
+
+impl<W> WriteModelBinary<W> for TrainModel
+where
+    W: Write,
+{
+    fn write_model_binary(&self, write: &mut W) -> Result<(), Error> {
+        write.write_all(&[b'D', b'F', b'F'])?;
+        write.write_u32::<LittleEndian>(1)?;
+        write.write_u32::<LittleEndian>(self.config.context_size)?;
+        write.write_u32::<LittleEndian>(self.config.dims)?;
+        write.write_f32::<LittleEndian>(self.config.discard_threshold)?;
+        write.write_u32::<LittleEndian>(self.config.epochs)?;
+        write.write_u32::<LittleEndian>(self.config.min_count)?;
+        write.write_u32::<LittleEndian>(self.config.min_n)?;
+        write.write_u32::<LittleEndian>(self.config.max_n)?;
+        write.write_u32::<LittleEndian>(self.config.buckets_exp)?;
+        write.write_u32::<LittleEndian>(self.config.negative_samples)?;
+        write.write_f32::<LittleEndian>(self.config.lr)?;
+        write.write_u64::<LittleEndian>(self.vocab.n_tokens() as u64)?;
+        write.write_u64::<LittleEndian>(self.vocab.len() as u64)?;
+
+        for token in self.vocab.types() {
+            write.write_u32::<LittleEndian>(token.token().len() as u32)?;
+            write.write_all(token.token().as_bytes())?;
+            write.write_u32::<LittleEndian>(token.count() as u32)?;
+        }
+
+        for &v in self.input.as_slice().unwrap() {
+            write.write_f32::<LittleEndian>(v)?;
+        }
+
+        Ok(())
     }
 }
 
