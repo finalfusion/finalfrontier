@@ -1,4 +1,4 @@
-use std::io::{self, BufRead, Lines, Read, Write};
+use std::io::{self, BufRead, Lines, Write};
 
 use failure::Error;
 use util::EOS;

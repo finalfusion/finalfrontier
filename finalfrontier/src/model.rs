@@ -111,6 +111,8 @@ where
     fn write_model_binary(&self, write: &mut W) -> Result<(), Error> {
         write.write_all(&[b'D', b'F', b'F'])?;
         write.write_u32::<LittleEndian>(1)?;
+        write.write_u8(self.config.model as u8)?;
+        write.write_u8(self.config.loss as u8)?;
         write.write_u32::<LittleEndian>(self.config.context_size)?;
         write.write_u32::<LittleEndian>(self.config.dims)?;
         write.write_f32::<LittleEndian>(self.config.discard_threshold)?;
