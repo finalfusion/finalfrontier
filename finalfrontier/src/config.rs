@@ -13,7 +13,7 @@ pub enum LossType {
 }
 
 /// Embedding model hyperparameters.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Config {
     /// The model type.
     pub model: ModelType,

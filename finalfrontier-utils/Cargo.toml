@@ -4,9 +4,13 @@ version = "0.1.0"
 authors = ["Daniël de Kok <me@danieldk.eu>"]
 
 [dependencies]
+clap = "2"
 failure = "0.1"
 finalfrontier = { path = "../finalfrontier" }
+indicatif = "0.9"
 memmap = "0.6"
+rand = "0.4"
+stdinout = "0.4"
 
 [features]
 avx-accel = ["finalfrontier/avx-accel"]
