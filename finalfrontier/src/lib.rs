@@ -1,7 +1,11 @@
 #![feature(stdsimd)]
 
+extern crate byteorder;
+
 #[macro_use]
 extern crate cfg_if;
+
+extern crate failure;
 
 extern crate fnv;
 
@@ -22,7 +26,7 @@ extern crate rand;
 extern crate zipf;
 
 mod io;
-pub use io::SentenceIterator;
+pub use io::{SentenceIterator, WriteModelBinary};
 
 mod config;
 pub use config::{Config, LossType, ModelType};

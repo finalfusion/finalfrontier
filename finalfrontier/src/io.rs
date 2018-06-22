@@ -1,5 +1,6 @@
-use std::io::{self, BufRead, Lines};
+use std::io::{self, BufRead, Lines, Write};
 
+use failure::Error;
 use util::EOS;
 
 /// Sentence iterator.
@@ -48,6 +49,14 @@ where
 
         None
     }
+}
+
+/// Trait for writing models in binary format.
+pub trait WriteModelBinary<W>
+where
+    W: Write,
+{
+    fn write_model_binary(&self, write: &mut W) -> Result<(), Error>;
 }
 
 fn whitespace_tokenize(line: &str) -> Vec<String> {
