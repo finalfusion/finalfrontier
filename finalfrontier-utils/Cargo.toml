@@ -11,6 +11,3 @@ indicatif = "0.9"
 memmap = "0.6"
 rand = "0.4"
 stdinout = "0.4"
-
-[features]
-avx-accel = ["finalfrontier/avx-accel"]

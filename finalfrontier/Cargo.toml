@@ -16,6 +16,3 @@ zipf = "3"
 [dev-dependencies]
 lazy_static = "1"
 maplit = "1"
-
-[features]
-avx-accel = []
