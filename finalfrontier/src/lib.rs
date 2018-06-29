@@ -1,5 +1,3 @@
-#![feature(stdsimd)]
-
 extern crate byteorder;
 
 #[macro_use]
