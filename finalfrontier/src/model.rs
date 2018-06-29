@@ -1,14 +1,14 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::sync::Arc;
 
-use byteorder::{LittleEndian, WriteBytesExt};
-use failure::Error;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use failure::{err_msg, Error};
 use ndarray::{Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Range;
 
 use vec_simd::{scale, scaled_add};
-use {Config, HogwildArray2, Vocab, WriteModelBinary};
+use {Config, HogwildArray2, LossType, ModelType, ReadModelBinary, Type, Vocab, WriteModelBinary};
 
 /// Training model.
 ///
@@ -137,6 +137,125 @@ where
         }
 
         Ok(())
+    }
+}
+
+/// Word embedding model.
+///
+/// This data type is used for models post-training. It stores the vocabulary
+/// and embedding matrix. The model can be used to retrieve word embeddings.
+pub struct Model {
+    config: Config,
+    vocab: Vocab,
+    embed_matrix: Array2<f32>,
+}
+
+impl Model {
+    /// Get the model configuration.
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
+    /// Get the embedding for the given token.
+    ///
+    /// This method will return `None` iff the word is unknown and no n-grams
+    /// could be extracted. Otherwise, this method will always return an
+    /// embedding.
+    pub fn embedding(&self, token: &str) -> Option<Array1<f32>> {
+        let mut embed = Array1::zeros((self.config.dims as usize,));
+
+        let indices = self.vocab.indices(token);
+        if indices.is_empty() {
+            return None;
+        }
+
+        for &idx in indices.iter() {
+            scaled_add(
+                embed.view_mut(),
+                self.embed_matrix.subview(Axis(0), idx as usize),
+                1.0,
+            );
+        }
+
+        scale(embed.view_mut(), 1.0 / indices.len() as f32);
+
+        Some(embed)
+    }
+
+    /// Get the vocabulary.
+    pub fn vocab(&self) -> &Vocab {
+        &self.vocab
+    }
+}
+
+impl<R> ReadModelBinary<R> for Model
+where
+    R: Read,
+{
+    fn read_model_binary(read: &mut R) -> Result<Self, Error> {
+        let mut header = [0u8; 3];
+        read.read_exact(&mut header)?;
+        if header != [b'D', b'F', b'F'] {
+            return Err(err_msg("Incorrect file format"));
+        }
+
+        let version = read.read_u32::<LittleEndian>()?;
+        if version != 1 {
+            return Err(err_msg("Unknown file version"));
+        }
+
+        let model = ModelType::try_from(read.read_u8()?)?;
+        let loss = LossType::try_from(read.read_u8()?)?;
+        let context_size = read.read_u32::<LittleEndian>()?;
+        let dims = read.read_u32::<LittleEndian>()?;
+        let discard_threshold = read.read_f32::<LittleEndian>()?;
+        let epochs = read.read_u32::<LittleEndian>()?;
+        let min_count = read.read_u32::<LittleEndian>()?;
+        let min_n = read.read_u32::<LittleEndian>()?;
+        let max_n = read.read_u32::<LittleEndian>()?;
+        let buckets_exp = read.read_u32::<LittleEndian>()?;
+        let negative_samples = read.read_u32::<LittleEndian>()?;
+        let lr = read.read_f32::<LittleEndian>()?;
+
+        let config = Config {
+            context_size,
+            dims,
+            discard_threshold,
+            epochs,
+            loss,
+            model,
+            min_count,
+            min_n,
+            max_n,
+            buckets_exp,
+            negative_samples,
+            lr,
+        };
+
+        let n_tokens = read.read_u64::<LittleEndian>()?;
+        let vocab_len = read.read_u64::<LittleEndian>()?;
+        let mut types = Vec::with_capacity(vocab_len as usize);
+        for _ in 0..vocab_len {
+            let token_len = read.read_u32::<LittleEndian>()?;
+            let mut bytes = vec![0; token_len as usize];
+            read.read_exact(&mut bytes)?;
+            let token = String::from_utf8(bytes)?;
+            let count = read.read_u64::<LittleEndian>()? as usize;
+
+            types.push(Type::new(token, count));
+        }
+
+        let vocab = Vocab::new(config.clone(), types, n_tokens as usize);
+
+        let n_embeds = vocab_len as usize + 2usize.pow(config.buckets_exp);
+        let mut data = vec![0f32; n_embeds * config.dims as usize];
+        read.read_f32_into::<LittleEndian>(&mut data)?;
+
+        Ok(Model {
+            config: config.clone(),
+            vocab,
+            embed_matrix: Array2::from_shape_vec((n_embeds, config.dims as usize), data)?,
+        })
     }
 }
 
