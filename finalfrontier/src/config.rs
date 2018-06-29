@@ -1,3 +1,5 @@
+use failure::{err_msg, Error};
+
 /// Model types.
 #[derive(Copy, Clone, Debug)]
 pub enum ModelType {
@@ -5,11 +7,29 @@ pub enum ModelType {
     SkipGram,
 }
 
+impl ModelType {
+    pub fn try_from(model: u8) -> Result<ModelType, Error> {
+        match model {
+            0 => Ok(ModelType::SkipGram),
+            _ => Err(err_msg(format!("Unknown model type: {}", model))),
+        }
+    }
+}
+
 /// Losses.
 #[derive(Copy, Clone, Debug)]
 pub enum LossType {
     /// Logistic regression with negative sampling.
     LogisticNegativeSampling,
+}
+
+impl LossType {
+    pub fn try_from(model: u8) -> Result<LossType, Error> {
+        match model {
+            0 => Ok(LossType::LogisticNegativeSampling),
+            _ => Err(err_msg(format!("Unknown model type: {}", model))),
+        }
+    }
 }
 
 /// Embedding model hyperparameters.

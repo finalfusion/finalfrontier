@@ -24,7 +24,7 @@ extern crate rand;
 extern crate zipf;
 
 mod io;
-pub use io::{SentenceIterator, WriteModelBinary};
+pub use io::{ReadModelBinary, SentenceIterator, WriteModelBinary};
 
 mod config;
 pub use config::{Config, LossType, ModelType};
@@ -36,7 +36,7 @@ mod loss;
 pub use loss::log_logistic_loss;
 
 mod model;
-pub use model::TrainModel;
+pub use model::{Model, TrainModel};
 
 mod sampling;
 pub use sampling::{RangeGenerator, WeightedRangeGenerator, ZipfRangeGenerator};

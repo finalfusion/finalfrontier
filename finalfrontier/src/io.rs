@@ -1,4 +1,4 @@
-use std::io::{self, BufRead, Lines, Write};
+use std::io::{self, BufRead, Lines, Read, Write};
 
 use failure::Error;
 use util::EOS;
@@ -49,6 +49,16 @@ where
 
         None
     }
+}
+
+/// Trait for reading models in binary format.
+pub trait ReadModelBinary<R>
+where
+    R: Read,
+    Self: Sized,
+{
+    /// Read a model from the given reader.
+    fn read_model_binary(read: &mut R) -> Result<Self, Error>;
 }
 
 /// Trait for writing models in binary format.
