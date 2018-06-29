@@ -9,5 +9,6 @@ failure = "0.1"
 finalfrontier = { path = "../finalfrontier" }
 indicatif = "0.9"
 memmap = "0.6"
+num_cpus = "1"
 rand = "0.4"
 stdinout = "0.4"
