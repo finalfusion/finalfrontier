@@ -2,6 +2,7 @@ extern crate clap;
 extern crate finalfrontier;
 extern crate finalfrontier_utils;
 extern crate indicatif;
+extern crate num_cpus;
 extern crate rand;
 extern crate stdinout;
 
@@ -36,7 +37,7 @@ fn main() {
     let n_threads = matches
         .value_of("threads")
         .map(|v| v.parse().or_exit("Cannot parse number of threads", 1))
-        .unwrap_or(4);
+        .unwrap_or(num_cpus::get() / 2);
 
     let vocab = build_vocab(&config, matches.value_of("CORPUS").unwrap());
 
@@ -214,7 +215,7 @@ fn parse_args() -> ArgMatches<'static> {
             Arg::with_name("threads")
                 .long("threads")
                 .value_name("N")
-                .help("Number of threads (default: 4)")
+                .help("Number of threads (default: logical_cpus / 2)")
                 .takes_value(true),
         )
         .arg(
