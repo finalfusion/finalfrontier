@@ -147,7 +147,7 @@ where
 pub struct Model {
     config: Config,
     vocab: Vocab,
-    input: Array2<f32>,
+    embed_matrix: Array2<f32>,
 }
 
 impl Model {
@@ -172,7 +172,7 @@ impl Model {
         for &idx in indices.iter() {
             scaled_add(
                 embed.view_mut(),
-                self.input.subview(Axis(0), idx as usize),
+                self.embed_matrix.subview(Axis(0), idx as usize),
                 1.0,
             );
         }
@@ -254,7 +254,7 @@ where
         Ok(Model {
             config: config.clone(),
             vocab,
-            input: Array2::from_shape_vec((n_embeds, config.dims as usize), data)?,
+            embed_matrix: Array2::from_shape_vec((n_embeds, config.dims as usize), data)?,
         })
     }
 }
