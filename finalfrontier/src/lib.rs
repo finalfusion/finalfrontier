@@ -19,6 +19,8 @@ extern crate ndarray;
 
 extern crate ndarray_rand;
 
+extern crate ordered_float;
+
 extern crate rand;
 
 extern crate zipf;
@@ -43,6 +45,9 @@ pub use sampling::{RangeGenerator, WeightedRangeGenerator, ZipfRangeGenerator};
 
 mod sgd;
 pub use sgd::{NegativeSamplingSGD, SGD};
+
+mod similarity;
+pub use similarity::{Similarity, WordSimilarity};
 
 mod subword;
 pub use subword::{NGrams, SubwordIndices};
