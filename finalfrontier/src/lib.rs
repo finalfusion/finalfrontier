@@ -25,14 +25,14 @@ extern crate rand;
 
 extern crate zipf;
 
-mod io;
-pub use io::{ReadModelBinary, SentenceIterator, WriteModelBinary};
-
 mod config;
 pub use config::{Config, LossType, ModelType};
 
 mod hogwild;
 pub use hogwild::{Hogwild, HogwildArray, HogwildArray1, HogwildArray2, HogwildArray3};
+
+mod io;
+pub use io::{ReadModelBinary, SentenceIterator, WriteModelBinary};
 
 mod loss;
 pub use loss::log_logistic_loss;
