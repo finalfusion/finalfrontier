@@ -78,6 +78,18 @@ fn whitespace_tokenize(line: &str) -> Vec<String> {
     tokens
 }
 
+/// Trait for writing models in text format.
+pub trait WriteModelText<W>
+where
+    W: Write,
+{
+    /// Write the model in text format.
+    ///
+    /// This function only writes the word embeddings. The subword
+    /// embeddings are discarded.
+    fn write_model_text(&self, write: &mut W) -> Result<(), Error>;
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
