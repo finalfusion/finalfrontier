@@ -8,7 +8,10 @@ use ndarray_rand::RandomExt;
 use rand::distributions::Range;
 
 use vec_simd::{scale, scaled_add};
-use {Config, HogwildArray2, LossType, ModelType, ReadModelBinary, Type, Vocab, WriteModelBinary};
+use {
+    Config, HogwildArray2, LossType, ModelType, ReadModelBinary, Type, Vocab, WriteModelBinary,
+    WriteModelText,
+};
 
 /// Training model.
 ///
@@ -256,6 +259,26 @@ where
             vocab,
             embed_matrix: Array2::from_shape_vec((n_embeds, config.dims as usize), data)?,
         })
+    }
+}
+
+impl<W> WriteModelText<W> for Model
+where
+    W: Write,
+{
+    fn write_model_text(&self, write: &mut W) -> Result<(), Error> {
+        for token in self.vocab.types() {
+            let embed = self.embedding(token.token())
+                .expect("Word without an embedding");
+            let embed_str = embed
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<String>>()
+                .join(" ");
+            writeln!(write, "{} {}", token.token(), embed_str)?;
+        }
+
+        Ok(())
     }
 }
 

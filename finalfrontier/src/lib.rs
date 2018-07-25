@@ -32,7 +32,7 @@ mod hogwild;
 pub use hogwild::{Hogwild, HogwildArray, HogwildArray1, HogwildArray2, HogwildArray3};
 
 mod io;
-pub use io::{ReadModelBinary, SentenceIterator, WriteModelBinary};
+pub use io::{ReadModelBinary, SentenceIterator, WriteModelBinary, WriteModelText};
 
 mod loss;
 pub use loss::log_logistic_loss;
