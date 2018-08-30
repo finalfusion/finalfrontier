@@ -159,7 +159,7 @@ fn parse_args() -> ArgMatches<'static> {
             Arg::with_name("dims")
                 .long("dims")
                 .value_name("DIMENSIONS")
-                .help("Embedding dimensionality (default: 300)")
+                .help("Embedding dimensionality (default: 100)")
                 .takes_value(true),
         )
         .arg(
