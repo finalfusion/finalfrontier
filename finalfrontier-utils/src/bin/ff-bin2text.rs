@@ -25,7 +25,7 @@ fn main() {
     let mut writer = BufWriter::new(output.write().or_exit("Cannot open output for writing", 1));
 
     model
-        .write_model_text(&mut writer)
+        .write_model_text(&mut writer, config.write_dims)
         .or_exit("Could not write model", 1);
 }
 
@@ -39,20 +39,29 @@ fn parse_args() -> ArgMatches<'static> {
                 .required(true),
         )
         .arg(Arg::with_name("OUTPUT").help("Output file").index(2))
+        .arg(
+            Arg::with_name("dims")
+                .short("d")
+                .long("dims")
+                .help("Write embedding matrix dimensions (default: false)"),
+        )
         .get_matches()
 }
 
 struct Config {
     model_filename: String,
     output_filename: Option<String>,
+    write_dims: bool,
 }
 
 fn config_from_matches<'a>(matches: &ArgMatches<'a>) -> Config {
     let model_filename = matches.value_of("MODEL").unwrap().to_owned();
     let output_filename = matches.value_of("OUTPUT").map(ToOwned::to_owned);
+    let write_dims = matches.is_present("dims");
 
     Config {
         model_filename,
         output_filename,
+        write_dims,
     }
 }

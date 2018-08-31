@@ -87,7 +87,10 @@ where
     ///
     /// This function only writes the word embeddings. The subword
     /// embeddings are discarded.
-    fn write_model_text(&self, write: &mut W) -> Result<(), Error>;
+    ///
+    /// The `write_dims` parameter indicates whether the first line
+    /// should contain the dimensionality of the embedding matrix.
+    fn write_model_text(&self, write: &mut W, write_dims: bool) -> Result<(), Error>;
 }
 
 #[cfg(test)]

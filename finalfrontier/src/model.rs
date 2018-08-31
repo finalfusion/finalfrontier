@@ -266,9 +266,19 @@ impl<W> WriteModelText<W> for Model
 where
     W: Write,
 {
-    fn write_model_text(&self, write: &mut W) -> Result<(), Error> {
+    fn write_model_text(&self, write: &mut W, write_dims: bool) -> Result<(), Error> {
+        if write_dims {
+            writeln!(
+                write,
+                "{} {}",
+                self.vocab.types().len(),
+                self.embed_matrix.shape()[1]
+            )?;
+        }
+
         for token in self.vocab.types() {
-            let embed = self.embedding(token.token())
+            let embed = self
+                .embedding(token.token())
                 .expect("Word without an embedding");
             let embed_str = embed
                 .iter()
