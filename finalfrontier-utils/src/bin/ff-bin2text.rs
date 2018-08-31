@@ -54,7 +54,7 @@ struct Config {
     write_dims: bool,
 }
 
-fn config_from_matches<'a>(matches: &ArgMatches<'a>) -> Config {
+fn config_from_matches(matches: &ArgMatches) -> Config {
     let model_filename = matches.value_of("MODEL").unwrap().to_owned();
     let output_filename = matches.value_of("OUTPUT").map(ToOwned::to_owned);
     let write_dims = matches.is_present("dims");
