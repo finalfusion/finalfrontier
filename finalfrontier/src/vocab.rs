@@ -1,32 +1,33 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use {util, Config, SubwordIndices};
+use subword::SubwordIndices;
+use {util, Config};
 
 const BOW: char = '<';
 const EOW: char = '>';
 
-/// A vocabulary token.
+/// A vocabulary word.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct Type {
-    token: String,
+pub struct WordCount {
+    word: String,
     count: usize,
 }
 
-impl Type {
-    /// Construct a new type.
-    pub(crate) fn new(token: String, count: usize) -> Self {
-        Type { token, count }
+impl WordCount {
+    /// Construct a new word.
+    pub(crate) fn new(word: String, count: usize) -> Self {
+        WordCount { word, count }
     }
 
-    /// The token count.
+    /// The word count.
     pub fn count(&self) -> usize {
         self.count
     }
 
-    /// The string representation of the token.
-    pub fn token(&self) -> &str {
-        &self.token
+    /// The string representation of the word.
+    pub fn word(&self) -> &str {
+        &self.word
     }
 }
 
@@ -34,7 +35,7 @@ impl Type {
 #[derive(Clone)]
 pub struct Vocab {
     config: Config,
-    types: Vec<Type>,
+    words: Vec<WordCount>,
     subwords: Vec<Vec<u64>>,
     discards: Vec<f32>,
     index: HashMap<String, usize>,
@@ -46,28 +47,28 @@ impl Vocab {
     ///
     /// Normally a `VocabBuilder` should be used. This constructor is used
     /// for deserialization.
-    pub(crate) fn new(config: Config, mut types: Vec<Type>, n_tokens: usize) -> Self {
-        types.sort_unstable_by(|t1, t2| t2.count.cmp(&t1.count));
+    pub(crate) fn new(config: Config, mut words: Vec<WordCount>, n_tokens: usize) -> Self {
+        words.sort_unstable_by(|w1, w2| w2.count.cmp(&w1.count));
 
-        let index = Self::create_token_indices(&types);
-        let subwords = Self::create_subword_indices(&config, &types);
-        let discards = Self::create_discards(&config, &types, n_tokens);
+        let index = Self::create_word_indices(&words);
+        let subwords = Self::create_subword_indices(&config, &words);
+        let discards = Self::create_discards(&config, &words, n_tokens);
 
         Vocab {
             config,
             discards,
-            types,
+            words,
             subwords,
             index,
             n_tokens,
         }
     }
 
-    fn create_discards(config: &Config, types: &[Type], n_tokens: usize) -> Vec<f32> {
-        let mut discards = Vec::with_capacity(types.len());
+    fn create_discards(config: &Config, words: &[WordCount], n_tokens: usize) -> Vec<f32> {
+        let mut discards = Vec::with_capacity(words.len());
 
-        for token in types {
-            let p = token.count() as f32 / n_tokens as f32;
+        for word in words {
+            let p = word.count() as f32 / n_tokens as f32;
             let p_discard = config.discard_threshold / p + (config.discard_threshold / p).sqrt();
 
             // Not a proper probability, upper bound at 1.0.
@@ -77,17 +78,17 @@ impl Vocab {
         discards
     }
 
-    fn create_subword_indices(config: &Config, types: &[Type]) -> Vec<Vec<u64>> {
+    fn create_subword_indices(config: &Config, words: &[WordCount]) -> Vec<Vec<u64>> {
         let mut subword_indices = Vec::new();
 
-        for token in types {
-            if token.token == util::EOS {
+        for word in words {
+            if word.word == util::EOS {
                 subword_indices.push(Vec::new());
                 continue;
             }
 
             subword_indices.push(
-                bracket(&token.token)
+                bracket(&word.word)
                     .as_str()
                     .subword_indices(
                         config.min_n as usize,
@@ -95,60 +96,60 @@ impl Vocab {
                         config.buckets_exp as usize,
                     )
                     .into_iter()
-                    .map(|idx| idx + types.len() as u64)
+                    .map(|idx| idx + words.len() as u64)
                     .collect(),
             );
         }
 
-        assert_eq!(types.len(), subword_indices.len());
+        assert_eq!(words.len(), subword_indices.len());
 
         subword_indices
     }
 
-    fn create_token_indices(types: &[Type]) -> HashMap<String, usize> {
-        let mut token_indices = HashMap::new();
+    fn create_word_indices(words: &[WordCount]) -> HashMap<String, usize> {
+        let mut word_indices = HashMap::new();
 
-        for (idx, token) in types.iter().enumerate() {
-            token_indices.insert(token.token.clone(), idx);
+        for (idx, word) in words.iter().enumerate() {
+            word_indices.insert(word.word.clone(), idx);
         }
 
         // Invariant: The index size should be the same as the number of
-        // types.
-        assert_eq!(types.len(), token_indices.len());
+        // words.
+        assert_eq!(words.len(), word_indices.len());
 
-        token_indices
+        word_indices
     }
 
-    /// Get the discard probability of the token with the given index.
-    pub fn discard(&self, idx: usize) -> f32 {
+    /// Get the discard probability of the word with the given index.
+    pub(crate) fn discard(&self, idx: usize) -> f32 {
         self.discards[idx]
     }
 
     /// Get the vocabulary size.
     pub fn len(&self) -> usize {
-        self.types.len()
+        self.words.len()
     }
 
-    /// Get the given token.
-    pub fn token(&self, token: &str) -> Option<&Type> {
-        self.token_idx(token).map(|idx| &self.types[idx])
+    /// Get the given word.
+    pub fn word(&self, word: &str) -> Option<&WordCount> {
+        self.word_idx(word).map(|idx| &self.words[idx])
     }
 
-    /// Get the index of a token.
-    pub fn token_idx(&self, token: &str) -> Option<usize> {
-        self.index.get(token).cloned()
+    /// Get the index of a word.
+    pub(crate) fn word_idx(&self, word: &str) -> Option<usize> {
+        self.index.get(word).cloned()
     }
 
-    /// Get the subword indices of a token.
-    pub fn subword_indices(&self, token: &str) -> Cow<[u64]> {
-        if token == util::EOS {
+    /// Get the subword indices of a word.
+    pub fn subword_indices(&self, word: &str) -> Cow<[u64]> {
+        if word == util::EOS {
             // Do not create subwords for the EOS marker.
             Cow::Borrowed(&[])
-        } else if let Some(&idx) = self.index.get(token) {
+        } else if let Some(&idx) = self.index.get(word) {
             Cow::Borrowed(&self.subwords[idx])
         } else {
             Cow::Owned(
-                bracket(token)
+                bracket(word)
                     .as_str()
                     .subword_indices(
                         self.config.min_n as usize,
@@ -156,22 +157,22 @@ impl Vocab {
                         self.config.buckets_exp as usize,
                     )
                     .into_iter()
-                    .map(|idx| idx + self.types.len() as u64)
+                    .map(|idx| idx + self.words.len() as u64)
                     .collect(),
             )
         }
     }
 
-    pub fn subword_indices_idx(&self, idx: usize) -> Option<&[u64]> {
+    pub(crate) fn subword_indices_idx(&self, idx: usize) -> Option<&[u64]> {
         self.subwords.get(idx).map(|v| v.as_slice())
     }
 
-    /// Get all indices of a token, both regular and subword.
+    /// Get all indices of a word, both regular and subword.
     ///
     /// This method copies the subword list for known words into a new Vec.
-    pub fn indices(&self, token: &str) -> Vec<u64> {
-        let mut indices = self.subword_indices(token).into_owned();
-        if let Some(index) = self.token_idx(token) {
+    pub fn indices(&self, word: &str) -> Vec<u64> {
+        let mut indices = self.subword_indices(word).into_owned();
+        if let Some(index) = self.word_idx(word) {
             indices.push(index as u64);
         }
 
@@ -187,9 +188,9 @@ impl Vocab {
         self.n_tokens
     }
 
-    /// Get all types in the vocabulary.
-    pub fn types(&self) -> &[Type] {
-        &self.types
+    /// Get all words in the vocabulary.
+    pub(crate) fn words(&self) -> &[WordCount] {
+        &self.words
     }
 }
 
@@ -199,7 +200,7 @@ impl Vocab {
 /// The final vocabulary is constructed using `build`.
 pub struct VocabBuilder {
     config: Config,
-    types: HashMap<String, usize>,
+    words: HashMap<String, usize>,
     n_tokens: usize,
 }
 
@@ -207,7 +208,7 @@ impl VocabBuilder {
     pub fn new(config: Config) -> Self {
         VocabBuilder {
             config,
-            types: HashMap::new(),
+            words: HashMap::new(),
             n_tokens: 0,
         }
     }
@@ -216,38 +217,38 @@ impl VocabBuilder {
     pub fn build(self) -> Vocab {
         let config = self.config;
 
-        let mut types = Vec::new();
-        for (token, count) in self.types.into_iter() {
-            if token != util::EOS && count < config.min_count as usize {
+        let mut words = Vec::new();
+        for (word, count) in self.words.into_iter() {
+            if word != util::EOS && count < config.min_count as usize {
                 continue;
             }
 
-            types.push(Type::new(token, count));
+            words.push(WordCount::new(word, count));
         }
 
-        Vocab::new(config, types, self.n_tokens)
+        Vocab::new(config, words, self.n_tokens)
     }
 
-    /// Count a token.
+    /// Count a word.
     ///
-    /// This will have the effect of adding the token to the vocabulary if
+    /// This will have the effect of adding the word to the vocabulary if
     /// it has not been seen before. Otherwise, its count will be updated.
-    pub fn count<S>(&mut self, token: S)
+    pub fn count<S>(&mut self, word: S)
     where
         S: Into<String>,
     {
         self.n_tokens += 1;
 
-        let token = self.types.entry(token.into()).or_insert(0);
-        *token += 1;
+        let word = self.words.entry(word.into()).or_insert(0);
+        *word += 1;
     }
 }
 
 /// Add begin/end-of-word brackets.
-fn bracket(token: &str) -> String {
+fn bracket(word: &str) -> String {
     let mut bracketed = String::new();
     bracketed.push(BOW);
-    bracketed.push_str(token);
+    bracketed.push_str(word);
     bracketed.push(EOW);
 
     bracketed
@@ -256,7 +257,8 @@ fn bracket(token: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{bracket, VocabBuilder};
-    use {util, Config, LossType, ModelType, SubwordIndices};
+    use subword::SubwordIndices;
+    use {util, Config, LossType, ModelType};
 
     const TEST_CONFIG: Config = Config {
         buckets_exp: 21,
@@ -288,12 +290,12 @@ mod tests {
         builder.count("</s>");
 
         let vocab = builder.build();
-        let types = vocab.types();
+        let words = vocab.words();
 
-        for idx in 1..types.len() {
+        for idx in 1..words.len() {
             assert!(
-                types[idx - 1].count >= types[idx].count,
-                "Types are not frequency-sorted"
+                words[idx - 1].count >= words[idx].count,
+                "Words are not frequency-sorted"
             );
         }
     }
@@ -317,8 +319,8 @@ mod tests {
         assert_eq!(vocab.n_tokens(), 7);
 
         // Check expected properties of 'to'.
-        let to = vocab.token("to").unwrap();
-        assert_eq!("to", to.token);
+        let to = vocab.word("to").unwrap();
+        assert_eq!("to", to.word);
         assert_eq!(2, to.count);
         assert_eq!(
             &[1141947, 215572, 1324230],
@@ -327,13 +329,13 @@ mod tests {
         assert_eq!(4, vocab.indices("to").len());
         assert!(util::close(
             0.019058,
-            vocab.discard(vocab.token_idx("to").unwrap()),
+            vocab.discard(vocab.word_idx("to").unwrap()),
             1e-5
         ));
 
         // Check expected properties of 'be'.
-        let be = vocab.token("be").unwrap();
-        assert_eq!("be", be.token);
+        let be = vocab.word("be").unwrap();
+        assert_eq!("be", be.word);
         assert_eq!(2, be.count);
         assert_eq!(
             &[277351, 1105488, 1482882],
@@ -342,19 +344,19 @@ mod tests {
         assert_eq!(4, vocab.indices("be").len());
         assert!(util::close(
             0.019058,
-            vocab.discard(vocab.token_idx("be").unwrap()),
+            vocab.discard(vocab.word_idx("be").unwrap()),
             1e-5
         ));
 
         // Check expected properties of the end of sentence marker.
-        let eos = vocab.token(util::EOS).unwrap();
-        assert_eq!(util::EOS, eos.token);
+        let eos = vocab.word(util::EOS).unwrap();
+        assert_eq!(util::EOS, eos.word);
         assert_eq!(1, eos.count);
         assert!(vocab.subword_indices(util::EOS).is_empty());
         assert_eq!(1, vocab.indices(util::EOS).len());
         assert!(util::close(
             0.027158,
-            vocab.discard(vocab.token_idx(util::EOS).unwrap()),
+            vocab.discard(vocab.word_idx(util::EOS).unwrap()),
             1e-5
         ));
 

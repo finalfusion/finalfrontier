@@ -1,3 +1,5 @@
+extern crate ndarray;
+
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -23,10 +25,10 @@ use ndarray::{Array, ArrayView, ArrayViewMut, Axis, Dimension, Ix, Ix1, Ix2, Ix3
 /// # Example
 ///
 /// ```
-/// extern crate finalfrontier;
+/// extern crate hogwild;
 /// extern crate ndarray;
 ///
-/// use finalfrontier::HogwildArray2;
+/// use hogwild::HogwildArray2;
 /// use ndarray::Array2;
 ///
 /// let mut a1: HogwildArray2<f32> = Array2::zeros((2, 2)).into();

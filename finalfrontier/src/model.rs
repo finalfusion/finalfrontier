@@ -7,9 +7,10 @@ use ndarray::{Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Range;
 
+use hogwild::HogwildArray2;
 use vec_simd::{scale, scaled_add};
 use {
-    Config, HogwildArray2, LossType, ModelType, ReadModelBinary, Type, Vocab, WriteModelBinary,
+    Config, LossType, ModelType, ReadModelBinary, Vocab, WordCount, WriteModelBinary,
     WriteModelText,
 };
 
@@ -19,8 +20,8 @@ use {
 /// an input matrix, an output matrix, and a vocabulary. The input matrix
 /// represents observed words, whereas the output matrix represents predicted
 /// words. The output matrix is typically discarded after training. The
-/// vocabulary holds lexical information, such as token -> index mappings
-/// and token discard probabilities.
+/// vocabulary holds lexical information, such as word -> index mappings
+/// and word discard probabilities.
 ///
 /// `TrainModel` stores the matrices as `HogwildArray`s to share parameters
 /// between clones of the same model. The vocabulary is also shared between
@@ -65,7 +66,7 @@ impl TrainModel where {
     }
 
     /// Get the mean input embedding of the given indices.
-    pub fn mean_input_embedding(&self, indices: &[u64]) -> Array1<f32> {
+    pub(crate) fn mean_input_embedding(&self, indices: &[u64]) -> Array1<f32> {
         let mut embed = Array1::zeros((self.config.dims as usize,));
 
         for &idx in indices.iter() {
@@ -79,25 +80,25 @@ impl TrainModel where {
 
     /// Get the input embedding with the given index.
     #[inline]
-    pub fn input_embedding(&self, idx: usize) -> ArrayView1<f32> {
+    pub(crate) fn input_embedding(&self, idx: usize) -> ArrayView1<f32> {
         self.input.subview(Axis(0), idx)
     }
 
     /// Get the input embedding with the given index mutably.
     #[inline]
-    pub fn input_embedding_mut(&mut self, idx: usize) -> ArrayViewMut1<f32> {
+    pub(crate) fn input_embedding_mut(&mut self, idx: usize) -> ArrayViewMut1<f32> {
         self.input.subview_mut(Axis(0), idx)
     }
 
     /// Get the output embedding with the given index.
     #[inline]
-    pub fn output_embedding(&self, idx: usize) -> ArrayView1<f32> {
+    pub(crate) fn output_embedding(&self, idx: usize) -> ArrayView1<f32> {
         self.output.subview(Axis(0), idx)
     }
 
     /// Get the output embedding with the given index mutably.
     #[inline]
-    pub fn output_embedding_mut(&mut self, idx: usize) -> ArrayViewMut1<f32> {
+    pub(crate) fn output_embedding_mut(&mut self, idx: usize) -> ArrayViewMut1<f32> {
         self.output.subview_mut(Axis(0), idx)
     }
 
@@ -129,10 +130,10 @@ where
         write.write_u64::<LittleEndian>(self.vocab.n_tokens() as u64)?;
         write.write_u64::<LittleEndian>(self.vocab.len() as u64)?;
 
-        for token in self.vocab.types() {
-            write.write_u32::<LittleEndian>(token.token().len() as u32)?;
-            write.write_all(token.token().as_bytes())?;
-            write.write_u64::<LittleEndian>(token.count() as u64)?;
+        for word in self.vocab.words() {
+            write.write_u32::<LittleEndian>(word.word().len() as u32)?;
+            write.write_all(word.word().as_bytes())?;
+            write.write_u64::<LittleEndian>(word.count() as u64)?;
         }
 
         for &v in self.input.as_slice().unwrap() {
@@ -159,15 +160,15 @@ impl Model {
         &self.config
     }
 
-    /// Get the embedding for the given token.
+    /// Get the embedding for the given word.
     ///
     /// This method will return `None` iff the word is unknown and no n-grams
     /// could be extracted. Otherwise, this method will always return an
     /// embedding.
-    pub fn embedding(&self, token: &str) -> Option<Array1<f32>> {
+    pub fn embedding(&self, word: &str) -> Option<Array1<f32>> {
         let mut embed = Array1::zeros((self.config.dims as usize,));
 
-        let indices = self.vocab.indices(token);
+        let indices = self.vocab.indices(word);
         if indices.is_empty() {
             return None;
         }
@@ -237,18 +238,18 @@ where
 
         let n_tokens = read.read_u64::<LittleEndian>()?;
         let vocab_len = read.read_u64::<LittleEndian>()?;
-        let mut types = Vec::with_capacity(vocab_len as usize);
+        let mut words = Vec::with_capacity(vocab_len as usize);
         for _ in 0..vocab_len {
-            let token_len = read.read_u32::<LittleEndian>()?;
-            let mut bytes = vec![0; token_len as usize];
+            let word_len = read.read_u32::<LittleEndian>()?;
+            let mut bytes = vec![0; word_len as usize];
             read.read_exact(&mut bytes)?;
-            let token = String::from_utf8(bytes)?;
+            let word = String::from_utf8(bytes)?;
             let count = read.read_u64::<LittleEndian>()? as usize;
 
-            types.push(Type::new(token, count));
+            words.push(WordCount::new(word, count));
         }
 
-        let vocab = Vocab::new(config.clone(), types, n_tokens as usize);
+        let vocab = Vocab::new(config.clone(), words, n_tokens as usize);
 
         let n_embeds = vocab_len as usize + 2usize.pow(config.buckets_exp);
         let mut data = vec![0f32; n_embeds * config.dims as usize];
@@ -271,21 +272,21 @@ where
             writeln!(
                 write,
                 "{} {}",
-                self.vocab.types().len(),
+                self.vocab.words().len(),
                 self.embed_matrix.shape()[1]
             )?;
         }
 
-        for token in self.vocab.types() {
+        for word in self.vocab.words() {
             let embed = self
-                .embedding(token.token())
+                .embedding(word.word())
                 .expect("Word without an embedding");
             let embed_str = embed
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<String>>()
                 .join(" ");
-            writeln!(write, "{} {}", token.token(), embed_str)?;
+            writeln!(write, "{} {}", word.word(), embed_str)?;
         }
 
         Ok(())

@@ -3,8 +3,12 @@ use std::cmp;
 use ndarray::{Array1, ArrayView1, ArrayViewMut1};
 use rand::Rng;
 
+use hogwild::Hogwild;
+use loss::log_logistic_loss;
+use sampling::{RangeGenerator, ZipfRangeGenerator};
 use vec_simd::scaled_add;
-use {log_logistic_loss, Hogwild, RangeGenerator, TrainModel, ZipfRangeGenerator};
+
+use TrainModel;
 
 /// Stochastic gradient descent
 ///
@@ -70,24 +74,24 @@ where
     {
         let mut rng = self.rng.clone();
 
-        // Convert the sentence into token identifiers, discarding tokens with
+        // Convert the sentence into word identifiers, discarding words with
         // the probability indicated by the dictionary.
-        let tokens: Vec<_> = sentence
+        let words: Vec<_> = sentence
             .iter()
-            .filter_map(|t| self.model.vocab().token_idx(t.as_ref()))
+            .filter_map(|t| self.model.vocab().word_idx(t.as_ref()))
             .filter(|&idx| rng.gen_range(0f32, 1f32) < self.model.vocab().discard(idx))
             .collect();
 
-        for i in 0..tokens.len() {
-            // The input token is represented by its index and subword
+        for i in 0..words.len() {
+            // The input word is represented by its index and subword
             // indices.
             let mut input = self
                 .model
                 .vocab()
-                .subword_indices_idx(tokens[i])
+                .subword_indices_idx(words[i])
                 .unwrap()
                 .to_owned();
-            input.push(tokens[i] as u64);
+            input.push(words[i] as u64);
 
             let input_embed = self.model.mean_input_embedding(&input);
 
@@ -95,17 +99,17 @@ where
             let context_size = self.rng.gen_range(1, self.model.config().context_size + 1) as usize;
 
             let left = i - cmp::min(i, context_size);
-            let right = cmp::min(i + context_size + 1, tokens.len());
+            let right = cmp::min(i + context_size + 1, words.len());
 
             for j in left..right {
                 if i != j {
-                    // Update parameters for the token focus token i and the
-                    // context token j.
+                    // Update parameters for the focus word i and the
+                    // context word j.
                     *self.loss += self.sgd_impl.sgd_step(
                         &mut self.model,
                         &input,
                         input_embed.view(),
-                        tokens[j],
+                        words[j],
                         lr,
                     )
                 }
@@ -114,7 +118,7 @@ where
             *self.n_examples += right - left;
         }
 
-        *self.n_tokens_processed += tokens.len();
+        *self.n_tokens_processed += words.len();
     }
 }
 

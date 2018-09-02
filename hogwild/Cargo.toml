@@ -1,0 +1,7 @@
+[package]
+name = "hogwild"
+version = "0.1.0"
+authors = ["Daniël de Kok <me@danieldk.eu>"]
+
+[dependencies]
+ndarray = "0.11"

@@ -7,6 +7,8 @@ extern crate failure;
 
 extern crate fnv;
 
+extern crate hogwild;
+
 #[macro_use]
 #[cfg(test)]
 extern crate lazy_static;
@@ -28,33 +30,27 @@ extern crate zipf;
 mod config;
 pub use config::{Config, LossType, ModelType};
 
-mod hogwild;
-pub use hogwild::{Hogwild, HogwildArray, HogwildArray1, HogwildArray2, HogwildArray3};
-
 mod io;
 pub use io::{ReadModelBinary, SentenceIterator, WriteModelBinary, WriteModelText};
 
-mod loss;
-pub use loss::log_logistic_loss;
+pub(crate) mod loss;
 
 mod model;
 pub use model::{Model, TrainModel};
 
-mod sampling;
-pub use sampling::{RangeGenerator, WeightedRangeGenerator, ZipfRangeGenerator};
+pub(crate) mod sampling;
 
 mod sgd;
-pub use sgd::{NegativeSamplingSGD, SGD};
+pub use sgd::SGD;
 
 mod similarity;
 pub use similarity::{Similarity, WordSimilarity};
 
-mod subword;
-pub use subword::{NGrams, SubwordIndices};
+pub(crate) mod subword;
 
 pub(crate) mod util;
 
-pub mod vec_simd;
+pub(crate) mod vec_simd;
 
 mod vocab;
-pub use vocab::{Type, Vocab, VocabBuilder};
+pub use vocab::{Vocab, VocabBuilder, WordCount};

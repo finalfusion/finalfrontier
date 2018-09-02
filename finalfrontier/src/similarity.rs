@@ -45,13 +45,13 @@ impl<'a> From<&'a Model> for Similarity<'a> {
         let vocab = model.vocab();
 
         let mut word_embeds = Array2::zeros((vocab.len(), model.config().dims as usize));
-        for token in vocab.types() {
+        for word in vocab.words() {
             let mut embed = model
-                .embedding(token.token())
+                .embedding(word.word())
                 .expect("Word without an embedding");
             l2_normalize_vector(embed.view_mut());
             word_embeds
-                .subview_mut(Axis(0), vocab.token_idx(token.token()).unwrap() as usize)
+                .subview_mut(Axis(0), vocab.word_idx(word.word()).unwrap() as usize)
                 .assign(&embed);
         }
 
@@ -165,7 +165,7 @@ impl<'a> Similarity<'a> {
 
         let mut results = BinaryHeap::with_capacity(limit);
         for (idx, &sim) in sims.iter().enumerate() {
-            let word = self.model.vocab().types()[idx].token();
+            let word = self.model.vocab().words()[idx].word();
 
             // Don't add words that we are explicitly asked to skip.
             if skip.contains(word) {

@@ -26,6 +26,7 @@ impl<R> WeightedRangeGenerator<R>
 where
     R: Rng,
 {
+    #[allow(dead_code)]
     pub fn new(rng: R, weights: &[usize]) -> WeightedRangeGenerator<R> {
         assert!(!weights.is_empty(), "Cannot sample from zero elements.");
 
