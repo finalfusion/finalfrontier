@@ -29,8 +29,9 @@ text files:
 https://github.com/facebookresearch/fastText/issues/563#issuecomment-413319396
 
 | Model                                       | Dataset                 | Semantic Accuracy | Syntactic Accuracy | Total Accuracy |
-|---------------------------------------------|-------------------------|-------------------|--------------------|----------------|
-| fastText skipgram                           | Wikipedia (en) 20180827 | 85.18             | 76.36              | 79.88          |
-| finalfrontier skipgram                      | Wikipedia (en) 20180827 | 85.05             | 75.56              | 79.34          |
-| finalfrontier structgram                    | Wikipedia (en) 20180827 | 81.43             | 79.20              | 80.09          |
-| final frontier structram (nonrandom window) | Wikipedia (en) 20180827 | 82.13             | 78.37              | 79.97          |
+|------------------------------------------------|-------------------------|-------------------|--------------------|----------------|
+| fastText skipgram                              | Wikipedia (en) 20180827 | 85.18             | 76.36              | 79.88          |
+| finalfrontier skipgram                         | Wikipedia (en) 20180827 | 85.05             | 75.56              | 79.34          |
+| finalfrontier structgram                       | Wikipedia (en) 20180827 | 81.43             | 79.20              | 80.09          |
+| final frontier structgram (nonrandom window)   | Wikipedia (en) 20180827 | 82.13             | 78.37              | 79.97          |
+| final frontier structgram (only discard focus) | Wikipedia (en) 20180827 | 77.97             | 78.91              | 77.97          |
