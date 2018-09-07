@@ -35,4 +35,4 @@ https://github.com/facebookresearch/fastText/issues/563#issuecomment-413319396
 | finalfrontier structgram                       | Wikipedia (en) 20180827 | 81.43             | 79.20              | 80.09          |
 | final frontier structgram (nonrandom window)   | Wikipedia (en) 20180827 | 82.13             | 78.37              | 79.97          |
 | final frontier structgram (only discard focus) | Wikipedia (en) 20180827 | 77.97             | 78.91              | 77.97          |
-| final frontier structgram (structured discard) | Wikipedia (en) 20180827 | 77.09             | 79.99              | 78.63          |
+| final frontier structgram (structured discard) | Wikipedia (en) 20180827 | 77.09             | 79.66              | 78.63          |
