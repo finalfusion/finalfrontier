@@ -42,14 +42,14 @@ fn main() {
     let vocab = build_vocab(&config, matches.value_of("CORPUS").unwrap());
 
     let mut output_writer = BufWriter::new(
-        File::create(matches.value_of("OUTPUT").unwrap())
+        File::create(matches.value_of(OUTPUT).unwrap())
             .or_exit("Cannot open output file for writing.", 1),
     );
 
     let model = TrainModel::from_vocab(vocab, config.clone());
     let sgd = SGD::new(model, XorShiftRng::new_unseeded());
 
-    let corpus = matches.value_of("CORPUS").unwrap();
+    let corpus = matches.value_of(CORPUS).unwrap();
 
     let mut children = Vec::with_capacity(n_threads);
     for thread in 0..n_threads {
@@ -77,49 +77,67 @@ fn main() {
         .or_exit("Cannot write model", 1);
 }
 
+// Option constants
+static BUCKETS: &str = "buckets";
+static CONTEXT: &str = "context";
+static DIMS: &str = "dims";
+static DISCARD: &str = "discard";
+static EPOCHS: &str = "epochs";
+static LR: &str = "lr";
+static MINCOUNT: &str = "mincount";
+static MINN: &str = "minn";
+static MAXN: &str = "maxn";
+static MODEL: &str = "model";
+static NS: &str = "ns";
+static THREADS: &str = "threads";
+
+// Argument constants
+static CORPUS: &str = "CORPUS";
+static OUTPUT: &str = "OUTPUT";
+
 fn config_from_matches<'a>(matches: &ArgMatches<'a>) -> Config {
     let buckets_exp = matches
-        .value_of("buckets")
+        .value_of(BUCKETS)
         .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
         .unwrap_or(21);
     let context_size = matches
-        .value_of("context")
+        .value_of(CONTEXT)
         .map(|v| v.parse().or_exit("Cannot parse context size", 1))
         .unwrap_or(5);
     let discard_threshold = matches
-        .value_of("discard threshold")
-        .map(|v| v.parse().or_exit("Cannot parse context size", 1))
+        .value_of(DISCARD)
+        .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
         .unwrap_or(1e-4);
     let dims = matches
-        .value_of("dims")
+        .value_of(DIMS)
         .map(|v| v.parse().or_exit("Cannot parse dimensionality", 1))
         .unwrap_or(100);
     let epochs = matches
-        .value_of("epochs")
+        .value_of(EPOCHS)
         .map(|v| v.parse().or_exit("Cannot parse number of epochs", 1))
         .unwrap_or(5);
     let lr = matches
-        .value_of("lr")
+        .value_of(LR)
         .map(|v| v.parse().or_exit("Cannot parse learning rate", 1))
         .unwrap_or(0.05);
     let min_count = matches
-        .value_of("mincount")
+        .value_of(MINCOUNT)
         .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
         .unwrap_or(5);
     let min_n = matches
-        .value_of("minn")
+        .value_of(MINN)
         .map(|v| v.parse().or_exit("Cannot parse minimum n-gram length", 1))
         .unwrap_or(3);
     let max_n = matches
-        .value_of("maxn")
+        .value_of(MAXN)
         .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
         .unwrap_or(6);
     let model = matches
-        .value_of("model")
+        .value_of(MODEL)
         .map(|v| ModelType::try_from_str(v).or_exit("Cannot parse model type", 1))
         .unwrap_or(ModelType::SkipGram);
     let negative_samples = matches
-        .value_of("ns")
+        .value_of(NS)
         .map(|v| {
             v.parse()
                 .or_exit("Cannot parse number of negative samples", 1)
@@ -146,71 +164,71 @@ fn parse_args() -> ArgMatches<'static> {
     App::new("final-frontier")
         .settings(DEFAULT_CLAP_SETTINGS)
         .arg(
-            Arg::with_name("buckets")
+            Arg::with_name(BUCKETS)
                 .long("buckets")
                 .value_name("EXP")
                 .help("Number of buckets: 2^EXP (default: 21)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("context")
+            Arg::with_name(CONTEXT)
                 .long("context")
                 .value_name("CONTEXT_SIZE")
                 .help("Context size (default: 5)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("dims")
+            Arg::with_name(DIMS)
                 .long("dims")
                 .value_name("DIMENSIONS")
                 .help("Embedding dimensionality (default: 100)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("discard")
+            Arg::with_name(DISCARD)
                 .long("discard")
                 .value_name("THRESHOLD")
                 .help("Discard threshold (default: 1e-4)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("epochs")
+            Arg::with_name(EPOCHS)
                 .long("epochs")
                 .value_name("N")
                 .help("Number of epochs (default: 5)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("lr")
+            Arg::with_name(LR)
                 .long("lr")
                 .value_name("LEARNING_RATE")
                 .help("Initial learning rate (default: 0.05)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("mincount")
+            Arg::with_name(MINCOUNT)
                 .long("mincount")
                 .value_name("FREQ")
                 .help("Minimum token frequency (default: 5)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("minn")
+            Arg::with_name(MINN)
                 .long("minn")
                 .value_name("LEN")
                 .help("Minimum ngram length (default: 3)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("maxn")
+            Arg::with_name(MAXN)
                 .long("maxn")
                 .value_name("LEN")
                 .help("Maximum ngram length (default: 6)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("model")
-                .long("model")
+            Arg::with_name(MODEL)
+                .long(MODEL)
                 .value_name("MODEL")
                 .help("Model: skipgram or structgram")
                 .takes_value(true),
@@ -223,20 +241,20 @@ fn parse_args() -> ArgMatches<'static> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("threads")
+            Arg::with_name(THREADS)
                 .long("threads")
                 .value_name("N")
                 .help("Number of threads (default: logical_cpus / 2)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("CORPUS")
+            Arg::with_name(CORPUS)
                 .help("Tokenized corpus")
                 .index(1)
                 .required(true),
         )
         .arg(
-            Arg::with_name("OUTPUT")
+            Arg::with_name(OUTPUT)
                 .help("Embeddings output")
                 .index(2)
                 .required(true),
