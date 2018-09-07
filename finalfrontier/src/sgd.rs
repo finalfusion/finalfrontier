@@ -8,7 +8,7 @@ use loss::log_logistic_loss;
 use sampling::{RangeGenerator, ZipfRangeGenerator};
 use vec_simd::scaled_add;
 
-use TrainModel;
+use {ModelType, TrainModel};
 
 /// Stochastic gradient descent
 ///
@@ -103,13 +103,15 @@ where
 
             for j in left..right {
                 if i != j {
-                    // Update parameters for the focus word i and the
-                    // context word j.
+                    let output = self.output_(words[j], i, j);
+
+                    // Update parameters for the token focus token i and the
+                    // context token j.
                     *self.loss += self.sgd_impl.sgd_step(
                         &mut self.model,
                         &input,
                         input_embed.view(),
-                        words[j],
+                        output,
                         lr,
                     )
                 }
@@ -119,6 +121,22 @@ where
         }
 
         *self.n_tokens_processed += words.len();
+    }
+
+    fn output_(&self, token: usize, focus_idx: usize, offset_idx: usize) -> usize {
+        match self.model.config().model {
+            ModelType::SkipGram => token,
+            ModelType::StructuredSkipGram => {
+                let context_size = self.model.config().context_size as usize;
+                let offset = if offset_idx < focus_idx {
+                    (offset_idx + context_size) - focus_idx
+                } else {
+                    (offset_idx - focus_idx - 1) + context_size
+                };
+
+                (token * context_size * 2) + offset
+            }
+        }
     }
 }
 
