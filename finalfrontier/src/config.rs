@@ -5,12 +5,24 @@ use failure::{err_msg, Error};
 pub enum ModelType {
     // The skip-gram model (Mikolov, 2013).
     SkipGram,
+
+    // The structured skip-gram model (Ling et al., 2015).
+    StructuredSkipGram,
 }
 
 impl ModelType {
     pub fn try_from(model: u8) -> Result<ModelType, Error> {
         match model {
             0 => Ok(ModelType::SkipGram),
+            1 => Ok(ModelType::StructuredSkipGram),
+            _ => Err(err_msg(format!("Unknown model type: {}", model))),
+        }
+    }
+
+    pub fn try_from_str(model: &str) -> Result<ModelType, Error> {
+        match model {
+            "skipgram" => Ok(ModelType::SkipGram),
+            "structgram" => Ok(ModelType::StructuredSkipGram),
             _ => Err(err_msg(format!("Unknown model type: {}", model))),
         }
     }

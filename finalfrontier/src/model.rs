@@ -50,7 +50,12 @@ impl TrainModel where {
         let n_buckets = 2usize.pow(config.buckets_exp as u32);
 
         let input = Array2::random((vocab.len() + n_buckets, config.dims as usize), range).into();
-        let output = Array2::random((vocab.len(), config.dims as usize), range).into();
+
+        let output_vocab_size = match config.model {
+            ModelType::SkipGram => vocab.len(),
+            ModelType::StructuredSkipGram => vocab.len() * config.context_size as usize * 2,
+        };
+        let output = Array2::random((output_vocab_size, config.dims as usize), range).into();
 
         TrainModel {
             config,

@@ -114,6 +114,10 @@ fn config_from_matches<'a>(matches: &ArgMatches<'a>) -> Config {
         .value_of("maxn")
         .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
         .unwrap_or(6);
+    let model = matches
+        .value_of("model")
+        .map(|v| ModelType::try_from_str(v).or_exit("Cannot parse model type", 1))
+        .unwrap_or(ModelType::SkipGram);
     let negative_samples = matches
         .value_of("ns")
         .map(|v| {
@@ -128,7 +132,7 @@ fn config_from_matches<'a>(matches: &ArgMatches<'a>) -> Config {
         discard_threshold,
         epochs,
         loss: LossType::LogisticNegativeSampling,
-        model: ModelType::SkipGram,
+        model,
         min_count,
         min_n,
         max_n,
@@ -202,6 +206,13 @@ fn parse_args() -> ArgMatches<'static> {
                 .long("maxn")
                 .value_name("LEN")
                 .help("Maximum ngram length (default: 6)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("model")
+                .long("model")
+                .value_name("MODEL")
+                .help("Model: skipgram or structgram")
                 .takes_value(true),
         )
         .arg(
