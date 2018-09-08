@@ -93,6 +93,14 @@ where
     fn write_model_text(&self, write: &mut W, write_dims: bool) -> Result<(), Error>;
 }
 
+/// Trait for writing models in binary format.
+pub trait WriteModelWord2Vec<W>
+where
+    W: Write,
+{
+    fn write_model_word2vec(&self, write: &mut W) -> Result<(), Error>;
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
