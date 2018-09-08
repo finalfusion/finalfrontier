@@ -31,7 +31,9 @@ mod config;
 pub use config::{Config, LossType, ModelType};
 
 mod io;
-pub use io::{ReadModelBinary, SentenceIterator, WriteModelBinary, WriteModelText};
+pub use io::{
+    ReadModelBinary, SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec,
+};
 
 pub(crate) mod loss;
 

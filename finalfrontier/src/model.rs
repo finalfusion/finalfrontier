@@ -11,7 +11,7 @@ use hogwild::HogwildArray2;
 use vec_simd::{scale, scaled_add};
 use {
     Config, LossType, ModelType, ReadModelBinary, Vocab, WordCount, WriteModelBinary,
-    WriteModelText,
+    WriteModelText, WriteModelWord2Vec,
 };
 
 /// Training model.
@@ -292,6 +292,37 @@ where
                 .collect::<Vec<String>>()
                 .join(" ");
             writeln!(write, "{} {}", word.word(), embed_str)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<W> WriteModelWord2Vec<W> for Model
+where
+    W: Write,
+{
+    fn write_model_word2vec(&self, write: &mut W) -> Result<(), Error> {
+        write!(
+            write,
+            "{} {}\n",
+            self.vocab.len(),
+            self.embed_matrix.shape()[1]
+        )?;
+
+        for word in self.vocab.words() {
+            write!(write, "{} ", word.word())?;
+
+            let embed = self
+                .embedding(word.word())
+                .expect("Word without an embedding");
+
+            // Write embedding to a vector with little-endian encoding.
+            for v in embed.iter() {
+                write.write_f32::<LittleEndian>(*v)?;
+            }
+
+            write.write(&[0x0a])?;
         }
 
         Ok(())
