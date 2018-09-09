@@ -55,7 +55,7 @@ fn parse_args() -> ArgMatches<'static> {
         )
         .arg(
             Arg::with_name("MODEL")
-                .help("FastText Model")
+                .help("Finalfrontier model")
                 .index(1)
                 .required(true),
         )

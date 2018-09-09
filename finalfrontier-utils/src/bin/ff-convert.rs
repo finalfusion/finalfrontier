@@ -51,7 +51,7 @@ fn parse_args() -> ArgMatches<'static> {
         .settings(DEFAULT_CLAP_SETTINGS)
         .arg(
             Arg::with_name(INPUT)
-                .help("FastText Model")
+                .help("Finalfrontier model")
                 .index(1)
                 .required(true),
         )
