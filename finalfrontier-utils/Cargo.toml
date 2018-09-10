@@ -2,11 +2,16 @@
 name = "finalfrontier-utils"
 version = "0.1.0"
 authors = ["Daniël de Kok <me@danieldk.eu>"]
+description = "Train and use word embeddings with subword representations"
+documentation = "https://git.danieldk.eu/finalfrontier/about"
+homepage = "https://git.danieldk.eu/finalfrontier/about"
+repository = "https://git.danieldk.eu/finalfrontier"
+license = "Apache-2.0"
 
 [dependencies]
 clap = "2"
 failure = "0.1"
-finalfrontier = { path = "../finalfrontier" }
+finalfrontier = { path = "../finalfrontier", version = "0.1.0" }
 indicatif = "0.9"
 memmap = "0.6"
 num_cpus = "1"
