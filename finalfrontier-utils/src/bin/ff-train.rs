@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use clap::{App, AppSettings, Arg, ArgMatches};
 use finalfrontier::{
-    Config, LossType, ModelType, SentenceIterator, TrainModel, Vocab, VocabBuilder,
+    Config, LossType, Model, ModelType, SentenceIterator, TrainModel, Vocab, VocabBuilder,
     WriteModelBinary, SGD,
 };
 use finalfrontier_utils::thread_data;
@@ -72,7 +72,8 @@ fn main() {
         let _ = child.join();
     }
 
-    sgd.model()
+    let model: Model = sgd.model().into();
+    model
         .write_model_binary(&mut output_writer)
         .or_exit("Cannot write model", 1);
 }

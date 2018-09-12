@@ -113,42 +113,6 @@ impl TrainModel where {
     }
 }
 
-impl<W> WriteModelBinary<W> for TrainModel
-where
-    W: Write,
-{
-    fn write_model_binary(&self, write: &mut W) -> Result<(), Error> {
-        write.write_all(&[b'D', b'F', b'F'])?;
-        write.write_u32::<LittleEndian>(1)?;
-        write.write_u8(self.config.model as u8)?;
-        write.write_u8(self.config.loss as u8)?;
-        write.write_u32::<LittleEndian>(self.config.context_size)?;
-        write.write_u32::<LittleEndian>(self.config.dims)?;
-        write.write_f32::<LittleEndian>(self.config.discard_threshold)?;
-        write.write_u32::<LittleEndian>(self.config.epochs)?;
-        write.write_u32::<LittleEndian>(self.config.min_count)?;
-        write.write_u32::<LittleEndian>(self.config.min_n)?;
-        write.write_u32::<LittleEndian>(self.config.max_n)?;
-        write.write_u32::<LittleEndian>(self.config.buckets_exp)?;
-        write.write_u32::<LittleEndian>(self.config.negative_samples)?;
-        write.write_f32::<LittleEndian>(self.config.lr)?;
-        write.write_u64::<LittleEndian>(self.vocab.n_tokens() as u64)?;
-        write.write_u64::<LittleEndian>(self.vocab.len() as u64)?;
-
-        for word in self.vocab.words() {
-            write.write_u32::<LittleEndian>(word.word().len() as u32)?;
-            write.write_all(word.word().as_bytes())?;
-            write.write_u64::<LittleEndian>(word.count() as u64)?;
-        }
-
-        for &v in self.input.as_slice().unwrap() {
-            write.write_f32::<LittleEndian>(v)?;
-        }
-
-        Ok(())
-    }
-}
-
 /// Word embedding model.
 ///
 /// This data type is used for models post-training. It stores the vocabulary
@@ -171,13 +135,22 @@ impl Model {
     /// could be extracted. Otherwise, this method will always return an
     /// embedding.
     pub fn embedding(&self, word: &str) -> Option<Array1<f32>> {
-        let mut embed = Array1::zeros((self.config.dims as usize,));
+        // For known words, return the precomputed embedding.
+        if let Some(index) = self.vocab.word_idx(word) {
+            return Some(
+                self.embed_matrix
+                    .subview(Axis(0), index as usize)
+                    .to_owned(),
+            );
+        }
 
-        let indices = self.vocab.indices(word);
+        // For unknown words, gather subword indices and compute the embedding.
+        let indices = self.vocab.subword_indices(word);
         if indices.is_empty() {
             return None;
         }
 
+        let mut embed = Array1::zeros((self.config.dims as usize,));
         for &idx in indices.iter() {
             scaled_add(
                 embed.view_mut(),
@@ -197,6 +170,28 @@ impl Model {
     }
 }
 
+impl<'a> From<&'a TrainModel> for Model {
+    fn from(train_model: &TrainModel) -> Self {
+        // Copy the vocabulary and embedding matrix.
+        let vocab = train_model.vocab.as_ref().clone();
+        let mut embed_matrix = train_model.input.view().to_owned();
+
+        // Compute word embeddings.
+        for i in 0..vocab.len() {
+            let mut input = vocab.subword_indices_idx(i).unwrap().to_owned();
+            input.push(i as u64);
+            let embed = train_model.mean_input_embedding(&input);
+            embed_matrix.subview_mut(Axis(0), i).assign(&embed);
+        }
+
+        Model {
+            config: train_model.config.clone(),
+            vocab,
+            embed_matrix,
+        }
+    }
+}
+
 impl<R> ReadModelBinary<R> for Model
 where
     R: Read,
@@ -209,7 +204,7 @@ where
         }
 
         let version = read.read_u32::<LittleEndian>()?;
-        if version != 1 {
+        if version != 2 {
             return Err(err_msg("Unknown file version"));
         }
 
@@ -265,6 +260,41 @@ where
             vocab,
             embed_matrix: Array2::from_shape_vec((n_embeds, config.dims as usize), data)?,
         })
+    }
+}
+impl<W> WriteModelBinary<W> for Model
+where
+    W: Write,
+{
+    fn write_model_binary(&self, write: &mut W) -> Result<(), Error> {
+        write.write_all(&[b'D', b'F', b'F'])?;
+        write.write_u32::<LittleEndian>(2)?;
+        write.write_u8(self.config.model as u8)?;
+        write.write_u8(self.config.loss as u8)?;
+        write.write_u32::<LittleEndian>(self.config.context_size)?;
+        write.write_u32::<LittleEndian>(self.config.dims)?;
+        write.write_f32::<LittleEndian>(self.config.discard_threshold)?;
+        write.write_u32::<LittleEndian>(self.config.epochs)?;
+        write.write_u32::<LittleEndian>(self.config.min_count)?;
+        write.write_u32::<LittleEndian>(self.config.min_n)?;
+        write.write_u32::<LittleEndian>(self.config.max_n)?;
+        write.write_u32::<LittleEndian>(self.config.buckets_exp)?;
+        write.write_u32::<LittleEndian>(self.config.negative_samples)?;
+        write.write_f32::<LittleEndian>(self.config.lr)?;
+        write.write_u64::<LittleEndian>(self.vocab.n_tokens() as u64)?;
+        write.write_u64::<LittleEndian>(self.vocab.len() as u64)?;
+
+        for word in self.vocab.words() {
+            write.write_u32::<LittleEndian>(word.word().len() as u32)?;
+            write.write_all(word.word().as_bytes())?;
+            write.write_u64::<LittleEndian>(word.count() as u64)?;
+        }
+
+        for &v in self.embed_matrix.as_slice().unwrap() {
+            write.write_f32::<LittleEndian>(v)?;
+        }
+
+        Ok(())
     }
 }
 
