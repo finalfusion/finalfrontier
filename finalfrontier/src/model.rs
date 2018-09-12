@@ -1,9 +1,10 @@
 use std::io::{Read, Write};
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use failure::{err_msg, Error};
-use ndarray::{Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Range;
 
@@ -13,6 +14,8 @@ use {
     Config, LossType, ModelType, ReadModelBinary, Vocab, WordCount, WriteModelBinary,
     WriteModelText, WriteModelWord2Vec,
 };
+
+use normalization::{NoNormalization, Normalization};
 
 /// Training model.
 ///
@@ -117,18 +120,17 @@ impl TrainModel where {
 ///
 /// This data type is used for models post-training. It stores the vocabulary
 /// and embedding matrix. The model can be used to retrieve word embeddings.
-pub struct Model {
+pub struct Model<N> {
     config: Config,
     vocab: Vocab,
     embed_matrix: Array2<f32>,
+    phantom: PhantomData<N>,
 }
 
-impl Model {
-    /// Get the model configuration.
-    pub fn config(&self) -> &Config {
-        &self.config
-    }
-
+impl<N> Model<N>
+where
+    N: Normalization,
+{
     /// Get the embedding for the given word.
     ///
     /// This method will return `None` iff the word is unknown and no n-grams
@@ -161,7 +163,20 @@ impl Model {
 
         scale(embed.view_mut(), 1.0 / indices.len() as f32);
 
+        N::normalize(embed.view_mut());
+
         Some(embed)
+    }
+}
+
+impl<N> Model<N> {
+    /// Get the model configuration.
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
+    pub fn embedding_matrix(&self) -> ArrayView2<f32> {
+        self.embed_matrix.view()
     }
 
     /// Get the vocabulary.
@@ -170,7 +185,31 @@ impl Model {
     }
 }
 
-impl<'a> From<&'a TrainModel> for Model {
+impl Model<NoNormalization> {
+    /// Normalize an unnormalized model.
+    ///
+    /// This method normalizes the word embedding matrix using the
+    /// normalizer specified as type parameter `N`.
+    ///
+    /// Ideally, this would be implemented using the `From` trait.
+    /// However, such a trait implementation would conflict with
+    /// the blanket `T -> T` conversion.
+    pub fn normalize<N>(mut self) -> Model<N>
+    where
+        N: Normalization,
+    {
+        N::normalize_matrix(self.embed_matrix.slice_mut(s![0..self.vocab.len(), ..]));
+
+        Model {
+            config: self.config,
+            vocab: self.vocab,
+            embed_matrix: self.embed_matrix,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a> From<&'a TrainModel> for Model<NoNormalization> {
     fn from(train_model: &TrainModel) -> Self {
         // Copy the vocabulary and embedding matrix.
         let vocab = train_model.vocab.as_ref().clone();
@@ -188,11 +227,12 @@ impl<'a> From<&'a TrainModel> for Model {
             config: train_model.config.clone(),
             vocab,
             embed_matrix,
+            phantom: PhantomData,
         }
     }
 }
 
-impl<R> ReadModelBinary<R> for Model
+impl<R> ReadModelBinary<R> for Model<NoNormalization>
 where
     R: Read,
 {
@@ -254,15 +294,18 @@ where
         let n_embeds = vocab_len as usize + 2usize.pow(config.buckets_exp);
         let mut data = vec![0f32; n_embeds * config.dims as usize];
         read.read_f32_into::<LittleEndian>(&mut data)?;
+        let embed_matrix = Array2::from_shape_vec((n_embeds, config.dims as usize), data)?;
 
         Ok(Model {
             config: config.clone(),
             vocab,
-            embed_matrix: Array2::from_shape_vec((n_embeds, config.dims as usize), data)?,
+            embed_matrix,
+            phantom: PhantomData,
         })
     }
 }
-impl<W> WriteModelBinary<W> for Model
+
+impl<W> WriteModelBinary<W> for Model<NoNormalization>
 where
     W: Write,
 {
@@ -298,9 +341,10 @@ where
     }
 }
 
-impl<W> WriteModelText<W> for Model
+impl<W, N> WriteModelText<W> for Model<N>
 where
     W: Write,
+    N: Normalization,
 {
     fn write_model_text(&self, write: &mut W, write_dims: bool) -> Result<(), Error> {
         if write_dims {
@@ -328,9 +372,10 @@ where
     }
 }
 
-impl<W> WriteModelWord2Vec<W> for Model
+impl<W, N> WriteModelWord2Vec<W> for Model<N>
 where
     W: Write,
+    N: Normalization,
 {
     fn write_model_word2vec(&self, write: &mut W) -> Result<(), Error> {
         write!(

@@ -6,7 +6,8 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 use clap::{App, AppSettings, Arg, ArgMatches};
-use finalfrontier::{Model, ReadModelBinary, Similarity};
+use finalfrontier::similarity::Similarity;
+use finalfrontier::{Model, ReadModelBinary};
 use stdinout::{Input, OrExit};
 
 static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
@@ -19,12 +20,12 @@ fn main() {
     let config = config_from_matches(&matches);
 
     let f = File::open(config.model_filename).or_exit("Cannot read model", 1);
-    let model = Model::read_model_binary(&mut BufReader::new(f)).or_exit("Cannot load model", 1);
+    let model = Model::read_model_binary(&mut BufReader::new(f))
+        .or_exit("Cannot load model", 1)
+        .normalize();
 
     let input = Input::from(matches.value_of("INPUT"));
     let reader = input.buf_read().or_exit("Cannot open input for reading", 1);
-
-    let sim: Similarity = Similarity::from(&model);
 
     for line in reader.lines() {
         let line = line.or_exit("Cannot read line", 1).trim().to_owned();
@@ -32,7 +33,7 @@ fn main() {
             continue;
         }
 
-        let results = match sim.similarity(&line, config.k) {
+        let results = match model.similarity(&line, config.k) {
             Some(results) => results,
             None => continue,
         };

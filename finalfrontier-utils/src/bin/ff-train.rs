@@ -13,6 +13,7 @@ use std::thread;
 use std::time::Duration;
 
 use clap::{App, AppSettings, Arg, ArgMatches};
+use finalfrontier::normalization::NoNormalization;
 use finalfrontier::{
     Config, LossType, Model, ModelType, SentenceIterator, TrainModel, Vocab, VocabBuilder,
     WriteModelBinary, SGD,
@@ -72,7 +73,7 @@ fn main() {
         let _ = child.join();
     }
 
-    let model: Model = sgd.model().into();
+    let model: Model<NoNormalization> = sgd.model().into();
     model
         .write_model_binary(&mut output_writer)
         .or_exit("Cannot write model", 1);

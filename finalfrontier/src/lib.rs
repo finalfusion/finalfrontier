@@ -17,6 +17,7 @@ extern crate lazy_static;
 #[cfg(test)]
 extern crate maplit;
 
+#[macro_use]
 extern crate ndarray;
 
 extern crate ndarray_rand;
@@ -40,13 +41,14 @@ pub(crate) mod loss;
 mod model;
 pub use model::{Model, TrainModel};
 
+pub mod normalization;
+
 pub(crate) mod sampling;
 
 mod sgd;
 pub use sgd::SGD;
 
-mod similarity;
-pub use similarity::{Similarity, WordSimilarity};
+pub mod similarity;
 
 pub(crate) mod subword;
 
