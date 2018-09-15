@@ -21,5 +21,6 @@ in the future.
   * [Quickstart](docs/QUICKSTART.md)
   * Manual pages:
     - [ff-convert(1)](man/ff-convert.1) — convert finalfrontier models to other formats
+    - [ff-format(5)](man/ff-format.5) — finalfrontier binary format
     - [ff-similar(1)](man/ff-similar.1) — word similarity queries
     - [ff-train(1)](man/ff-train.1) — train word embeddings with subword representations

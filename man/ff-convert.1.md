@@ -56,4 +56,4 @@ Convert finalfrontier embeddings to word2vec format:
 SEE ALSO
 ========
 
-ff-similar(1), ff-train(1)
+ff-format(5), ff-similar(1), ff-train(1)
