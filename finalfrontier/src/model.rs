@@ -1,5 +1,4 @@
 use std::io::{Read, Write};
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -9,13 +8,13 @@ use ndarray_rand::RandomExt;
 use rand::distributions::Range;
 
 use hogwild::HogwildArray2;
-use vec_simd::{scale, scaled_add};
+use vec_simd::{l2_normalize, scale, scaled_add};
 use {
     Config, LossType, ModelType, ReadModelBinary, Vocab, WordCount, WriteModelBinary,
     WriteModelText, WriteModelWord2Vec,
 };
 
-use normalization::{NoNormalization, Normalization};
+const MODEL_VERSION: u32 = 3;
 
 /// Training model.
 ///
@@ -116,21 +115,75 @@ impl TrainModel where {
     }
 }
 
+impl<W> WriteModelBinary<W> for TrainModel
+where
+    W: Write,
+{
+    fn write_model_binary(&self, write: &mut W) -> Result<(), Error> {
+        write.write_all(&[b'D', b'F', b'F'])?;
+        write.write_u32::<LittleEndian>(MODEL_VERSION)?;
+        write.write_u8(self.config.model as u8)?;
+        write.write_u8(self.config.loss as u8)?;
+        write.write_u32::<LittleEndian>(self.config.context_size)?;
+        write.write_u32::<LittleEndian>(self.config.dims)?;
+        write.write_f32::<LittleEndian>(self.config.discard_threshold)?;
+        write.write_u32::<LittleEndian>(self.config.epochs)?;
+        write.write_u32::<LittleEndian>(self.config.min_count)?;
+        write.write_u32::<LittleEndian>(self.config.min_n)?;
+        write.write_u32::<LittleEndian>(self.config.max_n)?;
+        write.write_u32::<LittleEndian>(self.config.buckets_exp)?;
+        write.write_u32::<LittleEndian>(self.config.negative_samples)?;
+        write.write_f32::<LittleEndian>(self.config.lr)?;
+        write.write_u64::<LittleEndian>(self.vocab.n_tokens() as u64)?;
+        write.write_u64::<LittleEndian>(self.vocab.len() as u64)?;
+
+        for word in self.vocab.words() {
+            write.write_u32::<LittleEndian>(word.word().len() as u32)?;
+            write.write_all(word.word().as_bytes())?;
+            write.write_u64::<LittleEndian>(word.count() as u64)?;
+        }
+
+        // Compute and write word embeddings.
+        let mut norms = vec![0f32; self.vocab.len()];
+        for i in 0..self.vocab.len() {
+            let mut input = self.vocab.subword_indices_idx(i).unwrap().to_owned();
+            input.push(i as u64);
+            let mut embed = self.mean_input_embedding(&input);
+            norms[i] = l2_normalize(embed.view_mut());
+            for &v in embed.iter() {
+                write.write_f32::<LittleEndian>(v)?;
+            }
+        }
+
+        // Write subword embeddings
+        for &v in self.input.view().slice(s![self.vocab.len().., ..]) {
+            write.write_f32::<LittleEndian>(v)?;
+        }
+
+        for v in norms {
+            write.write_f32::<LittleEndian>(v)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Word embedding model.
 ///
 /// This data type is used for models post-training. It stores the vocabulary
 /// and embedding matrix. The model can be used to retrieve word embeddings.
-pub struct Model<N> {
+pub struct Model {
     config: Config,
     vocab: Vocab,
     embed_matrix: Array2<f32>,
-    phantom: PhantomData<N>,
 }
 
-impl<N> Model<N>
-where
-    N: Normalization,
-{
+impl Model {
+    /// Get the model configuration.
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
     /// Get the embedding for the given word.
     ///
     /// This method will return `None` iff the word is unknown and no n-grams
@@ -161,18 +214,13 @@ where
             );
         }
 
+        // Return the average embedding.
         scale(embed.view_mut(), 1.0 / indices.len() as f32);
 
-        N::normalize(embed.view_mut());
+        // Normalize predicted vector by its l2-norm.
+        l2_normalize(embed.view_mut());
 
         Some(embed)
-    }
-}
-
-impl<N> Model<N> {
-    /// Get the model configuration.
-    pub fn config(&self) -> &Config {
-        &self.config
     }
 
     pub fn embedding_matrix(&self) -> ArrayView2<f32> {
@@ -185,54 +233,7 @@ impl<N> Model<N> {
     }
 }
 
-impl Model<NoNormalization> {
-    /// Normalize an unnormalized model.
-    ///
-    /// This method normalizes the word embedding matrix using the
-    /// normalizer specified as type parameter `N`.
-    ///
-    /// Ideally, this would be implemented using the `From` trait.
-    /// However, such a trait implementation would conflict with
-    /// the blanket `T -> T` conversion.
-    pub fn normalize<N>(mut self) -> Model<N>
-    where
-        N: Normalization,
-    {
-        N::normalize_matrix(self.embed_matrix.slice_mut(s![0..self.vocab.len(), ..]));
-
-        Model {
-            config: self.config,
-            vocab: self.vocab,
-            embed_matrix: self.embed_matrix,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<'a> From<&'a TrainModel> for Model<NoNormalization> {
-    fn from(train_model: &TrainModel) -> Self {
-        // Copy the vocabulary and embedding matrix.
-        let vocab = train_model.vocab.as_ref().clone();
-        let mut embed_matrix = train_model.input.view().to_owned();
-
-        // Compute word embeddings.
-        for i in 0..vocab.len() {
-            let mut input = vocab.subword_indices_idx(i).unwrap().to_owned();
-            input.push(i as u64);
-            let embed = train_model.mean_input_embedding(&input);
-            embed_matrix.subview_mut(Axis(0), i).assign(&embed);
-        }
-
-        Model {
-            config: train_model.config.clone(),
-            vocab,
-            embed_matrix,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<R> ReadModelBinary<R> for Model<NoNormalization>
+impl<R> ReadModelBinary<R> for Model
 where
     R: Read,
 {
@@ -244,7 +245,7 @@ where
         }
 
         let version = read.read_u32::<LittleEndian>()?;
-        if version != 2 {
+        if version != MODEL_VERSION {
             return Err(err_msg("Unknown file version"));
         }
 
@@ -300,51 +301,13 @@ where
             config: config.clone(),
             vocab,
             embed_matrix,
-            phantom: PhantomData,
         })
     }
 }
 
-impl<W> WriteModelBinary<W> for Model<NoNormalization>
+impl<W> WriteModelText<W> for Model
 where
     W: Write,
-{
-    fn write_model_binary(&self, write: &mut W) -> Result<(), Error> {
-        write.write_all(&[b'D', b'F', b'F'])?;
-        write.write_u32::<LittleEndian>(2)?;
-        write.write_u8(self.config.model as u8)?;
-        write.write_u8(self.config.loss as u8)?;
-        write.write_u32::<LittleEndian>(self.config.context_size)?;
-        write.write_u32::<LittleEndian>(self.config.dims)?;
-        write.write_f32::<LittleEndian>(self.config.discard_threshold)?;
-        write.write_u32::<LittleEndian>(self.config.epochs)?;
-        write.write_u32::<LittleEndian>(self.config.min_count)?;
-        write.write_u32::<LittleEndian>(self.config.min_n)?;
-        write.write_u32::<LittleEndian>(self.config.max_n)?;
-        write.write_u32::<LittleEndian>(self.config.buckets_exp)?;
-        write.write_u32::<LittleEndian>(self.config.negative_samples)?;
-        write.write_f32::<LittleEndian>(self.config.lr)?;
-        write.write_u64::<LittleEndian>(self.vocab.n_tokens() as u64)?;
-        write.write_u64::<LittleEndian>(self.vocab.len() as u64)?;
-
-        for word in self.vocab.words() {
-            write.write_u32::<LittleEndian>(word.word().len() as u32)?;
-            write.write_all(word.word().as_bytes())?;
-            write.write_u64::<LittleEndian>(word.count() as u64)?;
-        }
-
-        for &v in self.embed_matrix.as_slice().unwrap() {
-            write.write_f32::<LittleEndian>(v)?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<W, N> WriteModelText<W> for Model<N>
-where
-    W: Write,
-    N: Normalization,
 {
     fn write_model_text(&self, write: &mut W, write_dims: bool) -> Result<(), Error> {
         if write_dims {
@@ -372,10 +335,9 @@ where
     }
 }
 
-impl<W, N> WriteModelWord2Vec<W> for Model<N>
+impl<W> WriteModelWord2Vec<W> for Model
 where
     W: Write,
-    N: Normalization,
 {
     fn write_model_word2vec(&self, write: &mut W) -> Result<(), Error> {
         write!(

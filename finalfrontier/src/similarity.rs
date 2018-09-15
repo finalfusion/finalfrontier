@@ -6,9 +6,8 @@ use std::collections::{BinaryHeap, HashSet};
 use ndarray::{Array1, ArrayView1, ArrayView2};
 use ordered_float::NotNaN;
 
+use vec_simd::l2_normalize;
 use Model;
-
-use normalization::{L2Normalization, Normalization};
 
 /// A word with its similarity.
 ///
@@ -55,7 +54,7 @@ pub trait Analogy {
     ) -> Option<Vec<WordSimilarity>>;
 }
 
-impl Analogy for Model<L2Normalization> {
+impl Analogy for Model {
     fn analogy(
         &self,
         word1: &str,
@@ -92,10 +91,7 @@ pub trait AnalogyBy {
         F: FnMut(ArrayView2<f32>, ArrayView1<f32>) -> Array1<f32>;
 }
 
-impl<N> AnalogyBy for Model<N>
-where
-    N: Normalization,
-{
+impl AnalogyBy for Model {
     fn analogy_by<F>(
         &self,
         word1: &str,
@@ -112,7 +108,7 @@ where
         let embedding3 = self.embedding(word3)?;
 
         let mut embedding = (embedding2 - embedding1) + embedding3;
-        N::normalize(embedding.view_mut());
+        l2_normalize(embedding.view_mut());
 
         let skip = [word1, word2, word3].iter().cloned().collect();
 
@@ -131,7 +127,7 @@ pub trait Similarity {
     fn similarity(&self, word: &str, limit: usize) -> Option<Vec<WordSimilarity>>;
 }
 
-impl Similarity for Model<L2Normalization> {
+impl Similarity for Model {
     fn similarity(&self, word: &str, limit: usize) -> Option<Vec<WordSimilarity>> {
         self.similarity_by(word, limit, |embeds, embed| embeds.dot(&embed))
     }
@@ -155,10 +151,7 @@ pub trait SimilarityBy {
         F: FnMut(ArrayView2<f32>, ArrayView1<f32>) -> Array1<f32>;
 }
 
-impl<N> SimilarityBy for Model<N>
-where
-    N: Normalization,
-{
+impl SimilarityBy for Model {
     fn similarity_by<F>(
         &self,
         word: &str,
@@ -188,7 +181,7 @@ trait SimilarityPrivate {
         F: FnMut(ArrayView2<f32>, ArrayView1<f32>) -> Array1<f32>;
 }
 
-impl<N> SimilarityPrivate for Model<N> {
+impl SimilarityPrivate for Model {
     fn similarity_<F>(
         &self,
         embed: Array1<f32>,

@@ -265,6 +265,16 @@ fn scale_unvectorized(u: &mut [f32], a: f32) {
     }
 }
 
+/// Normalize a vector by its l2 norm.
+///
+/// The l2 norm is returned.
+#[inline]
+pub fn l2_normalize(v: ArrayViewMut1<f32>) -> f32 {
+    let norm = dot(v.view(), v.view()).sqrt();
+    scale(v, 1.0 / norm);
+    norm
+}
+
 #[cfg(test)]
 mod tests {
     use ndarray::Array1;
@@ -274,8 +284,8 @@ mod tests {
     use util::{all_close, array_all_close, close};
 
     use super::{
-        dot_f32x4, dot_unvectorized, scale_f32x4, scale_unvectorized, scaled_add_f32x4,
-        scaled_add_unvectorized,
+        dot_f32x4, dot_unvectorized, l2_normalize, scale_f32x4, scale_unvectorized,
+        scaled_add_f32x4, scaled_add_unvectorized,
     };
 
     #[cfg(target_feature = "avx")]
@@ -397,5 +407,21 @@ mod tests {
         scale_unvectorized(check.as_slice_mut().unwrap(), 2.);
         unsafe { scale_f32x8(u.view_mut(), 2.) };
         assert!(array_all_close(check.view(), u.view(), 1e-5));
+    }
+
+    #[test]
+    fn l2_normalize_test() {
+        let mut u = Array1::from_vec(vec![1., -2., -1., 3., -3., 1.]);
+        assert!(close(l2_normalize(u.view_mut()), 5., 1e-5));
+        assert!(all_close(
+            &[0.2, -0.4, -0.2, 0.6, -0.6, 0.2],
+            u.as_slice().unwrap(),
+            1e-5
+        ));
+
+        // Normalization should result in a unit vector.
+        let mut v = Array1::random((102,), Range::new(-1.0, 1.0));
+        l2_normalize(v.view_mut());
+        assert!(close(v.dot(&v).sqrt(), 1.0, 1e-5));
     }
 }

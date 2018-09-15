@@ -20,9 +20,7 @@ fn main() {
     let config = config_from_matches(&matches);
 
     let f = File::open(config.model_filename).or_exit("Cannot read model", 1);
-    let model = Model::read_model_binary(&mut BufReader::new(f))
-        .or_exit("Cannot load model", 1)
-        .normalize();
+    let model = Model::read_model_binary(&mut BufReader::new(f)).or_exit("Cannot load model", 1);
 
     let input = Input::from(matches.value_of("INPUT"));
     let reader = input.buf_read().or_exit("Cannot open input for reading", 1);
