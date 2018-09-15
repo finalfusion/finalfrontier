@@ -17,6 +17,8 @@ extern crate lazy_static;
 #[cfg(test)]
 extern crate maplit;
 
+extern crate memmap;
+
 #[macro_use]
 extern crate ndarray;
 
@@ -33,7 +35,8 @@ pub use config::{Config, LossType, ModelType};
 
 mod io;
 pub use io::{
-    ReadModelBinary, SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec,
+    MmapModelBinary, ReadModelBinary, SentenceIterator, WriteModelBinary, WriteModelText,
+    WriteModelWord2Vec,
 };
 
 pub(crate) mod loss;
