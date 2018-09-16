@@ -28,7 +28,9 @@ text files:
 
 https://github.com/facebookresearch/fastText/issues/563#issuecomment-413319396
 
-| Model                                       | Dataset                 | Semantic Accuracy | Syntactic Accuracy | Total Accuracy |
+### Wikipedia
+
+| Model                                          | Dataset                 | Semantic Accuracy | Syntactic Accuracy | Total Accuracy |
 |------------------------------------------------|-------------------------|-------------------|--------------------|----------------|
 | fastText skipgram                              | Wikipedia (en) 20180827 | 85.18             | 76.36              | 79.88          |
 | finalfrontier skipgram                         | Wikipedia (en) 20180827 | 85.05             | 75.56              | 79.34          |
@@ -36,3 +38,15 @@ https://github.com/facebookresearch/fastText/issues/563#issuecomment-413319396
 | final frontier structgram (nonrandom window)   | Wikipedia (en) 20180827 | 82.13             | 78.37              | 79.97          |
 | final frontier structgram (only discard focus) | Wikipedia (en) 20180827 | 77.97             | 78.91              | 77.97          |
 | final frontier structgram (structured discard) | Wikipedia (en) 20180827 | 77.09             | 79.66              | 78.63          |
+
+### taz
+
+Translated Google analogies from:
+
+<http://www.ims.uni-stuttgart.de/forschung/ressourcen/lexika/analogies_ims/analogies.en.html>
+
+
+| Model                                          | Dataset | Semantic Accuracy | Syntactic Accuracy | Total Accuracy |
+|------------------------------------------------|---------|-------------------|--------------------|----------------|
+| fastText skipgram                              | taz     | 84.94             | 71.20              | 76.02          |
+| finalfrontier skipgram                         | taz     | 86.20             | 69.50              | 75.35          |
