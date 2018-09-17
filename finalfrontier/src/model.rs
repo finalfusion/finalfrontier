@@ -1,11 +1,13 @@
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
+use std::iter::Enumerate;
 use std::mem;
+use std::slice;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use failure::{err_msg, Error};
 use memmap::{Mmap, MmapOptions};
-use ndarray::{Array1, Array2, ArrayView2, Axis, Dimension, Ix2};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, Dimension, Ix2};
 
 use io::MODEL_VERSION;
 use vec_simd::{l2_normalize, scale, scaled_add};
@@ -97,9 +99,26 @@ impl Model {
         self.embed_matrix.view()
     }
 
+    /// Get an iterator over known words and their embeddings.
+    pub fn iter(&self) -> Iter {
+        Iter {
+            view: self.embed_matrix.view(),
+            inner: self.vocab.words().iter().enumerate(),
+        }
+    }
+
     /// Get the vocabulary.
     pub fn vocab(&self) -> &Vocab {
         &self.vocab
+    }
+}
+
+impl<'a> IntoIterator for &'a Model {
+    type Item = (&'a str, ArrayView1<'a, f32>);
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -283,5 +302,77 @@ where
         }
 
         Ok(())
+    }
+}
+
+pub struct Iter<'a> {
+    view: ArrayView2<'a, f32>,
+
+    // Note, we cannot use AxisIter, because Model uses ephemeral
+    // arrays for memory-mapped embedding matrices. So, we use
+    // indexing instead.
+    inner: Enumerate<slice::Iter<'a, WordCount>>,
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = (&'a str, ArrayView1<'a, f32>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(idx, word_count)| {
+            (
+                word_count.word(),
+                self.view.into_subview(Axis(0), idx),
+            )
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{EmbeddingMatrix, Model};
+
+    use ndarray::{arr2, Axis};
+
+    use {Config, LossType, ModelType, VocabBuilder};
+
+    pub const TEST_CONFIG: Config = Config {
+        buckets_exp: 21,
+        context_size: 5,
+        dims: 3,
+        discard_threshold: 1e-4,
+        epochs: 5,
+        loss: LossType::LogisticNegativeSampling,
+        lr: 0.05,
+        min_count: 1,
+        max_n: 6,
+        min_n: 3,
+        model: ModelType::SkipGram,
+        negative_samples: 5,
+    };
+
+    #[test]
+    pub fn test_iter() {
+        let mut builder = VocabBuilder::new(TEST_CONFIG.clone());
+        builder.count("test");
+        builder.count("test");
+        builder.count("test");
+        builder.count("this");
+        builder.count("this");
+        builder.count("!");
+        let vocab = builder.build();
+
+        let test_matrix = arr2(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
+
+        let model = Model {
+            config: TEST_CONFIG.clone(),
+            vocab,
+            embed_matrix: EmbeddingMatrix::NDArray(test_matrix.clone()),
+        };
+
+        let mut iter = model.iter();
+        assert_eq!(iter.next(), Some(("test", test_matrix.subview(Axis(0), 0))));
+        assert_eq!(iter.next(), Some(("this", test_matrix.subview(Axis(0), 1))));
+        assert_eq!(iter.next(), Some(("!", test_matrix.subview(Axis(0), 2))));
+        assert_eq!(iter.next(), None);
     }
 }
