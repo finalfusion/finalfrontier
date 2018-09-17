@@ -42,7 +42,7 @@ pub use io::{
 pub(crate) mod loss;
 
 mod model;
-pub use model::{Model, TrainModel};
+pub use model::Model;
 
 pub mod normalization;
 
@@ -54,6 +54,9 @@ pub use sgd::SGD;
 pub mod similarity;
 
 pub(crate) mod subword;
+
+mod train_model;
+pub use train_model::TrainModel;
 
 pub(crate) mod util;
 

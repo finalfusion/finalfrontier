@@ -4,6 +4,8 @@ use std::io::{self, BufRead, Lines, Read, Write};
 use failure::Error;
 use util::EOS;
 
+pub(crate) const MODEL_VERSION: u32 = 3;
+
 /// Sentence iterator.
 ///
 /// This iterator consumes a reader with tokenized sentences:
