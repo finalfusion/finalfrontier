@@ -189,7 +189,7 @@ impl Vocab {
     }
 
     /// Get all words in the vocabulary.
-    pub(crate) fn words(&self) -> &[WordCount] {
+    pub fn words(&self) -> &[WordCount] {
         &self.words
     }
 }
