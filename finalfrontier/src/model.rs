@@ -1,3 +1,5 @@
+//! Embedding prediction model.
+
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::iter::Enumerate;
@@ -305,6 +307,9 @@ where
     }
 }
 
+/// Iterator over known words and their embeddings.
+///
+/// This iterator is created by the [`Model::iter`] method.
 pub struct Iter<'a> {
     view: ArrayView2<'a, f32>,
 

@@ -41,7 +41,9 @@ pub use io::{
 
 pub(crate) mod loss;
 
-mod model;
+pub mod model;
+
+#[doc(inline)]
 pub use model::Model;
 
 pub mod normalization;
