@@ -1,11 +1,11 @@
 [package]
 name = "finalfrontier"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Daniël de Kok <me@danieldk.eu>"]
 description = "Train/use word embeddings with subword units"
 documentation = "https://docs.rs/finalfrontier/"
-homepage = "https://git.danieldk.eu/finalfrontier/about"
-repository = "https://git.danieldk.eu/finalfrontier"
+homepage = "https://github.com/danieldk/finalfrontier"
+repository = "https://github.com/danieldk/finalfrontier.git"
 license = "Apache-2.0"
 
 [dependencies]
@@ -13,7 +13,7 @@ byteorder = "1"
 cfg-if = "0.1"
 failure = "0.1"
 fnv = "1"
-hogwild = { path = "../hogwild", version = "0.1.0" }
+hogwild = { path = "../hogwild", version = "0.2.0" }
 memmap = "0.6"
 ndarray = "0.11"
 ndarray-rand = "0.7"
