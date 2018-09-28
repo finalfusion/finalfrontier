@@ -39,14 +39,17 @@ https://github.com/facebookresearch/fastText/issues/563#issuecomment-413319396
 | final frontier structgram (only discard focus) | Wikipedia (en) 20180827 | 77.97             | 78.91              | 77.97          |
 | final frontier structgram (structured discard) | Wikipedia (en) 20180827 | 77.09             | 79.66              | 78.63          |
 
-### taz
+### German
 
 Translated Google analogies from:
 
 <http://www.ims.uni-stuttgart.de/forschung/ressourcen/lexika/analogies_ims/analogies.en.html>
 
+`dewiki` is the German Wikipedia of January 2018.
 
-| Model                                          | Dataset | Semantic Accuracy | Syntactic Accuracy | Total Accuracy |
-|------------------------------------------------|---------|-------------------|--------------------|----------------|
-| fastText skipgram                              | taz     | 84.94             | 71.20              | 76.02          |
-| finalfrontier skipgram                         | taz     | 86.20             | 69.50              | 75.35          |
+| Model                                          | Dataset      | Semantic Accuracy | Syntactic Accuracy | Total Accuracy |
+|------------------------------------------------|--------------|-------------------|--------------------|----------------|
+| fastText skipgram                              | taz          | 84.94             | 71.20              | 76.02          |
+| fastText skipgram                              | taz + dewiki | 82.00             | 67.01              | 74.24          |
+| finalfrontier skipgram                         | taz          | 86.20             | 69.50              | 75.35          |
+
