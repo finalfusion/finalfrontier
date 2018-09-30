@@ -46,8 +46,6 @@ pub mod model;
 #[doc(inline)]
 pub use model::Model;
 
-pub mod normalization;
-
 pub(crate) mod sampling;
 
 mod sgd;
