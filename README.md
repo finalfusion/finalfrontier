@@ -1,3 +1,7 @@
+[![Crate](https://img.shields.io/crates/v/finalfrontier.svg)](https://crates.io/crates/finalfrontier)
+[![Docs](https://docs.rs/finalfrontier/badge.svg)](https://docs.rs/finalfrontier/)
+[![Build Status](https://travis-ci.org/danieldk/finalfrontier.svg?branch=master)](https://travis-ci.org/danieldk/finalfrontier)
+
 # finalfrontier
 
 ## Introduction
