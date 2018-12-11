@@ -1,5 +1,7 @@
 use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
+use std::sync::Arc;
+use vocab::Vocab;
 use zipf::ZipfDistribution;
 
 pub trait RangeGenerator: Iterator<Item = usize> {
@@ -11,6 +13,69 @@ pub trait RangeGenerator: Iterator<Item = usize> {
 ///
 /// This is the exponent s in f(k) = 1 / (k^s H_{N, s})
 const ZIPF_RANGE_GENERATOR_EXPONENT: f64 = 0.5;
+
+/// An iterator that draws from *[0, n)* with integer weights.
+///
+/// This iterator returns integers from *[0, n)*, where the probability of
+/// each integer is weighted.
+///
+/// In contrast to `WeightedRangeGenerator`, this data structure
+/// creates a table where each index occurs as frequently as its
+/// weight. We then sample indices from this table.
+#[derive(Clone)]
+pub struct SampleWeightedRangeGenerator<R> {
+    sample: Arc<Vec<usize>>,
+    rng: R,
+    vocab_len: usize,
+}
+
+impl<R> SampleWeightedRangeGenerator<R> {
+    pub fn new(rng: R, vocab: &Vocab, power: f32, table_size: usize) -> Self {
+        let mut sample = Vec::with_capacity(table_size);
+
+        let weight_sum = vocab
+            .words()
+            .iter()
+            .map(|w| (w.count() as f32).powf(power))
+            .sum::<f32>();
+
+        for (token_idx, token) in vocab.words().iter().enumerate() {
+            let token_weight = (token.count() as f32).powf(power);
+            let n_table_elems = ((token_weight / weight_sum) * table_size as f32) as usize;
+
+            for _ in 0..n_table_elems {
+                sample.push(token_idx);
+            }
+        }
+
+        SampleWeightedRangeGenerator {
+            sample: Arc::new(sample),
+            rng,
+            vocab_len: vocab.len(),
+        }
+    }
+}
+
+impl<R> Iterator for SampleWeightedRangeGenerator<R>
+where
+    R: Rng,
+{
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let rand_idx = self.rng.gen_range(0, self.sample.len());
+        Some(self.sample[rand_idx])
+    }
+}
+
+impl<R> RangeGenerator for SampleWeightedRangeGenerator<R>
+where
+    R: Rng,
+{
+    fn upper_bound(&self) -> usize {
+        self.vocab_len
+    }
+}
 
 /// An iterator that draws from *[0, n)* with integer weights.
 ///
@@ -107,6 +172,7 @@ impl<R> ZipfRangeGenerator<R>
 where
     R: Rng,
 {
+    #[allow(dead_code)]
     pub fn new(rng: R, upper: usize) -> Self {
         ZipfRangeGenerator {
             upper_bound: upper,

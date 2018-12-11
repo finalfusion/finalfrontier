@@ -5,7 +5,7 @@ use rand::{Rng, SeedableRng};
 
 use hogwild::Hogwild;
 use loss::log_logistic_loss;
-use sampling::{RangeGenerator, ZipfRangeGenerator};
+use sampling::{RangeGenerator, SampleWeightedRangeGenerator};
 use util::ReseedOnCloneRng;
 use vec_simd::scaled_add;
 
@@ -21,7 +21,7 @@ pub struct SGD<R> {
     n_examples: Hogwild<usize>,
     n_tokens_processed: Hogwild<usize>,
     rng: R,
-    sgd_impl: NegativeSamplingSGD<ZipfRangeGenerator<R>>,
+    sgd_impl: NegativeSamplingSGD<SampleWeightedRangeGenerator<R>>,
 }
 
 impl<R> SGD<R> {
@@ -52,7 +52,12 @@ where
     pub fn new(model: TrainModel, rng: R) -> Self {
         let reseed_on_clone = ReseedOnCloneRng(rng);
 
-        let range_gen = ZipfRangeGenerator::new(reseed_on_clone.clone(), model.vocab().len());
+        let range_gen = SampleWeightedRangeGenerator::new(
+            reseed_on_clone.clone(),
+            model.vocab(),
+            0.75,
+            100_000_000,
+        );
 
         let sgd_impl =
             NegativeSamplingSGD::new(model.config().negative_samples as usize, range_gen);

@@ -130,6 +130,12 @@ pub type HogwildArray3<A> = HogwildArray<A, Ix3>;
 #[derive(Clone)]
 pub struct Hogwild<T>(Arc<UnsafeCell<T>>);
 
+impl<T> From<T> for Hogwild<T> {
+    fn from(v: T) -> Self {
+        Hogwild(Arc::new(UnsafeCell::new(v)))
+    }
+}
+
 impl<T> Default for Hogwild<T>
 where
     T: Default,
