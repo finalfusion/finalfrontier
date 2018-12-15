@@ -28,6 +28,9 @@ extern crate ordered_float;
 
 extern crate rand;
 
+#[cfg(test)]
+extern crate rand_xorshift;
+
 extern crate zipf;
 
 mod config;

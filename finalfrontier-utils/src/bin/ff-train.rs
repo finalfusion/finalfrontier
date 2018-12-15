@@ -4,6 +4,7 @@ extern crate finalfrontier_utils;
 extern crate indicatif;
 extern crate num_cpus;
 extern crate rand;
+extern crate rand_xorshift;
 extern crate stdinout;
 
 use std::fs::File;
@@ -19,7 +20,8 @@ use finalfrontier::{
 };
 use finalfrontier_utils::thread_data;
 use indicatif::{ProgressBar, ProgressStyle};
-use rand::{Rng, XorShiftRng};
+use rand::{FromEntropy, Rng};
+use rand_xorshift::XorShiftRng;
 use stdinout::OrExit;
 
 static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
@@ -47,7 +49,7 @@ fn main() {
     );
 
     let model = TrainModel::from_vocab(vocab, config.clone());
-    let sgd = SGD::new(model, XorShiftRng::new_unseeded());
+    let sgd = SGD::new(model, XorShiftRng::from_entropy());
 
     let corpus = matches.value_of(CORPUS).unwrap();
 

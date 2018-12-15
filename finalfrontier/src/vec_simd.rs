@@ -279,7 +279,7 @@ pub fn l2_normalize(v: ArrayViewMut1<f32>) -> f32 {
 mod tests {
     use ndarray::Array1;
     use ndarray_rand::RandomExt;
-    use rand::distributions::Range;
+    use rand::distributions::Uniform;
 
     use util::{all_close, array_all_close, close};
 
@@ -301,8 +301,8 @@ mod tests {
 
     #[test]
     fn add_f32x4_test() {
-        let mut u = Array1::random((102,), Range::new(-1.0, 1.0));
-        let v = Array1::random((102,), Range::new(-1.0, 1.0));
+        let mut u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
+        let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         let mut check = u.clone();
         scaled_add_unvectorized(check.as_slice_mut().unwrap(), v.as_slice().unwrap(), 1.0);
         unsafe { scaled_add_f32x4(u.view_mut(), v.view(), 1.0) };
@@ -312,8 +312,8 @@ mod tests {
     #[test]
     #[cfg(target_feature = "avx")]
     fn add_f32x8_test() {
-        let mut u = Array1::random((102,), Range::new(-1.0, 1.0));
-        let v = Array1::random((102,), Range::new(-1.0, 1.0));
+        let mut u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
+        let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         let mut check = u.clone();
         scaled_add_unvectorized(check.as_slice_mut().unwrap(), v.as_slice().unwrap(), 1.0);
         unsafe { scaled_add_f32x8(u.view_mut(), v.view(), 1.0) };
@@ -322,8 +322,8 @@ mod tests {
 
     #[test]
     fn dot_f32x4_test() {
-        let u = Array1::random((102,), Range::new(-1.0, 1.0));
-        let v = Array1::random((102,), Range::new(-1.0, 1.0));
+        let u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
+        let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         assert!(close(
             unsafe { dot_f32x4(u.view(), v.view()) },
             dot_unvectorized(u.as_slice().unwrap(), v.as_slice().unwrap()),
@@ -334,8 +334,8 @@ mod tests {
     #[test]
     #[cfg(target_feature = "avx")]
     fn dot_f32x8_test() {
-        let u = Array1::random((102,), Range::new(-1.0, 1.0));
-        let v = Array1::random((102,), Range::new(-1.0, 1.0));
+        let u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
+        let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         assert!(close(
             unsafe { dot_f32x8(u.view(), v.view()) },
             dot_unvectorized(u.as_slice().unwrap(), v.as_slice().unwrap()),
@@ -364,8 +364,8 @@ mod tests {
 
     #[test]
     fn scaled_add_f32x4_test() {
-        let mut u = Array1::random((102,), Range::new(-1.0, 1.0));
-        let v = Array1::random((102,), Range::new(-1.0, 1.0));
+        let mut u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
+        let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         let mut check = u.clone();
         scaled_add_unvectorized(check.as_slice_mut().unwrap(), v.as_slice().unwrap(), 2.5);
         unsafe { scaled_add_f32x4(u.view_mut(), v.view(), 2.5) };
@@ -375,8 +375,8 @@ mod tests {
     #[test]
     #[cfg(target_feature = "avx")]
     fn scaled_add_f32x8_test() {
-        let mut u = Array1::random((102,), Range::new(-1.0, 1.0));
-        let v = Array1::random((102,), Range::new(-1.0, 1.0));
+        let mut u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
+        let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         let mut check = u.clone();
         scaled_add_unvectorized(check.as_slice_mut().unwrap(), v.as_slice().unwrap(), 2.5);
         unsafe { scaled_add_f32x8(u.view_mut(), v.view(), 2.5) };
@@ -392,7 +392,7 @@ mod tests {
 
     #[test]
     fn scale_f32x4_test() {
-        let mut u = Array1::random((102,), Range::new(-1.0, 1.0));
+        let mut u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         let mut check = u.clone();
         scale_unvectorized(check.as_slice_mut().unwrap(), 2.);
         unsafe { scale_f32x4(u.view_mut(), 2.) };
@@ -402,7 +402,7 @@ mod tests {
     #[test]
     #[cfg(target_feature = "avx")]
     fn scale_f32x8_test() {
-        let mut u = Array1::random((102,), Range::new(-1.0, 1.0));
+        let mut u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         let mut check = u.clone();
         scale_unvectorized(check.as_slice_mut().unwrap(), 2.);
         unsafe { scale_f32x8(u.view_mut(), 2.) };
@@ -420,7 +420,7 @@ mod tests {
         ));
 
         // Normalization should result in a unit vector.
-        let mut v = Array1::random((102,), Range::new(-1.0, 1.0));
+        let mut v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         l2_normalize(v.view_mut());
         assert!(close(v.dot(&v).sqrt(), 1.0, 1e-5));
     }

@@ -69,13 +69,13 @@ where
     /// Get an immutable subview of the Hogwild array.
     #[inline]
     pub fn subview(&self, axis: Axis, index: Ix) -> ArrayView<A, D::Smaller> {
-        self.as_ref().subview(axis, index)
+        self.as_ref().index_axis(axis, index)
     }
 
     /// Get a mutable subview of the Hogwild array.
     #[inline]
     pub fn subview_mut(&mut self, axis: Axis, index: Ix) -> ArrayViewMut<A, D::Smaller> {
-        self.as_mut().subview_mut(axis, index)
+        self.as_mut().index_axis_mut(axis, index)
     }
 }
 

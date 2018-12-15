@@ -9,4 +9,4 @@ repository = "https://github.com/danieldk/finalfrontier.git"
 license = "Apache-2.0"
 
 [dependencies]
-ndarray = "0.11"
+ndarray = "0.12"

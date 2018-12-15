@@ -1,4 +1,4 @@
-use rand::distributions::Sample;
+use rand::distributions::Distribution;
 use rand::Rng;
 use zipf::ZipfDistribution;
 
@@ -133,15 +133,21 @@ impl<R> RangeGenerator for ZipfRangeGenerator<R> where R: Rng {}
 
 #[cfg(test)]
 mod tests {
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
+
     use super::{WeightedRangeGenerator, ZipfRangeGenerator};
     use util::{all_close, close};
 
-    use rand::XorShiftRng;
+    const SEED: [u8; 16] = [
+        0xe9, 0xfe, 0xf0, 0xfb, 0x6a, 0x23, 0x2a, 0xb3, 0x7c, 0xce, 0x27, 0x9b, 0x56, 0xac, 0xdb,
+        0xf8,
+    ];
 
     #[test]
     #[should_panic]
     fn empty_weighted_range_generator() {
-        let rng = XorShiftRng::new_unseeded();
+        let rng = XorShiftRng::from_seed(SEED);
         let _weighted_gen = WeightedRangeGenerator::new(rng, &[]);
     }
 
@@ -149,7 +155,7 @@ mod tests {
     fn weighted_range_generator_test() {
         const DRAWS: usize = 10_000;
 
-        let rng = XorShiftRng::new_unseeded();
+        let rng = XorShiftRng::from_seed(SEED);
         let weighted_gen = WeightedRangeGenerator::new(rng, &[4, 1, 3, 2]);
 
         // Sample using the given weights.
@@ -170,9 +176,9 @@ mod tests {
 
     #[test]
     fn zipf_range_generator_test() {
-        const DRAWS: usize = 10_000;
+        const DRAWS: usize = 20_000;
 
-        let rng = XorShiftRng::new_unseeded();
+        let rng = XorShiftRng::from_seed(SEED);
         let weighted_gen = ZipfRangeGenerator::new(rng, 4);
 
         // Sample using the given weights.

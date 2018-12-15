@@ -68,7 +68,7 @@ impl Model {
             return Some(
                 self.embed_matrix
                     .view()
-                    .subview(Axis(0), index as usize)
+                    .index_axis(Axis(0), index as usize)
                     .to_owned(),
             );
         }
@@ -83,7 +83,7 @@ impl Model {
         for &idx in indices.iter() {
             scaled_add(
                 embed.view_mut(),
-                self.embed_matrix.view().subview(Axis(0), idx as usize),
+                self.embed_matrix.view().index_axis(Axis(0), idx as usize),
                 1.0,
             );
         }
@@ -323,12 +323,9 @@ impl<'a> Iterator for Iter<'a> {
     type Item = (&'a str, ArrayView1<'a, f32>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|(idx, word_count)| {
-            (
-                word_count.word(),
-                self.view.into_subview(Axis(0), idx),
-            )
-        })
+        self.inner
+            .next()
+            .map(|(idx, word_count)| (word_count.word(), self.view.index_axis_move(Axis(0), idx)))
     }
 }
 
@@ -375,9 +372,15 @@ mod tests {
         };
 
         let mut iter = model.iter();
-        assert_eq!(iter.next(), Some(("test", test_matrix.subview(Axis(0), 0))));
-        assert_eq!(iter.next(), Some(("this", test_matrix.subview(Axis(0), 1))));
-        assert_eq!(iter.next(), Some(("!", test_matrix.subview(Axis(0), 2))));
+        assert_eq!(
+            iter.next(),
+            Some(("test", test_matrix.index_axis(Axis(0), 0)))
+        );
+        assert_eq!(
+            iter.next(),
+            Some(("this", test_matrix.index_axis(Axis(0), 1)))
+        );
+        assert_eq!(iter.next(), Some(("!", test_matrix.index_axis(Axis(0), 2))));
         assert_eq!(iter.next(), None);
     }
 }

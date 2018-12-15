@@ -5,7 +5,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use failure::Error;
 use ndarray::{Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
-use rand::distributions::Range;
+use rand::distributions::Uniform;
 
 use hogwild::HogwildArray2;
 use io::MODEL_VERSION;
@@ -43,17 +43,21 @@ impl TrainModel where {
     /// of the output matrix is the vocabulary size.
     pub fn from_vocab(vocab: Vocab, config: Config) -> Self {
         let init_bound = 1.0 / config.dims as f32;
-        let range = Range::new(-init_bound, init_bound);
+        let distribution = Uniform::new_inclusive(-init_bound, init_bound);
 
         let n_buckets = 2usize.pow(config.buckets_exp as u32);
 
-        let input = Array2::random((vocab.len() + n_buckets, config.dims as usize), range).into();
+        let input = Array2::random(
+            (vocab.len() + n_buckets, config.dims as usize),
+            distribution,
+        )
+        .into();
 
         let output_vocab_size = match config.model {
             ModelType::SkipGram => vocab.len(),
             ModelType::StructuredSkipGram => vocab.len() * config.context_size as usize * 2,
         };
-        let output = Array2::random((output_vocab_size, config.dims as usize), range).into();
+        let output = Array2::random((output_vocab_size, config.dims as usize), distribution).into();
 
         TrainModel {
             config,
