@@ -14,10 +14,10 @@ cfg-if = "0.1"
 failure = "0.1"
 fnv = "1"
 hogwild = { path = "../hogwild", version = "0.2.0" }
-memmap = "0.6"
+memmap = "0.7"
 ndarray = "0.12"
 ndarray-rand = "0.9"
-ordered-float = "0.5"
+ordered-float = "1"
 rand = "0.6"
 zipf = "5"
 

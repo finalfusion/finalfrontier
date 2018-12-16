@@ -140,7 +140,7 @@ impl MmapModelBinary for Model {
         let mut mmap_opts = MmapOptions::new();
         let map = unsafe {
             mmap_opts
-                .offset(offset as usize)
+                .offset(offset)
                 .len(shape.size() * mem::size_of::<f32>())
                 .map(&f)?
         };

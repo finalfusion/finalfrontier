@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashSet};
 
 use ndarray::{Array1, ArrayView1, ArrayView2};
-use ordered_float::NotNaN;
+use ordered_float::NotNan;
 
 use vec_simd::l2_normalize;
 use Model;
@@ -15,7 +15,7 @@ use Model;
 /// its similarity to a query word.
 #[derive(Debug, Eq, PartialEq)]
 pub struct WordSimilarity<'a> {
-    pub similarity: NotNaN<f32>,
+    pub similarity: NotNan<f32>,
     pub word: &'a str,
 }
 
@@ -207,7 +207,7 @@ impl SimilarityPrivate for Model {
 
             let word_similarity = WordSimilarity {
                 word: word,
-                similarity: NotNaN::new(sim).expect("Encountered NaN"),
+                similarity: NotNan::new(sim).expect("Encountered NaN"),
             };
 
             if results.len() < limit {
