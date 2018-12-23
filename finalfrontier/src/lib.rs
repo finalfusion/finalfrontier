@@ -3,6 +3,8 @@ extern crate byteorder;
 #[macro_use]
 extern crate cfg_if;
 
+extern crate conllx;
+
 extern crate failure;
 
 extern crate fnv;
@@ -35,6 +37,9 @@ extern crate zipf;
 
 mod config;
 pub use config::{Config, LossType, ModelType};
+
+mod deps;
+pub(crate) use deps::{DepIter, DependencyIterator, Dependency, PathIter};
 
 mod io;
 pub use io::{
