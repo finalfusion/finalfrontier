@@ -18,7 +18,7 @@ use finalfrontier::{
     Config, LossType, ModelType, SentenceIterator, TrainModel, Vocab, VocabBuilder,
     WriteModelBinary, SGD,
 };
-use finalfrontier_utils::thread_data;
+use finalfrontier_utils::{thread_data, FileProgress};
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::{FromEntropy, Rng};
 use rand_xorshift::XorShiftRng;
@@ -318,7 +318,8 @@ fn do_work<P, R>(
             sentences
                 .next()
                 .or_exit("Iterator does not provide sentences", 1)
-        }.or_exit("Cannot read sentence", 1);
+        }
+        .or_exit("Cannot read sentence", 1);
 
         let lr = (1.0 - (sgd.n_tokens_processed() as f32 / (epochs as usize * n_tokens) as f32))
             * start_lr;
@@ -332,30 +333,18 @@ where
     P: AsRef<Path>,
 {
     let f = File::open(corpus_path).or_exit("Cannot open corpus for reading", 1);
+    let file_progress = FileProgress::new(f).or_exit("Cannot create progress bar", 1);
 
-    let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner} {msg}"));
+    let sentences = SentenceIterator::new(BufReader::new(file_progress));
 
-    let sentences = SentenceIterator::new(BufReader::new(f));
-
-    let mut token_count = 0usize;
     let mut builder = VocabBuilder::new(config.clone());
     for sentence in sentences {
         let sentence = sentence.or_exit("Cannot read sentence", 1);
 
-        let prev_token_count = token_count;
-
         for token in sentence {
-            token_count += 1;
             builder.count(token);
         }
-
-        if prev_token_count % 1_000_000 > token_count % 1_000_000 {
-            pb.set_message(&format!("{}M tokens", token_count / 1_000_000));
-        }
     }
-
-    pb.finish();
 
     builder.build()
 }
