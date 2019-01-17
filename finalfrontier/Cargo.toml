@@ -1,6 +1,6 @@
 [package]
 name = "finalfrontier"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Daniël de Kok <me@danieldk.eu>"]
 description = "Train/use word embeddings with subword units"
 documentation = "https://docs.rs/finalfrontier/"
