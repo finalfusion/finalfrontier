@@ -1,7 +1,8 @@
 use std::cmp;
 
 use ndarray::{Array1, ArrayView1, ArrayViewMut1};
-use rand::Rng;
+use rand::{FromEntropy, Rng};
+use rand_xorshift::XorShiftRng;
 
 use hogwild::Hogwild;
 use loss::log_logistic_loss;
@@ -43,20 +44,35 @@ impl<R> SGD<R> {
     }
 }
 
+impl SGD<XorShiftRng> {
+    /// Construct a new SGD instance.
+    pub fn new(model: TrainModel) -> Self {
+        SGD::new_using(
+            model,
+            XorShiftRng::from_entropy(),
+            XorShiftRng::from_entropy(),
+            XorShiftRng::from_entropy(),
+        )
+    }
+}
+
 impl<R> SGD<R>
 where
     R: Clone + Rng,
 {
-    /// Construct a new SGD instance,
-    pub fn new(model: TrainModel, rng: R) -> Self {
+    /// Construct a new SGD instance.
+    ///
+    /// This constructor uses three separate number generators to avoid
+    /// biases of individual RNGs.
+    pub fn new_using(model: TrainModel, rng: R, rng2: R, rng3: R) -> Self {
         let band_size = match model.config().model {
             ModelType::SkipGram => 1,
             ModelType::StructuredSkipGram => model.config().context_size * 2,
         };
 
         let range_gen = BandedRangeGenerator::new(
-            rng.clone(),
-            ZipfRangeGenerator::new(rng.clone(), model.vocab().len()),
+            rng,
+            ZipfRangeGenerator::new(rng2, model.vocab().len()),
             band_size as usize,
         );
 
@@ -68,7 +84,7 @@ where
             model,
             n_examples: Hogwild::default(),
             n_tokens_processed: Hogwild::default(),
-            rng,
+            rng: rng3,
             sgd_impl,
         }
     }
@@ -81,15 +97,16 @@ where
     where
         S: AsRef<str>,
     {
-        let mut rng = self.rng.clone();
-
         // Convert the sentence into word identifiers, discarding words with
         // the probability indicated by the dictionary.
-        let words: Vec<_> = sentence
-            .iter()
-            .filter_map(|t| self.model.vocab().word_idx(t.as_ref()))
-            .filter(|&idx| rng.gen_range(0f32, 1f32) < self.model.vocab().discard(idx))
-            .collect();
+        let mut words = Vec::new();
+        for t in sentence {
+            if let Some(idx) = self.model.vocab().word_idx(t.as_ref()) {
+                if self.rng.gen_range(0f32, 1f32) < self.model.vocab().discard(idx) {
+                    words.push(idx);
+                }
+            }
+        }
 
         for i in 0..words.len() {
             // The input word is represented by its index and subword
