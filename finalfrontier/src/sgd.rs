@@ -5,7 +5,7 @@ use rand::Rng;
 
 use hogwild::Hogwild;
 use loss::log_logistic_loss;
-use sampling::{RangeGenerator, ZipfRangeGenerator};
+use sampling::{BandedRangeGenerator, RangeGenerator, ZipfRangeGenerator};
 use vec_simd::scaled_add;
 
 use {ModelType, TrainModel};
@@ -20,7 +20,7 @@ pub struct SGD<R> {
     n_examples: Hogwild<usize>,
     n_tokens_processed: Hogwild<usize>,
     rng: R,
-    sgd_impl: NegativeSamplingSGD<ZipfRangeGenerator<R>>,
+    sgd_impl: NegativeSamplingSGD<BandedRangeGenerator<R, ZipfRangeGenerator<R>>>,
 }
 
 impl<R> SGD<R> {
@@ -49,10 +49,19 @@ where
 {
     /// Construct a new SGD instance,
     pub fn new(model: TrainModel, rng: R) -> Self {
-        let sgd_impl = NegativeSamplingSGD::new(
-            model.config().negative_samples as usize,
+        let band_size = match model.config().model {
+            ModelType::SkipGram => 1,
+            ModelType::StructuredSkipGram => model.config().context_size * 2,
+        };
+
+        let range_gen = BandedRangeGenerator::new(
+            rng.clone(),
             ZipfRangeGenerator::new(rng.clone(), model.vocab().len()),
+            band_size as usize,
         );
+
+        let sgd_impl =
+            NegativeSamplingSGD::new(model.config().negative_samples as usize, range_gen);
 
         SGD {
             loss: Hogwild::default(),

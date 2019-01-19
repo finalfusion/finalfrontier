@@ -1,8 +1,11 @@
-use rand::distributions::Distribution;
+use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
 use zipf::ZipfDistribution;
 
-pub trait RangeGenerator: Iterator<Item = usize> {}
+pub trait RangeGenerator: Iterator<Item = usize> {
+    /// Get the upper bound in *[0, upper_bound)*.
+    fn upper_bound(&self) -> usize;
+}
 
 /// Exponent to use for the Zipf's distribution.
 ///
@@ -43,12 +46,6 @@ where
             rng,
         }
     }
-
-    /// Get the upper bound in *[0, upper_bound)*.
-    #[allow(dead_code)]
-    pub fn upper_bound(&self) -> usize {
-        self.prefix_sum.len()
-    }
 }
 
 impl<R> Iterator for WeightedRangeGenerator<R>
@@ -69,7 +66,14 @@ where
     }
 }
 
-impl<R> RangeGenerator for WeightedRangeGenerator<R> where R: Rng {}
+impl<R> RangeGenerator for WeightedRangeGenerator<R>
+where
+    R: Rng,
+{
+    fn upper_bound(&self) -> usize {
+        self.prefix_sum.len()
+    }
+}
 
 /// An iterator that draws from *[0, n)* with a Zipfian distribution.
 ///
@@ -110,11 +114,6 @@ where
             dist: ZipfDistribution::new(upper, ZIPF_RANGE_GENERATOR_EXPONENT).unwrap(),
         }
     }
-
-    #[allow(dead_code)]
-    pub fn upper_bound(&self) -> usize {
-        self.upper_bound
-    }
 }
 
 impl<R> Iterator for ZipfRangeGenerator<R>
@@ -129,19 +128,88 @@ where
     }
 }
 
-impl<R> RangeGenerator for ZipfRangeGenerator<R> where R: Rng {}
+impl<R> RangeGenerator for ZipfRangeGenerator<R>
+where
+    R: Rng,
+{
+    fn upper_bound(&self) -> usize {
+        self.upper_bound
+    }
+}
+
+/// A banded range generator.
+///
+/// This range generator assumes that the overal range consists of
+/// bands with a probability distribution implied by another range
+/// generator and items within that band with a uniform distribution.
+#[derive(Clone)]
+pub struct BandedRangeGenerator<R, G> {
+    uniform: Uniform<usize>,
+    band_size: usize,
+    inner: G,
+    rng: R,
+}
+
+impl<R, G> BandedRangeGenerator<R, G>
+where
+    R: Rng,
+    G: RangeGenerator,
+{
+    pub fn new(rng: R, band_range_gen: G, band_size: usize) -> Self {
+        BandedRangeGenerator {
+            uniform: Uniform::new(0, band_size),
+            band_size,
+            inner: band_range_gen,
+            rng,
+        }
+    }
+}
+
+impl<R, G> Iterator for BandedRangeGenerator<R, G>
+where
+    R: Rng,
+    G: RangeGenerator,
+{
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.band_size == 1 {
+            // No banding, use the inner generator.
+            self.inner.next()
+        } else {
+            let band = self.inner.next().unwrap();
+            let band_item = self.uniform.sample(&mut self.rng);
+            Some(band * self.band_size + band_item)
+        }
+    }
+}
+
+impl<R, G> RangeGenerator for BandedRangeGenerator<R, G>
+where
+    R: Rng,
+    G: RangeGenerator,
+{
+    fn upper_bound(&self) -> usize {
+        self.inner.upper_bound() * self.band_size
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
-    use super::{WeightedRangeGenerator, ZipfRangeGenerator};
+    use super::{BandedRangeGenerator, RangeGenerator, WeightedRangeGenerator, ZipfRangeGenerator};
     use util::{all_close, close};
 
     const SEED: [u8; 16] = [
         0xe9, 0xfe, 0xf0, 0xfb, 0x6a, 0x23, 0x2a, 0xb3, 0x7c, 0xce, 0x27, 0x9b, 0x56, 0xac, 0xdb,
         0xf8,
+    ];
+
+    const SEED2: [u8; 16] = [
+        0xc8, 0xae, 0xa3, 0x99, 0x28, 0x5a, 0xbb, 0x27, 0x90, 0xe9, 0x61, 0x60, 0xe5, 0xca, 0xfe,
+        0x22,
     ];
 
     #[test]
@@ -196,6 +264,42 @@ mod tests {
         // Probabilities should be proportional to weights.
         assert!(all_close(
             &[0.4958, 0.2302, 0.1912, 0.0828],
+            probs.as_slice(),
+            1e-2
+        ));
+        assert!(close(1.0f32, probs.iter().cloned().sum(), 1e-2));
+    }
+
+    #[test]
+    fn banded_range_generator_test() {
+        const DRAWS: usize = 20_000;
+
+        let rng = XorShiftRng::from_seed(SEED);
+        let inner_gen = ZipfRangeGenerator::new(rng, 4);
+
+        let rng = XorShiftRng::from_seed(SEED2);
+        let weighted_gen = BandedRangeGenerator::new(rng, inner_gen, 4);
+
+        // Sample using the given weights.
+        let mut hits = vec![0; weighted_gen.upper_bound()];
+        for idx in weighted_gen.take(DRAWS) {
+            hits[idx] += 1;
+        }
+
+        // Convert counts to a probability distribution.
+        let probs: Vec<_> = hits
+            .into_iter()
+            .map(|count| count as f32 / DRAWS as f32)
+            .collect();
+
+        // Probabilities should be proportional to weights.
+        eprintln!("{:?}", probs.as_slice());
+        assert!(all_close(
+            //&[0.4958, 0.2302, 0.1912, 0.0828],
+            &[
+                0.1240, 0.1240, 0.1240, 0.1240, 0.0576, 0.0576, 0.0576, 0.0576, 0.0478, 0.0478,
+                0.0478, 0.0478, 0.0207, 0.0207, 0.0207, 0.0207
+            ],
             probs.as_slice(),
             1e-2
         ));
