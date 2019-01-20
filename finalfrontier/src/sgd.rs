@@ -125,9 +125,9 @@ where
             let context_size = self.rng.gen_range(1, self.model.config().context_size + 1) as usize;
 
             let left = i - cmp::min(i, context_size);
-            let right = cmp::min(i + context_size + 1, words.len());
+            let right = cmp::min(i + context_size, words.len() - 1);
 
-            for j in left..right {
+            for j in left..=right {
                 if i != j {
                     let output = self.output_(words[j], i, j);
 
