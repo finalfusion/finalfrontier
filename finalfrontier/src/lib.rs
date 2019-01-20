@@ -30,6 +30,9 @@ extern crate ordered_float;
 
 extern crate rand;
 
+extern crate rand_core;
+
+#[cfg(test)]
 extern crate rand_xorshift;
 
 extern crate zipf;

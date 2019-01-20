@@ -1,12 +1,12 @@
 use std::cmp;
 
 use ndarray::{Array1, ArrayView1, ArrayViewMut1};
-use rand::{FromEntropy, Rng};
-use rand_xorshift::XorShiftRng;
+use rand::{Rng, SeedableRng};
 
 use hogwild::Hogwild;
 use loss::log_logistic_loss;
 use sampling::{BandedRangeGenerator, RangeGenerator, ZipfRangeGenerator};
+use util::ReseedOnCloneRng;
 use vec_simd::scaled_add;
 
 use {ModelType, TrainModel};
@@ -44,35 +44,22 @@ impl<R> SGD<R> {
     }
 }
 
-impl SGD<XorShiftRng> {
-    /// Construct a new SGD instance.
-    pub fn new(model: TrainModel) -> Self {
-        SGD::new_using(
-            model,
-            XorShiftRng::from_entropy(),
-            XorShiftRng::from_entropy(),
-            XorShiftRng::from_entropy(),
-        )
-    }
-}
-
-impl<R> SGD<R>
+impl<R> SGD<ReseedOnCloneRng<R>>
 where
-    R: Clone + Rng,
+    R: Clone + Rng + SeedableRng,
 {
     /// Construct a new SGD instance.
-    ///
-    /// This constructor uses three separate number generators to avoid
-    /// biases of individual RNGs.
-    pub fn new_using(model: TrainModel, rng: R, rng2: R, rng3: R) -> Self {
+    pub fn new(model: TrainModel, rng: R) -> Self {
+        let reseed_on_clone = ReseedOnCloneRng(rng);
+
         let band_size = match model.config().model {
             ModelType::SkipGram => 1,
             ModelType::StructuredSkipGram => model.config().context_size * 2,
         };
 
         let range_gen = BandedRangeGenerator::new(
-            rng,
-            ZipfRangeGenerator::new(rng2, model.vocab().len()),
+            reseed_on_clone.clone(),
+            ZipfRangeGenerator::new(reseed_on_clone.clone(), model.vocab().len()),
             band_size as usize,
         );
 
@@ -84,11 +71,16 @@ where
             model,
             n_examples: Hogwild::default(),
             n_tokens_processed: Hogwild::default(),
-            rng: rng3,
+            rng: reseed_on_clone,
             sgd_impl,
         }
     }
+}
 
+impl<R> SGD<R>
+where
+    R: Rng,
+{
     /// Update the model parameters using the given sentence.
     ///
     /// This applies a gradient descent step on the sentence, with the given
