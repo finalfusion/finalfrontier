@@ -5,11 +5,11 @@ use rand::{Rng, SeedableRng};
 
 use hogwild::Hogwild;
 use loss::log_logistic_loss;
-use sampling::{BandedRangeGenerator, RangeGenerator, ZipfRangeGenerator};
+use sampling::{RangeGenerator, ZipfRangeGenerator};
 use util::ReseedOnCloneRng;
 use vec_simd::scaled_add;
 
-use {ModelType, TrainModel};
+use {Config, ModelType, TrainModel};
 
 /// Stochastic gradient descent
 ///
@@ -21,7 +21,7 @@ pub struct SGD<R> {
     n_examples: Hogwild<usize>,
     n_tokens_processed: Hogwild<usize>,
     rng: R,
-    sgd_impl: NegativeSamplingSGD<BandedRangeGenerator<R, ZipfRangeGenerator<R>>>,
+    sgd_impl: NegativeSamplingSGD<ZipfRangeGenerator<R>>,
 }
 
 impl<R> SGD<R> {
@@ -52,16 +52,7 @@ where
     pub fn new(model: TrainModel, rng: R) -> Self {
         let reseed_on_clone = ReseedOnCloneRng(rng);
 
-        let band_size = match model.config().model {
-            ModelType::SkipGram => 1,
-            ModelType::StructuredSkipGram => model.config().context_size * 2,
-        };
-
-        let range_gen = BandedRangeGenerator::new(
-            reseed_on_clone.clone(),
-            ZipfRangeGenerator::new(reseed_on_clone.clone(), model.vocab().len()),
-            band_size as usize,
-        );
+        let range_gen = ZipfRangeGenerator::new(reseed_on_clone.clone(), model.vocab().len());
 
         let sgd_impl =
             NegativeSamplingSGD::new(model.config().negative_samples as usize, range_gen);
@@ -121,7 +112,7 @@ where
 
             for j in left..=right {
                 if i != j {
-                    let output = self.output_(words[j], i, j);
+                    let output = output_(self.model.config(), words[j], i, j);
 
                     // Update parameters for the token focus token i and the
                     // context token j.
@@ -130,6 +121,8 @@ where
                         &input,
                         input_embed.view(),
                         output,
+                        i,
+                        j,
                         lr,
                     )
                 }
@@ -139,22 +132,6 @@ where
         }
 
         *self.n_tokens_processed += words.len();
-    }
-
-    fn output_(&self, token: usize, focus_idx: usize, offset_idx: usize) -> usize {
-        match self.model.config().model {
-            ModelType::SkipGram => token,
-            ModelType::StructuredSkipGram => {
-                let context_size = self.model.config().context_size as usize;
-                let offset = if offset_idx < focus_idx {
-                    (offset_idx + context_size) - focus_idx
-                } else {
-                    (offset_idx - focus_idx - 1) + context_size
-                };
-
-                (token * context_size * 2) + offset
-            }
-        }
     }
 }
 
@@ -208,6 +185,8 @@ where
         input: &[u64],
         input_embed: ArrayView1<f32>,
         output: usize,
+        focus_idx: usize,
+        offset_idx: usize,
         lr: f32,
     ) -> f32 {
         let mut loss = 0.0;
@@ -224,7 +203,15 @@ where
         );
 
         // Pick the negative examples and update their output embeddings.
-        loss += self.negative_samples(model, input_embed, input_delta.view_mut(), output, lr);
+        loss += self.negative_samples(
+            model,
+            input_embed,
+            input_delta.view_mut(),
+            output,
+            focus_idx,
+            offset_idx,
+            lr,
+        );
 
         // Update the input embeddings with the accumulated gradient.
         for &idx in input {
@@ -242,6 +229,8 @@ where
         input_embed: ArrayView1<f32>,
         mut input_delta: ArrayViewMut1<f32>,
         output: usize,
+        focus_idx: usize,
+        offset_idx: usize,
         lr: f32,
     ) -> f32 {
         let mut loss = 0f32;
@@ -251,6 +240,12 @@ where
             loop {
                 // Cannot panic, since the iterator is endless.
                 negative = self.range_gen.next().unwrap();
+
+                // `negative` now contains the vocab offset, however in structured
+                // skipgram the context matrix has vocab_size * 2 * context_size
+                // positions. Get the row corresponding to the token at the current
+                // relative offset.
+                negative = output_(model.config(), negative, focus_idx, offset_idx);
 
                 // We do not want to use the target word as a negative
                 // example.
@@ -307,5 +302,21 @@ where
         );
 
         loss
+    }
+}
+
+fn output_(config: &Config, token: usize, focus_idx: usize, offset_idx: usize) -> usize {
+    match config.model {
+        ModelType::SkipGram => token,
+        ModelType::StructuredSkipGram => {
+            let context_size = config.context_size as usize;
+            let offset = if offset_idx < focus_idx {
+                (offset_idx + context_size) - focus_idx
+            } else {
+                (offset_idx - focus_idx - 1) + context_size
+            };
+
+            (token * context_size * 2) + offset
+        }
     }
 }

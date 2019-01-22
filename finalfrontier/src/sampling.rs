@@ -155,6 +155,7 @@ where
     R: Rng,
     G: RangeGenerator,
 {
+    #[allow(dead_code)]
     pub fn new(rng: R, band_range_gen: G, band_size: usize) -> Self {
         BandedRangeGenerator {
             uniform: Uniform::new(0, band_size),
