@@ -1,5 +1,6 @@
 //! Embedding prediction model.
 
+use std::f64;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::iter::Enumerate;
@@ -223,6 +224,7 @@ where
         buckets_exp,
         negative_samples,
         lr,
+        zipf_exponent: f64::NAN,
     })
 }
 
@@ -350,6 +352,7 @@ mod tests {
         min_n: 3,
         model: ModelType::SkipGram,
         negative_samples: 5,
+        zipf_exponent: 0.5,
     };
 
     #[test]

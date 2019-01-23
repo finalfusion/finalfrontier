@@ -96,4 +96,9 @@ pub struct Config {
 
     /// The initial learning rate.
     pub lr: f32,
+
+    /// Exponent in zipfian distribution.
+    ///
+    /// This is s in *f(k) = 1 / (k^s H_{N, s})*.
+    pub zipf_exponent: f64,
 }
