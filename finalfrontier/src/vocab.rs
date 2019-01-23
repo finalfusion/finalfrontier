@@ -402,6 +402,7 @@ mod tests {
         min_n: 3,
         model: ModelType::SkipGram,
         negative_samples: 5,
+        zipf_exponent: 0.5,
     };
 
     #[test]

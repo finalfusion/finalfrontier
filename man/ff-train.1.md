@@ -87,7 +87,12 @@ OPTIONS
 
 :   The number of thread to use during training for parallelization. The
     default is to use half of the logical CPUs of the machine.
-	
+
+`--zipf` *EXP*
+
+:   Exponent *s* used in the Zipf distribution `p(k) = 1 / (k^s H_N)` for
+    negative sampling. Default: 0.5
+
 EXAMPLES
 ========
 

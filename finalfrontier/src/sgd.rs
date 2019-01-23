@@ -59,7 +59,11 @@ where
 
         let range_gen = BandedRangeGenerator::new(
             reseed_on_clone.clone(),
-            ZipfRangeGenerator::new(reseed_on_clone.clone(), model.vocab().len()),
+            ZipfRangeGenerator::new_with_exponent(
+                reseed_on_clone.clone(),
+                model.vocab().len(),
+                model.config().zipf_exponent,
+            ),
             band_size as usize,
         );
 

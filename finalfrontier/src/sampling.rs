@@ -10,7 +10,7 @@ pub trait RangeGenerator: Iterator<Item = usize> {
 /// Exponent to use for the Zipf's distribution.
 ///
 /// This is the exponent s in f(k) = 1 / (k^s H_{N, s})
-const ZIPF_RANGE_GENERATOR_EXPONENT: f64 = 0.5;
+const ZIPF_RANGE_GENERATOR_DEFAULT_EXPONENT: f64 = 0.5;
 
 /// An iterator that draws from *[0, n)* with integer weights.
 ///
@@ -86,6 +86,7 @@ where
 /// is proportional to its frequency.
 pub struct ZipfRangeGenerator<R> {
     upper_bound: usize,
+    exponent: f64,
     rng: R,
     dist: ZipfDistribution,
 }
@@ -97,8 +98,9 @@ where
     fn clone(&self) -> Self {
         ZipfRangeGenerator {
             upper_bound: self.upper_bound,
+            exponent: self.exponent,
             rng: self.rng.clone(),
-            dist: ZipfDistribution::new(self.upper_bound, ZIPF_RANGE_GENERATOR_EXPONENT).unwrap(),
+            dist: ZipfDistribution::new(self.upper_bound, self.exponent).unwrap(),
         }
     }
 }
@@ -107,11 +109,17 @@ impl<R> ZipfRangeGenerator<R>
 where
     R: Rng,
 {
+    #[allow(dead_code)]
     pub fn new(rng: R, upper: usize) -> Self {
+        Self::new_with_exponent(rng, upper, ZIPF_RANGE_GENERATOR_DEFAULT_EXPONENT)
+    }
+
+    pub fn new_with_exponent(rng: R, upper_bound: usize, exponent: f64) -> Self {
         ZipfRangeGenerator {
-            upper_bound: upper,
+            upper_bound,
+            exponent,
             rng,
-            dist: ZipfDistribution::new(upper, ZIPF_RANGE_GENERATOR_EXPONENT).unwrap(),
+            dist: ZipfDistribution::new(upper_bound, exponent).unwrap(),
         }
     }
 }

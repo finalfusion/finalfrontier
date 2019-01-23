@@ -92,6 +92,7 @@ static MAXN: &str = "maxn";
 static MODEL: &str = "model";
 static NS: &str = "ns";
 static THREADS: &str = "threads";
+static ZIPF_EXPONENT: &str = "zipf";
 
 // Argument constants
 static CORPUS: &str = "CORPUS";
@@ -145,6 +146,13 @@ fn config_from_matches<'a>(matches: &ArgMatches<'a>) -> Config {
                 .or_exit("Cannot parse number of negative samples", 1)
         })
         .unwrap_or(5);
+    let zipf_exponent = matches
+        .value_of(ZIPF_EXPONENT)
+        .map(|v| {
+            v.parse()
+                .or_exit("Cannot parse exponent zipf distribution", 1)
+        })
+        .unwrap_or(0.5);
 
     Config {
         context_size,
@@ -159,6 +167,7 @@ fn config_from_matches<'a>(matches: &ArgMatches<'a>) -> Config {
         buckets_exp,
         negative_samples,
         lr,
+        zipf_exponent,
     }
 }
 
@@ -247,6 +256,13 @@ fn parse_args() -> ArgMatches<'static> {
                 .long("threads")
                 .value_name("N")
                 .help("Number of threads (default: logical_cpus / 2)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(ZIPF_EXPONENT)
+                .long("zipf")
+                .value_name("EXP")
+                .help("Exponent Zipf distribution for negative sampling (default: 0.5)")
                 .takes_value(true),
         )
         .arg(
