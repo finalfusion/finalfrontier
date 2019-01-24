@@ -14,7 +14,7 @@ use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, Dimension, Ix2};
 use io::MODEL_VERSION;
 use vec_simd::{l2_normalize, scale, scaled_add};
 use {
-    Config, LossType, MmapModelBinary, ModelType, ReadModelBinary, Vocab, WordCount,
+    Config, LossType, MmapModelBinary, ModelType, ReadModelBinary, SubwordVocab, Vocab, Word,
     WriteModelText, WriteModelWord2Vec,
 };
 
@@ -47,7 +47,7 @@ impl EmbeddingMatrix {
 /// and embedding matrix. The model can be used to retrieve word embeddings.
 pub struct Model {
     config: Config,
-    vocab: Vocab,
+    vocab: SubwordVocab,
     embed_matrix: EmbeddingMatrix,
 }
 
@@ -64,7 +64,7 @@ impl Model {
     /// embedding.
     pub fn embedding(&self, word: &str) -> Option<Array1<f32>> {
         // For known words, return the precomputed embedding.
-        if let Some(index) = self.vocab.word_idx(word) {
+        if let Some(index) = self.vocab.idx(word) {
             return Some(
                 self.embed_matrix
                     .view()
@@ -105,12 +105,12 @@ impl Model {
     pub fn iter(&self) -> Iter {
         Iter {
             view: self.embed_matrix.view(),
-            inner: self.vocab.words().iter().enumerate(),
+            inner: self.vocab.types().iter().enumerate(),
         }
     }
 
     /// Get the vocabulary.
-    pub fn vocab(&self) -> &Vocab {
+    pub fn vocab(&self) -> &SubwordVocab {
         &self.vocab
     }
 }
@@ -226,7 +226,7 @@ where
     })
 }
 
-fn read_model_binary_vocab<R>(config: &Config, read: &mut R) -> Result<Vocab, Error>
+fn read_model_binary_vocab<R>(config: &Config, read: &mut R) -> Result<SubwordVocab, Error>
 where
     R: Read,
 {
@@ -240,10 +240,10 @@ where
         let word = String::from_utf8(bytes)?;
         let count = read.read_u64::<LittleEndian>()? as usize;
 
-        words.push(WordCount::new(word, count));
+        words.push(Word::new(word, count));
     }
 
-    Ok(Vocab::new(config.clone(), words, n_tokens as usize))
+    Ok(SubwordVocab::new(config.clone(), words, n_tokens as usize))
 }
 
 impl<W> WriteModelText<W> for Model
@@ -255,12 +255,12 @@ where
             writeln!(
                 write,
                 "{} {}",
-                self.vocab.words().len(),
+                self.vocab.types().len(),
                 self.embed_matrix.view().shape()[1]
             )?;
         }
 
-        for word in self.vocab.words() {
+        for word in self.vocab.types() {
             let embed = self
                 .embedding(word.word())
                 .expect("Word without an embedding");
@@ -288,7 +288,7 @@ where
             self.embed_matrix.view().shape()[1]
         )?;
 
-        for word in self.vocab.words() {
+        for word in self.vocab.types() {
             write!(write, "{} ", word.word())?;
 
             let embed = self
@@ -316,7 +316,7 @@ pub struct Iter<'a> {
     // Note, we cannot use AxisIter, because Model uses ephemeral
     // arrays for memory-mapped embedding matrices. So, we use
     // indexing instead.
-    inner: Enumerate<slice::Iter<'a, WordCount>>,
+    inner: Enumerate<slice::Iter<'a, Word>>,
 }
 
 impl<'a> Iterator for Iter<'a> {
@@ -354,14 +354,14 @@ mod tests {
 
     #[test]
     pub fn test_iter() {
-        let mut builder = VocabBuilder::new(TEST_CONFIG.clone());
+        let mut builder: VocabBuilder<&str> = VocabBuilder::new(TEST_CONFIG.clone());
         builder.count("test");
         builder.count("test");
         builder.count("test");
         builder.count("this");
         builder.count("this");
         builder.count("!");
-        let vocab = builder.build();
+        let vocab = builder.into();
 
         let test_matrix = arr2(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
 

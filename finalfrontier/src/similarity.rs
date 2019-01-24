@@ -7,7 +7,7 @@ use ndarray::{Array1, ArrayView1, ArrayView2};
 use ordered_float::NotNan;
 
 use vec_simd::l2_normalize;
-use Model;
+use {Model, Vocab};
 
 /// A word with its similarity.
 ///
@@ -198,7 +198,7 @@ impl SimilarityPrivate for Model {
 
         let mut results = BinaryHeap::with_capacity(limit);
         for (idx, &sim) in sims.iter().enumerate() {
-            let word = self.vocab().words()[idx].word();
+            let word = self.vocab().types()[idx].word();
 
             // Don't add words that we are explicitly asked to skip.
             if skip.contains(word) {

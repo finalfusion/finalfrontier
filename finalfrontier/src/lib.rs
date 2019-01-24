@@ -73,4 +73,4 @@ pub(crate) mod util;
 pub(crate) mod vec_simd;
 
 mod vocab;
-pub use vocab::{Vocab, VocabBuilder, WordCount};
+pub use vocab::{CountedType, SubwordVocab, Vocab, VocabBuilder, Word};

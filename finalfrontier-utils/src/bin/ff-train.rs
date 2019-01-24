@@ -15,7 +15,7 @@ use std::time::Duration;
 
 use clap::{App, AppSettings, Arg, ArgMatches};
 use finalfrontier::{
-    Config, LossType, ModelType, SentenceIterator, TrainModel, Vocab, VocabBuilder,
+    Config, LossType, ModelType, SentenceIterator, SubwordVocab, TrainModel, Vocab, VocabBuilder,
     WriteModelBinary, SGD,
 };
 use finalfrontier_utils::{thread_data, FileProgress};
@@ -265,7 +265,7 @@ fn parse_args() -> ArgMatches<'static> {
 }
 
 fn show_progress<R>(config: &Config, sgd: &SGD<R>, update_interval: Duration) {
-    let n_tokens = sgd.model().vocab().n_tokens();
+    let n_tokens = sgd.model().vocab().n_types();
 
     let pb = ProgressBar::new(config.epochs as u64 * n_tokens as u64);
     pb.set_style(
@@ -303,7 +303,7 @@ fn do_work<P, R>(
     P: Into<PathBuf>,
     R: Clone + Rng,
 {
-    let n_tokens = sgd.model().vocab().n_tokens();
+    let n_tokens = sgd.model().vocab().n_types();
 
     let f = File::open(corpus_path.into()).or_exit("Cannot open corpus for reading", 1);
     let (data, start) =
@@ -328,7 +328,7 @@ fn do_work<P, R>(
     }
 }
 
-fn build_vocab<P>(config: &Config, corpus_path: P) -> Vocab
+fn build_vocab<P>(config: &Config, corpus_path: P) -> SubwordVocab
 where
     P: AsRef<Path>,
 {
@@ -337,7 +337,7 @@ where
 
     let sentences = SentenceIterator::new(BufReader::new(file_progress));
 
-    let mut builder = VocabBuilder::new(config.clone());
+    let mut builder: VocabBuilder<String> = VocabBuilder::new(config.clone());
     for sentence in sentences {
         let sentence = sentence.or_exit("Cannot read sentence", 1);
 
@@ -346,5 +346,5 @@ where
         }
     }
 
-    builder.build()
+    builder.into()
 }

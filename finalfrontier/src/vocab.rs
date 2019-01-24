@@ -1,5 +1,6 @@
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use subword::SubwordIndices;
 use {util, Config};
@@ -7,54 +8,54 @@ use {util, Config};
 const BOW: char = '<';
 const EOW: char = '>';
 
-/// A vocabulary word.
+pub type Word = CountedType<String>;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct WordCount {
-    word: String,
+pub struct CountedType<T> {
+    label: T,
     count: usize,
 }
-
-impl WordCount {
-    /// Construct a new word.
-    pub(crate) fn new(word: String, count: usize) -> Self {
-        WordCount { word, count }
+impl<T> CountedType<T> {
+    /// Construct a new type.
+    pub(crate) fn new(label: T, count: usize) -> Self {
+        CountedType { label, count }
     }
-
-    /// The word count.
     pub fn count(&self) -> usize {
         self.count
     }
-
-    /// The string representation of the word.
-    pub fn word(&self) -> &str {
-        &self.word
+    pub fn label(&self) -> &T {
+        &self.label
     }
 }
 
-/// A corpus vocabulary.
+impl CountedType<String> {
+    /// The string representation of the word.
+    pub fn word(&self) -> &str {
+        &self.label
+    }
+}
+
+/// A corpus vocabulary with subword lookup.
 #[derive(Clone)]
-pub struct Vocab {
+pub struct SubwordVocab {
     config: Config,
-    words: Vec<WordCount>,
+    words: Vec<Word>,
     subwords: Vec<Vec<u64>>,
     discards: Vec<f32>,
     index: HashMap<String, usize>,
     n_tokens: usize,
 }
 
-impl Vocab {
+impl SubwordVocab {
     /// Construct a new vocabulary.
     ///
     /// Normally a `VocabBuilder` should be used. This constructor is used
     /// for deserialization.
-    pub(crate) fn new(config: Config, mut words: Vec<WordCount>, n_tokens: usize) -> Self {
+    pub(crate) fn new(config: Config, mut words: Vec<Word>, n_tokens: usize) -> Self {
         words.sort_unstable_by(|w1, w2| w2.count.cmp(&w1.count));
-
-        let index = Self::create_word_indices(&words);
+        let index = create_indices(&words);
         let subwords = Self::create_subword_indices(&config, &words);
-        let discards = Self::create_discards(&config, &words, n_tokens);
-
-        Vocab {
+        let discards = create_discards(config.discard_threshold, &words, n_tokens);
+        SubwordVocab {
             config,
             discards,
             words,
@@ -64,31 +65,17 @@ impl Vocab {
         }
     }
 
-    fn create_discards(config: &Config, words: &[WordCount], n_tokens: usize) -> Vec<f32> {
-        let mut discards = Vec::with_capacity(words.len());
-
-        for word in words {
-            let p = word.count() as f32 / n_tokens as f32;
-            let p_discard = config.discard_threshold / p + (config.discard_threshold / p).sqrt();
-
-            // Not a proper probability, upper bound at 1.0.
-            discards.push(1f32.min(p_discard));
-        }
-
-        discards
-    }
-
-    fn create_subword_indices(config: &Config, words: &[WordCount]) -> Vec<Vec<u64>> {
+    fn create_subword_indices(config: &Config, words: &[Word]) -> Vec<Vec<u64>> {
         let mut subword_indices = Vec::new();
 
         for word in words {
-            if word.word == util::EOS {
+            if word.word() == util::EOS {
                 subword_indices.push(Vec::new());
                 continue;
             }
 
             subword_indices.push(
-                bracket(&word.word)
+                bracket(word.word())
                     .as_str()
                     .subword_indices(
                         config.min_n as usize,
@@ -106,38 +93,9 @@ impl Vocab {
         subword_indices
     }
 
-    fn create_word_indices(words: &[WordCount]) -> HashMap<String, usize> {
-        let mut word_indices = HashMap::new();
-
-        for (idx, word) in words.iter().enumerate() {
-            word_indices.insert(word.word.clone(), idx);
-        }
-
-        // Invariant: The index size should be the same as the number of
-        // words.
-        assert_eq!(words.len(), word_indices.len());
-
-        word_indices
-    }
-
-    /// Get the discard probability of the word with the given index.
-    pub(crate) fn discard(&self, idx: usize) -> f32 {
-        self.discards[idx]
-    }
-
-    /// Get the vocabulary size.
-    pub fn len(&self) -> usize {
-        self.words.len()
-    }
-
     /// Get the given word.
-    pub fn word(&self, word: &str) -> Option<&WordCount> {
-        self.word_idx(word).map(|idx| &self.words[idx])
-    }
-
-    /// Get the index of a word.
-    pub(crate) fn word_idx(&self, word: &str) -> Option<usize> {
-        self.index.get(word).cloned()
+    pub fn word(&self, word: &str) -> Option<&Word> {
+        self.idx(word).map(|idx| &self.words[idx])
     }
 
     /// Get the subword indices of a word.
@@ -172,76 +130,247 @@ impl Vocab {
     /// This method copies the subword list for known words into a new Vec.
     pub fn indices(&self, word: &str) -> Vec<u64> {
         let mut indices = self.subword_indices(word).into_owned();
-        if let Some(index) = self.word_idx(word) {
+        if let Some(index) = self.idx(word) {
             indices.push(index as u64);
         }
 
         indices
     }
+}
 
-    /// Get the number of tokens in the corpus.
-    ///
-    /// This returns the number of tokens in the corpus that the vocabulary
-    /// was constructed from, **before** removing tokens that are below the
-    /// minimum count.
-    pub fn n_tokens(&self) -> usize {
-        self.n_tokens
+/// Generic corpus vocabulary type.
+///
+/// Can be used as an input or output lookup.
+#[derive(Clone)]
+pub struct SimpleVocab<T>
+where
+    T: Hash + Eq,
+{
+    config: Config,
+    types: Vec<CountedType<T>>,
+    index: HashMap<T, usize>,
+    n_types: usize,
+    discards: Vec<f32>,
+}
+
+impl<T> SimpleVocab<T>
+where
+    T: Hash + Eq + Clone,
+{
+    /// Constructor only used by the Vocabbuilder
+    pub(crate) fn new(config: Config, mut types: Vec<CountedType<T>>, n_types: usize) -> Self {
+        types.sort_unstable_by(|t1, t2| t2.count().cmp(&t1.count()));
+        let discards = create_discards(config.discard_threshold, &types, n_types);
+        let index = create_indices(&types);
+        SimpleVocab {
+            config,
+            types,
+            index,
+            n_types,
+            discards,
+        }
     }
 
-    /// Get all words in the vocabulary.
-    pub fn words(&self) -> &[WordCount] {
+    /// Get a specific context
+    pub fn get<Q>(&self, context: &Q) -> Option<&CountedType<T>>
+    where
+        T: Borrow<Q>,
+        Q: Hash + ?Sized + Eq,
+    {
+        self.idx(context).map(|idx| &self.types[idx])
+    }
+}
+
+/// Trait for lookup of indices.
+pub trait Vocab {
+    type VocabType;
+
+    /// Get the number of entries in the vocabulary.
+    fn len(&self) -> usize {
+        self.types().len()
+    }
+
+    /// Get the index of the entry, will return None if the item is not present.
+    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    where
+        Self::VocabType: Borrow<Q>,
+        Q: Hash + ?Sized + Eq;
+
+    /// Get the discard probability of the entry with the given index.
+    fn discard(&self, idx: usize) -> f32;
+
+    /// Get all types in the vocabulary.
+    fn types(&self) -> &[CountedType<Self::VocabType>];
+
+    /// Get the number of types in the corpus.
+    ///
+    /// This returns the number of types in the corpus that the vocabulary
+    /// was constructed from, **before** removing types that are below the
+    /// minimum count.
+    fn n_types(&self) -> usize;
+}
+
+impl Vocab for SubwordVocab {
+    type VocabType = String;
+
+    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    where
+        Self::VocabType: Borrow<Q>,
+        Q: Hash + ?Sized + Eq,
+    {
+        self.index.get(key).cloned()
+    }
+
+    fn discard(&self, idx: usize) -> f32 {
+        self.discards[idx]
+    }
+
+    fn types(&self) -> &[Word] {
         &self.words
     }
+
+    fn n_types(&self) -> usize {
+        self.n_tokens
+    }
 }
 
-/// This builder is used to construct a vocabulary.
+impl<T> Vocab for SimpleVocab<T>
+where
+    T: Hash + Eq,
+{
+    type VocabType = T;
+
+    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    where
+        Self::VocabType: Borrow<Q>,
+        Q: Hash + ?Sized + Eq,
+    {
+        self.index.get(key).cloned()
+    }
+
+    fn discard(&self, idx: usize) -> f32 {
+        self.discards[idx]
+    }
+
+    fn types(&self) -> &[CountedType<Self::VocabType>] {
+        &self.types
+    }
+
+    fn n_types(&self) -> usize {
+        self.n_types
+    }
+}
+
+/// Generic builder struct to count types.
 ///
-/// Tokens are added to the vocabulary and counted using the `count` method.
-/// The final vocabulary is constructed using `build`.
-pub struct VocabBuilder {
+/// Items are added to the vocabulary and counted using the `count` method.
+/// There is no explicit build method, conversion is done via implementing
+/// `From<VocabBuilder<T>>`.
+pub struct VocabBuilder<T>
+where
+    T: Hash + Eq,
+{
     config: Config,
-    words: HashMap<String, usize>,
-    n_tokens: usize,
+    items: HashMap<T, usize>,
+    n_items: usize,
 }
 
-impl VocabBuilder {
+impl<T> VocabBuilder<T>
+where
+    T: Hash + Eq,
+{
     pub fn new(config: Config) -> Self {
         VocabBuilder {
             config,
-            words: HashMap::new(),
-            n_tokens: 0,
+            items: HashMap::new(),
+            n_items: 0,
         }
     }
 
-    /// Convert the builder to a vocabulary.
-    pub fn build(self) -> Vocab {
-        let config = self.config;
-
-        let mut words = Vec::new();
-        for (word, count) in self.words.into_iter() {
-            if word != util::EOS && count < config.min_count as usize {
-                continue;
-            }
-
-            words.push(WordCount::new(word, count));
-        }
-
-        Vocab::new(config, words, self.n_tokens)
-    }
-
-    /// Count a word.
-    ///
-    /// This will have the effect of adding the word to the vocabulary if
-    /// it has not been seen before. Otherwise, its count will be updated.
-    pub fn count<S>(&mut self, word: S)
+    pub fn count<S>(&mut self, item: S)
     where
-        S: Into<String>,
+        S: Into<T>,
     {
-        self.n_tokens += 1;
-
-        let word = self.words.entry(word.into()).or_insert(0);
-        *word += 1;
+        self.n_items += 1;
+        let cnt = self.items.entry(item.into()).or_insert(0);
+        *cnt += 1;
     }
+}
+
+/// Constructs a `SimpleVocab<S>` from a `VocabBuilder<T>` where `T: Into<S>`.
+impl<T, S> From<VocabBuilder<T>> for SimpleVocab<S>
+where
+    T: Hash + Eq + Into<S>,
+    S: Hash + Eq + Clone,
+{
+    fn from(builder: VocabBuilder<T>) -> Self {
+        let min_count = builder.config.min_count;
+
+        let types = builder
+            .items
+            .into_iter()
+            .filter(|(_, count)| *count >= min_count as usize)
+            .map(|(item, count)| CountedType::new(item.into(), count))
+            .collect();
+
+        SimpleVocab::new(builder.config, types, builder.n_items)
+    }
+}
+
+/// Constructs a `SubwordVocab` from a `VocabBuilder<T>` where `T: Into<String>`.
+impl<T> From<VocabBuilder<T>> for SubwordVocab
+where
+    T: Hash + Eq + Into<String>,
+{
+    fn from(builder: VocabBuilder<T>) -> Self {
+        let config = builder.config;
+
+        let words = builder
+            .items
+            .into_iter()
+            .map(|(word, count)| (word.into(), count))
+            .filter(|(word, count)| word == util::EOS || *count >= config.min_count as usize)
+            .map(|(word, count)| Word::new(word, count))
+            .collect();
+        SubwordVocab::new(config, words, builder.n_items)
+    }
+}
+
+/// Create discard probabilities based on threshold, specific counts and total counts.
+fn create_discards<S>(
+    discard_threshold: f32,
+    types: &[CountedType<S>],
+    n_tokens: usize,
+) -> Vec<f32> {
+    let mut discards = Vec::with_capacity(types.len());
+
+    for item in types {
+        let p = item.count() as f32 / n_tokens as f32;
+        let p_discard = discard_threshold / p + (discard_threshold / p).sqrt();
+
+        // Not a proper probability, upper bound at 1.0.
+        discards.push(1f32.min(p_discard));
+    }
+
+    discards
+}
+
+/// Create lookup.
+fn create_indices<S>(types: &[CountedType<S>]) -> HashMap<S, usize>
+where
+    S: Hash + Eq + Clone,
+{
+    let mut token_indices = HashMap::new();
+
+    for (idx, item) in types.iter().enumerate() {
+        token_indices.insert(item.label.clone(), idx);
+    }
+
+    // Invariant: The index size should be the same as the number of
+    // types.
+    assert_eq!(types.len(), token_indices.len());
+
+    token_indices
 }
 
 /// Add begin/end-of-word brackets.
@@ -256,7 +385,7 @@ fn bracket(word: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{bracket, VocabBuilder};
+    use super::{bracket, SimpleVocab, SubwordVocab, Vocab, VocabBuilder};
     use subword::SubwordIndices;
     use {util, Config, LossType, ModelType};
 
@@ -280,7 +409,7 @@ mod tests {
         let mut config = TEST_CONFIG.clone();
         config.min_count = 1;
 
-        let mut builder = VocabBuilder::new(TEST_CONFIG.clone());
+        let mut builder: VocabBuilder<&str> = VocabBuilder::new(config);
         builder.count("to");
         builder.count("be");
         builder.count("or");
@@ -289,8 +418,8 @@ mod tests {
         builder.count("be");
         builder.count("</s>");
 
-        let vocab = builder.build();
-        let words = vocab.words();
+        let vocab: SubwordVocab = builder.into();
+        let words = vocab.types();
 
         for idx in 1..words.len() {
             assert!(
@@ -302,7 +431,7 @@ mod tests {
 
     #[test]
     pub fn test_vocab_builder() {
-        let mut builder = VocabBuilder::new(TEST_CONFIG.clone());
+        let mut builder: VocabBuilder<&str> = VocabBuilder::new(TEST_CONFIG.clone());
         builder.count("to");
         builder.count("be");
         builder.count("or");
@@ -311,16 +440,16 @@ mod tests {
         builder.count("be");
         builder.count("</s>");
 
-        let vocab = builder.build();
+        let vocab: SubwordVocab = builder.into();
 
         // 'or' and 'not' should be filtered due to the minimum count.
         assert_eq!(vocab.len(), 3);
 
-        assert_eq!(vocab.n_tokens(), 7);
+        assert_eq!(vocab.n_types(), 7);
 
         // Check expected properties of 'to'.
         let to = vocab.word("to").unwrap();
-        assert_eq!("to", to.word);
+        assert_eq!("to", to.word());
         assert_eq!(2, to.count);
         assert_eq!(
             &[1141947, 215572, 1324230],
@@ -329,13 +458,13 @@ mod tests {
         assert_eq!(4, vocab.indices("to").len());
         assert!(util::close(
             0.019058,
-            vocab.discard(vocab.word_idx("to").unwrap()),
+            vocab.discard(vocab.idx("to").unwrap()),
             1e-5
         ));
 
         // Check expected properties of 'be'.
         let be = vocab.word("be").unwrap();
-        assert_eq!("be", be.word);
+        assert_eq!("be", be.label);
         assert_eq!(2, be.count);
         assert_eq!(
             &[277351, 1105488, 1482882],
@@ -344,19 +473,19 @@ mod tests {
         assert_eq!(4, vocab.indices("be").len());
         assert!(util::close(
             0.019058,
-            vocab.discard(vocab.word_idx("be").unwrap()),
+            vocab.discard(vocab.idx("be").unwrap()),
             1e-5
         ));
 
         // Check expected properties of the end of sentence marker.
         let eos = vocab.word(util::EOS).unwrap();
-        assert_eq!(util::EOS, eos.word);
+        assert_eq!(util::EOS, eos.label);
         assert_eq!(1, eos.count);
         assert!(vocab.subword_indices(util::EOS).is_empty());
         assert_eq!(1, vocab.indices(util::EOS).len());
         assert!(util::close(
             0.027158,
-            vocab.discard(vocab.word_idx(util::EOS).unwrap()),
+            vocab.discard(vocab.idx(util::EOS).unwrap()),
             1e-5
         ));
 
@@ -379,5 +508,60 @@ mod tests {
                 .collect::<Vec<_>>(),
             vocab.indices("too").as_slice()
         );
+    }
+
+    #[test]
+    pub fn types_are_sorted_simple_vocab() {
+        let mut builder: VocabBuilder<&str> = VocabBuilder::new(TEST_CONFIG);
+        for _ in 0..5 {
+            builder.count("a");
+        }
+        for _ in 0..2 {
+            builder.count("b");
+        }
+        for _ in 0..10 {
+            builder.count("d");
+        }
+        builder.count("c");
+
+        let vocab: SimpleVocab<&str> = builder.into();
+        let contexts = vocab.types();
+        for idx in 1..contexts.len() {
+            assert!(
+                contexts[idx - 1].count >= contexts[idx].count,
+                "Types are not frequency-sorted"
+            );
+        }
+    }
+
+    #[test]
+    pub fn test_simple_vocab_builder() {
+        let mut builder: VocabBuilder<&str> = VocabBuilder::new(TEST_CONFIG);
+        for _ in 0..5 {
+            builder.count("a");
+        }
+        for _ in 0..2 {
+            builder.count("b");
+        }
+        for _ in 0..10 {
+            builder.count("d");
+        }
+        builder.count("c");
+
+        let vocab: SimpleVocab<&str> = builder.into();
+
+        assert_eq!(vocab.len(), 3);
+        assert_eq!(vocab.get("c"), None);
+
+        assert_eq!(vocab.n_types(), 18);
+        let a = vocab.get("a").unwrap();
+        assert_eq!("a", a.label);
+        assert_eq!(5, a.count());
+        // 0.0001 / 5/18 + (0.0001 / 5/18).sqrt() = 0.019334
+        assert!(util::close(
+            0.019334,
+            vocab.discard(vocab.idx("a").unwrap()),
+            1e-5
+        ));
     }
 }

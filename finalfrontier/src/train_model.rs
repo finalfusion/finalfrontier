@@ -10,7 +10,7 @@ use rand::distributions::Uniform;
 use hogwild::HogwildArray2;
 use io::MODEL_VERSION;
 use vec_simd::{l2_normalize, scale, scaled_add};
-use {Config, ModelType, Vocab, WriteModelBinary};
+use {Config, ModelType, SubwordVocab, Vocab, WriteModelBinary};
 
 /// Training model.
 ///
@@ -27,7 +27,7 @@ use {Config, ModelType, Vocab, WriteModelBinary};
 #[derive(Clone)]
 pub struct TrainModel {
     config: Config,
-    vocab: Arc<Vocab>,
+    vocab: Arc<SubwordVocab>,
     input: HogwildArray2<f32>,
     output: HogwildArray2<f32>,
 }
@@ -41,7 +41,7 @@ impl TrainModel where {
     /// The number of rows of the input matrix is the vocabulary size
     /// plus the number of buckets for subword units. The number of rows
     /// of the output matrix is the vocabulary size.
-    pub fn from_vocab(vocab: Vocab, config: Config) -> Self {
+    pub fn from_vocab(vocab: SubwordVocab, config: Config) -> Self {
         let init_bound = 1.0 / config.dims as f32;
         let distribution = Uniform::new_inclusive(-init_bound, init_bound);
 
@@ -110,7 +110,7 @@ impl TrainModel where {
     }
 
     /// Get the model's vocabulary.
-    pub fn vocab(&self) -> &Vocab {
+    pub fn vocab(&self) -> &SubwordVocab {
         &self.vocab
     }
 }
@@ -134,10 +134,10 @@ where
         write.write_u32::<LittleEndian>(self.config.buckets_exp)?;
         write.write_u32::<LittleEndian>(self.config.negative_samples)?;
         write.write_f32::<LittleEndian>(self.config.lr)?;
-        write.write_u64::<LittleEndian>(self.vocab.n_tokens() as u64)?;
+        write.write_u64::<LittleEndian>(self.vocab.n_types() as u64)?;
         write.write_u64::<LittleEndian>(self.vocab.len() as u64)?;
 
-        for word in self.vocab.words() {
+        for word in self.vocab.types() {
             write.write_u32::<LittleEndian>(word.word().len() as u32)?;
             write.write_all(word.word().as_bytes())?;
             write.write_u64::<LittleEndian>(word.count() as u64)?;
@@ -199,8 +199,8 @@ mod tests {
         config.min_count = 1;
 
         // We just need some bogus vocabulary
-        let builder = VocabBuilder::new(TEST_CONFIG.clone());
-        let vocab = builder.build();
+        let builder: VocabBuilder<String> = VocabBuilder::new(TEST_CONFIG.clone());
+        let vocab = builder.into();
 
         let input = Array2::from_shape_vec((2, 3), vec![1., 2., 3., 4., 5., 6.])
             .unwrap()

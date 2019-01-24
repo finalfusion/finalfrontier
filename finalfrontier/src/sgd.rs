@@ -9,7 +9,7 @@ use sampling::{BandedRangeGenerator, RangeGenerator, ZipfRangeGenerator};
 use util::ReseedOnCloneRng;
 use vec_simd::scaled_add;
 
-use {ModelType, TrainModel};
+use {ModelType, TrainModel, Vocab};
 
 /// Stochastic gradient descent
 ///
@@ -93,7 +93,7 @@ where
         // the probability indicated by the dictionary.
         let mut words = Vec::new();
         for t in sentence {
-            if let Some(idx) = self.model.vocab().word_idx(t.as_ref()) {
+            if let Some(idx) = self.model.vocab().idx(t.as_ref()) {
                 if self.rng.gen_range(0f32, 1f32) < self.model.vocab().discard(idx) {
                     words.push(idx);
                 }
