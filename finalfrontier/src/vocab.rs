@@ -9,11 +9,12 @@ const BOW: char = '<';
 const EOW: char = '>';
 
 pub type Word = CountedType<String>;
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct CountedType<T> {
-    label: T,
     count: usize,
+    label: T,
 }
+
 impl<T> CountedType<T> {
     /// Construct a new type.
     pub(crate) fn new(label: T, count: usize) -> Self {
@@ -51,7 +52,7 @@ impl SubwordVocab {
     /// Normally a `VocabBuilder` should be used. This constructor is used
     /// for deserialization.
     pub(crate) fn new(config: Config, mut words: Vec<Word>, n_tokens: usize) -> Self {
-        words.sort_unstable_by(|w1, w2| w2.count.cmp(&w1.count));
+        words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
         let index = create_indices(&words);
         let subwords = Self::create_subword_indices(&config, &words);
         let discards = create_discards(config.discard_threshold, &words, n_tokens);
@@ -155,11 +156,11 @@ where
 
 impl<T> SimpleVocab<T>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Ord,
 {
     /// Constructor only used by the Vocabbuilder
     pub(crate) fn new(config: Config, mut types: Vec<CountedType<T>>, n_types: usize) -> Self {
-        types.sort_unstable_by(|t1, t2| t2.count().cmp(&t1.count()));
+        types.sort_unstable_by(|w1, w2| w2.cmp(&w1));
         let discards = create_discards(config.discard_threshold, &types, n_types);
         let index = create_indices(&types);
         SimpleVocab {
@@ -301,7 +302,7 @@ where
 impl<T, S> From<VocabBuilder<T>> for SimpleVocab<S>
 where
     T: Hash + Eq + Into<S>,
-    S: Hash + Eq + Clone,
+    S: Hash + Eq + Clone + Ord,
 {
     fn from(builder: VocabBuilder<T>) -> Self {
         let min_count = builder.config.min_count;
