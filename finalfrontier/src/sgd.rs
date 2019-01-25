@@ -1,11 +1,10 @@
-use std::cmp;
-
 use ndarray::{Array1, ArrayView1, ArrayViewMut1};
 use rand::{Rng, SeedableRng};
 
 use hogwild::Hogwild;
 use loss::log_logistic_loss;
 use sampling::{BandedRangeGenerator, RangeGenerator, ZipfRangeGenerator};
+use train_model::TrainIterFrom;
 use util::ReseedOnCloneRng;
 use vec_simd::scaled_add;
 
@@ -17,20 +16,19 @@ use {ModelType, TrainModel, Vocab};
 #[derive(Clone)]
 pub struct SGD<R> {
     loss: Hogwild<f32>,
-    model: TrainModel,
+    model: TrainModel<R>,
     n_examples: Hogwild<usize>,
     n_tokens_processed: Hogwild<usize>,
-    rng: R,
     sgd_impl: NegativeSamplingSGD<BandedRangeGenerator<R, ZipfRangeGenerator<R>>>,
 }
 
 impl<R> SGD<R> {
-    pub fn into_model(self) -> TrainModel {
+    pub fn into_model(self) -> TrainModel<R> {
         self.model
     }
 
     /// Get the training model associated with this SGD.
-    pub fn model(&self) -> &TrainModel {
+    pub fn model(&self) -> &TrainModel<R> {
         &self.model
     }
 
@@ -53,7 +51,7 @@ where
     R: Clone + Rng + SeedableRng,
 {
     /// Construct a new SGD instance.
-    pub fn new(model: TrainModel, rng: R) -> Self {
+    pub fn new(model: TrainModel<ReseedOnCloneRng<R>>, rng: R) -> Self {
         let reseed_on_clone = ReseedOnCloneRng(rng);
 
         let band_size = match model.config().model {
@@ -79,7 +77,6 @@ where
             model,
             n_examples: Hogwild::default(),
             n_tokens_processed: Hogwild::default(),
-            rng: reseed_on_clone,
             sgd_impl,
         }
     }
@@ -93,75 +90,35 @@ where
     ///
     /// This applies a gradient descent step on the sentence, with the given
     /// learning rate.
-    pub fn update_sentence<S>(&mut self, sentence: &[S], lr: f32)
+    pub fn update_sentence<S>(&mut self, sentence: &S, lr: f32)
     where
-        S: AsRef<str>,
+        S: ?Sized,
+        TrainModel<R>: TrainIterFrom<S>,
     {
-        // Convert the sentence into word identifiers, discarding words with
-        // the probability indicated by the dictionary.
-        let mut words = Vec::new();
-        for t in sentence {
-            if let Some(idx) = self.model.vocab().idx(t.as_ref()) {
-                if self.rng.gen_range(0f32, 1f32) < self.model.vocab().discard(idx) {
-                    words.push(idx);
-                }
-            }
-        }
-
-        for i in 0..words.len() {
+        for (focus, contexts) in self.model.train_iter_from(sentence) {
             // The input word is represented by its index and subword
             // indices.
             let mut input = self
                 .model
                 .vocab()
-                .subword_indices_idx(words[i])
+                .subword_indices_idx(focus)
                 .unwrap()
                 .to_owned();
-            input.push(words[i] as u64);
+            input.push(focus as u64);
 
             let input_embed = self.model.mean_input_embedding(&input);
 
-            // Bojanowski, et al., 2017 uniformly sample the context size between 1 and c.
-            let context_size = self.rng.gen_range(1, self.model.config().context_size + 1) as usize;
-
-            let left = i - cmp::min(i, context_size);
-            let right = cmp::min(i + context_size, words.len() - 1);
-
-            for j in left..=right {
-                if i != j {
-                    let output = self.output_(words[j], i, j);
-
-                    // Update parameters for the token focus token i and the
-                    // context token j.
-                    *self.loss += self.sgd_impl.sgd_step(
-                        &mut self.model,
-                        &input,
-                        input_embed.view(),
-                        output,
-                        lr,
-                    )
-                }
+            for context in contexts {
+                *self.loss += self.sgd_impl.sgd_step(
+                    &mut self.model,
+                    &input,
+                    input_embed.view(),
+                    context,
+                    lr,
+                );
+                *self.n_examples += 1;
             }
-
-            *self.n_examples += right - left;
-        }
-
-        *self.n_tokens_processed += words.len();
-    }
-
-    fn output_(&self, token: usize, focus_idx: usize, offset_idx: usize) -> usize {
-        match self.model.config().model {
-            ModelType::SkipGram => token,
-            ModelType::StructuredSkipGram => {
-                let context_size = self.model.config().context_size as usize;
-                let offset = if offset_idx < focus_idx {
-                    (offset_idx + context_size) - focus_idx
-                } else {
-                    (offset_idx - focus_idx - 1) + context_size
-                };
-
-                (token * context_size * 2) + offset
-            }
+            *self.n_tokens_processed += 1;
         }
     }
 }
@@ -185,17 +142,17 @@ where
 /// for all words that do not co-occur in every step. Instead, such
 /// negatives are sampled, weighted by word frequency.
 #[derive(Clone)]
-pub struct NegativeSamplingSGD<R> {
+pub struct NegativeSamplingSGD<RS> {
     negative_samples: usize,
-    range_gen: R,
+    range_gen: RS,
 }
 
-impl<R> NegativeSamplingSGD<R>
+impl<RS> NegativeSamplingSGD<RS>
 where
-    R: RangeGenerator,
+    RS: RangeGenerator,
 {
     /// Create a new loss function.
-    pub fn new(negative_samples: usize, range_gen: R) -> Self {
+    pub fn new(negative_samples: usize, range_gen: RS) -> Self {
         NegativeSamplingSGD {
             negative_samples,
             range_gen,
@@ -210,9 +167,9 @@ where
     /// subwords).
     ///
     /// The function returns the sum of losses.
-    pub fn sgd_step(
+    pub fn sgd_step<R>(
         &mut self,
-        model: &mut TrainModel,
+        model: &mut TrainModel<R>,
         input: &[u64],
         input_embed: ArrayView1<f32>,
         output: usize,
@@ -244,9 +201,9 @@ where
     }
 
     /// Pick, predict and update negative samples.
-    fn negative_samples(
+    fn negative_samples<R>(
         &mut self,
-        model: &mut TrainModel,
+        model: &mut TrainModel<R>,
         input_embed: ArrayView1<f32>,
         mut input_delta: ArrayViewMut1<f32>,
         output: usize,
@@ -286,9 +243,9 @@ where
     /// This also accumulates an update for the input embedding.
     ///
     /// The method returns the loss for predicting the output.
-    fn update_output(
+    fn update_output<R>(
         &mut self,
-        model: &mut TrainModel,
+        model: &mut TrainModel<R>,
         input_embed: ArrayView1<f32>,
         input_delta: ArrayViewMut1<f32>,
         output: usize,

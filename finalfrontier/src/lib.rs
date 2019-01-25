@@ -63,6 +63,8 @@ pub(crate) mod subword;
 mod train_model;
 pub use train_model::TrainModel;
 
+pub(crate) mod skipgram_trainer;
+
 pub(crate) mod util;
 
 pub(crate) mod vec_simd;

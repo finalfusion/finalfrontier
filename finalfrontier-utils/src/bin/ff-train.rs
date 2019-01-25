@@ -48,7 +48,7 @@ fn main() {
             .or_exit("Cannot open output file for writing.", 1),
     );
 
-    let model = TrainModel::from_vocab(vocab, config.clone());
+    let model = TrainModel::from_vocab(vocab, config.clone(), XorShiftRng::from_entropy());
     let sgd = SGD::new(model, XorShiftRng::from_entropy());
 
     let corpus = matches.value_of(CORPUS).unwrap();

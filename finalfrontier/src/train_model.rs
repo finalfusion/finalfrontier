@@ -1,10 +1,12 @@
 use std::io::{Seek, Write};
+use std::iter::FusedIterator;
 use std::sync::Arc;
 
 use failure::{err_msg, Error};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
+use rand::{Rng, SeedableRng};
 use rust2vec::{
     embeddings::Embeddings,
     io::WriteEmbeddings,
@@ -14,7 +16,9 @@ use rust2vec::{
 };
 use toml::Value;
 
+use util::ReseedOnCloneRng;
 use hogwild::HogwildArray2;
+use skipgram_trainer::SkipGramIter;
 use vec_simd::{l2_normalize, scale, scaled_add};
 use {Config, ModelType, SubwordVocab, Vocab, WriteModelBinary};
 
@@ -31,14 +35,18 @@ use {Config, ModelType, SubwordVocab, Vocab, WriteModelBinary};
 /// between clones of the same model. The vocabulary is also shared between
 /// clones due to memory considerations.
 #[derive(Clone)]
-pub struct TrainModel {
+pub struct TrainModel<R> {
     config: Config,
     vocab: Arc<SubwordVocab>,
     input: HogwildArray2<f32>,
     output: HogwildArray2<f32>,
+    rng: R,
 }
 
-impl TrainModel where {
+impl<R> TrainModel<ReseedOnCloneRng<R>>
+where
+    R: Clone + Rng + SeedableRng,
+{
     /// Construct a model from a vocabulary.
     ///
     /// This randomly initializes the input and output matrices using a
@@ -47,7 +55,8 @@ impl TrainModel where {
     /// The number of rows of the input matrix is the vocabulary size
     /// plus the number of buckets for subword units. The number of rows
     /// of the output matrix is the vocabulary size.
-    pub fn from_vocab(vocab: SubwordVocab, config: Config) -> Self {
+    pub fn from_vocab(vocab: SubwordVocab, config: Config, rng: R) -> Self {
+        let reseed_on_clone = ReseedOnCloneRng(rng);
         let init_bound = 1.0 / config.dims as f32;
         let distribution = Uniform::new_inclusive(-init_bound, init_bound);
 
@@ -70,9 +79,11 @@ impl TrainModel where {
             vocab: Arc::new(vocab),
             input,
             output,
+            rng: reseed_on_clone,
         }
     }
-
+}
+impl<R> TrainModel<R> {
     /// Get the model configuration.
     pub fn config(&self) -> &Config {
         &self.config
@@ -144,7 +155,7 @@ impl TrainModel where {
     }
 }
 
-impl<W> WriteModelBinary<W> for TrainModel
+impl<W, R> WriteModelBinary<W> for TrainModel<R>
 where
     W: Seek + Write,
 {
@@ -175,11 +186,45 @@ where
     }
 }
 
+/// TrainIterFrom.
+///
+/// This trait defines how some input `&S` is transformed into an iterator of training examples.
+pub trait TrainIterFrom<S>
+where
+    S: ?Sized,
+{
+    type Iter: Iterator<Item = (usize, Self::Contexts)> + FusedIterator;
+    type Contexts: Sized + IntoIterator<Item = usize>;
+    fn train_iter_from(&mut self, sequence: &S) -> Self::Iter;
+}
+
+impl<S, R> TrainIterFrom<[S]> for TrainModel<R>
+where
+    S: AsRef<str>,
+    R: Rng + Clone,
+{
+    type Iter = SkipGramIter<R>;
+    type Contexts = Vec<usize>;
+    fn train_iter_from(&mut self, sequence: &[S]) -> Self::Iter {
+        let mut ids = Vec::new();
+        for t in sequence.into_iter() {
+            if let Some(idx) = self.vocab.idx(t.as_ref()) {
+                if self.rng.gen_range(0f32, 1f32) < self.vocab.discard(idx) {
+                    ids.push(idx);
+                }
+            }
+        }
+        SkipGramIter::new(self.rng.clone(), ids, self.config)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
     use ndarray::Array2;
+    use rand::FromEntropy;
+    use rand_xorshift::XorShiftRng;
 
     use super::TrainModel;
     use util::all_close;
@@ -222,6 +267,7 @@ mod tests {
             vocab: Arc::new(vocab),
             input,
             output,
+            rng: XorShiftRng::from_entropy(),
         };
 
         // Input embeddings
