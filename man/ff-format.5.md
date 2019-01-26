@@ -88,4 +88,4 @@ embedding by the corresponding l2 norm.
 SEE ALSO
 ========
 
-ff-convert(1), ff-similar(1), ff-train(1)
+ff-compute-accuracy(1), ff-convert(1), ff-similar(1), ff-train(1)

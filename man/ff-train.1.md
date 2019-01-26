@@ -104,4 +104,4 @@ structured skip-gram model:
 SEE ALSO
 ========
 
-ff-format(5), ff-convert(1), ff-similar(1)
+ff-compute-accuracy, ff-format(5), ff-convert(1), ff-similar(1)
