@@ -51,8 +51,7 @@ impl SubwordVocab {
     ///
     /// Normally a `VocabBuilder` should be used. This constructor is used
     /// for deserialization.
-    pub(crate) fn new(config: Config, mut words: Vec<Word>, n_tokens: usize) -> Self {
-        words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
+    pub(crate) fn new(config: Config, words: Vec<Word>, n_tokens: usize) -> Self {
         let index = create_indices(&words);
         let subwords = Self::create_subword_indices(&config, &words);
         let discards = create_discards(config.discard_threshold, &words, n_tokens);
@@ -159,8 +158,7 @@ where
     T: Hash + Eq + Clone + Ord,
 {
     /// Constructor only used by the Vocabbuilder
-    pub(crate) fn new(config: Config, mut types: Vec<CountedType<T>>, n_types: usize) -> Self {
-        types.sort_unstable_by(|w1, w2| w2.cmp(&w1));
+    pub(crate) fn new(config: Config, types: Vec<CountedType<T>>, n_types: usize) -> Self {
         let discards = create_discards(config.discard_threshold, &types, n_types);
         let index = create_indices(&types);
         SimpleVocab {
@@ -307,13 +305,13 @@ where
     fn from(builder: VocabBuilder<T>) -> Self {
         let min_count = builder.config.min_count;
 
-        let types = builder
+        let mut types: Vec<_> = builder
             .items
             .into_iter()
             .filter(|(_, count)| *count >= min_count as usize)
             .map(|(item, count)| CountedType::new(item.into(), count))
             .collect();
-
+        types.sort_unstable_by(|w1, w2| w2.cmp(&w1));
         SimpleVocab::new(builder.config, types, builder.n_items)
     }
 }
@@ -326,13 +324,14 @@ where
     fn from(builder: VocabBuilder<T>) -> Self {
         let config = builder.config;
 
-        let words = builder
+        let mut words: Vec<_> = builder
             .items
             .into_iter()
             .map(|(word, count)| (word.into(), count))
             .filter(|(word, count)| word == util::EOS || *count >= config.min_count as usize)
             .map(|(word, count)| Word::new(word, count))
             .collect();
+        words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
         SubwordVocab::new(config, words, builder.n_items)
     }
 }
