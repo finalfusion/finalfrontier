@@ -47,9 +47,7 @@ impl Vocab {
     ///
     /// Normally a `VocabBuilder` should be used. This constructor is used
     /// for deserialization.
-    pub(crate) fn new(config: Config, mut words: Vec<WordCount>, n_tokens: usize) -> Self {
-        words.sort_unstable_by(|w1, w2| w2.count.cmp(&w1.count));
-
+    pub(crate) fn new(config: Config, words: Vec<WordCount>, n_tokens: usize) -> Self {
         let index = Self::create_word_indices(&words);
         let subwords = Self::create_subword_indices(&config, &words);
         let discards = Self::create_discards(&config, &words, n_tokens);
@@ -225,6 +223,8 @@ impl VocabBuilder {
 
             words.push(WordCount::new(word, count));
         }
+
+        words.sort_unstable_by(|w1, w2| w2.count.cmp(&w1.count));
 
         Vocab::new(config, words, self.n_tokens)
     }
