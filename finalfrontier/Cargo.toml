@@ -13,7 +13,7 @@ byteorder = "1"
 cfg-if = "0.1"
 failure = "0.1"
 fnv = "1"
-hogwild = { path = "../hogwild", version = "0.2.0" }
+hogwild = { path = "../hogwild", version = "0.3.0" }
 memmap = "0.7"
 ndarray = "0.12"
 ndarray-rand = "0.9"
