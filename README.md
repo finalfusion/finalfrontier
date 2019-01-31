@@ -28,3 +28,4 @@ in the future.
     - [ff-format(5)](man/ff-format.5.md) — finalfrontier binary format
     - [ff-similar(1)](man/ff-similar.1.md) — word similarity queries
     - [ff-train(1)](man/ff-train.1.md) — train word embeddings with subword representations
+  * [Python module](https://github.com/danieldk/finalfrontier-python)
