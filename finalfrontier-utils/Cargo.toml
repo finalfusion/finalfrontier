@@ -18,4 +18,5 @@ num_cpus = "1"
 rand = "0.6"
 rand_xorshift = "0.1"
 rayon = "1"
+rust2vec = { git = "https://github.com/danieldk/rust2vec.git", branch = "master" }
 stdinout = "0.4"

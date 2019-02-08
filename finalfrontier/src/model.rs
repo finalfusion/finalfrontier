@@ -102,6 +102,16 @@ impl Model {
         self.embed_matrix.view()
     }
 
+    pub fn into_parts(self) -> (Config, SubwordVocab, Array2<f32>) {
+        let matrix = match self.embed_matrix {
+            EmbeddingMatrix::NDArray(matrix) => matrix,
+            EmbeddingMatrix::Mmap { map, shape } => {
+                unsafe { ArrayView2::from_shape_ptr(shape, map.as_ptr() as *const f32) }.to_owned()
+            }
+        };
+        (self.config, self.vocab, matrix)
+    }
+
     /// Get an iterator over known words and their embeddings.
     pub fn iter(&self) -> Iter {
         Iter {

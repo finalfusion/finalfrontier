@@ -1,6 +1,7 @@
 extern crate clap;
 extern crate failure;
 extern crate finalfrontier;
+extern crate rust2vec;
 extern crate stdinout;
 
 use std::fs::File;
@@ -8,7 +9,8 @@ use std::io::{BufReader, BufWriter};
 
 use clap::{App, AppSettings, Arg, ArgMatches};
 use failure::{err_msg, Error};
-use finalfrontier::{Model, ReadModelBinary, WriteModelText, WriteModelWord2Vec};
+use finalfrontier::{Model, ReadModelBinary, Vocab, WriteModelText, WriteModelWord2Vec};
+use rust2vec::{io::WriteEmbeddings, storage::Storage, vocab::Vocab as Rust2VecVocab, Embeddings};
 use stdinout::{OrExit, Output};
 
 static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
@@ -27,6 +29,24 @@ fn main() {
     let mut writer = BufWriter::new(output.write().or_exit("Cannot open output for writing", 1));
 
     match config.output_format {
+        OutputFormat::Rust2Vec => {
+            let (config, vocab, matrix) = model.into_parts();
+            let words = vocab
+                .types()
+                .iter()
+                .map(|l| l.label().to_owned())
+                .collect::<Vec<String>>();
+            let vocab = Rust2VecVocab::new_subword_vocab(
+                words,
+                config.min_n,
+                config.max_n,
+                config.buckets_exp,
+            );
+            let embeds = Embeddings::new(vocab, Storage::NdArray(matrix));
+            embeds
+                .write_embeddings(&mut writer)
+                .or_exit("Could not write model", 1);
+        }
         OutputFormat::Text => model
             .write_model_text(&mut writer, false)
             .or_exit("Could not write model", 1),
@@ -68,6 +88,7 @@ fn parse_args() -> ArgMatches<'static> {
 }
 
 enum OutputFormat {
+    Rust2Vec,
     Text,
     TextDims,
     Word2Vec,
@@ -76,6 +97,7 @@ enum OutputFormat {
 impl OutputFormat {
     pub fn try_from_str(format: &str) -> Result<OutputFormat, Error> {
         match format {
+            "rust2vec" => Ok(OutputFormat::Rust2Vec),
             "text" => Ok(OutputFormat::Text),
             "textdims" => Ok(OutputFormat::TextDims),
             "word2vec" => Ok(OutputFormat::Word2Vec),
