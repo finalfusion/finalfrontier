@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::io::{self, BufRead, Lines, Read, Write};
 
 use failure::Error;
@@ -52,23 +51,6 @@ where
 
         None
     }
-}
-
-/// Trait for memory mapped models in binary format.
-pub trait MmapModelBinary
-where
-    Self: Sized,
-{
-    /// Memory map the model in the given file.
-    ///
-    /// This function reads the vocabulary from a model file and
-    /// memory maps the embedding matrix. This reduces the memory
-    /// use of the model drastically, but incurs a small performance
-    /// hit.
-    ///
-    /// The model file should **never** be modified while it is
-    /// memory mapped.
-    fn mmap_model_binary(f: File) -> Result<Self, Error>;
 }
 
 /// Trait for reading models in binary format.

@@ -41,12 +41,11 @@ mod config;
 pub use config::{Config, LossType, ModelType};
 
 mod deps;
-pub(crate) use deps::{DepIter, DependencyIterator, Dependency, PathIter};
+pub(crate) use deps::{DepIter, Dependency, DependencyIterator, PathIter};
 
 mod io;
 pub use io::{
-    MmapModelBinary, ReadModelBinary, SentenceIterator, WriteModelBinary, WriteModelText,
-    WriteModelWord2Vec,
+    ReadModelBinary, SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec,
 };
 
 pub(crate) mod loss;

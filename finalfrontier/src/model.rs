@@ -1,22 +1,19 @@
 //! Embedding prediction model.
 
 use std::f64;
-use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{Read, Write};
 use std::iter::Enumerate;
-use std::mem;
 use std::slice;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use failure::{err_msg, Error};
-use memmap::{Mmap, MmapOptions};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, Dimension, Ix2};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 
 use io::MODEL_VERSION;
 use vec_simd::{l2_normalize, scale, scaled_add};
 use {
-    Config, LossType, MmapModelBinary, ModelType, ReadModelBinary, SubwordVocab, Vocab, Word,
-    WriteModelText, WriteModelWord2Vec,
+    Config, LossType, ModelType, ReadModelBinary, SubwordVocab, Vocab, Word, WriteModelText,
+    WriteModelWord2Vec,
 };
 
 /// Embedding matrix
@@ -25,9 +22,6 @@ use {
 enum EmbeddingMatrix {
     /// In-memory `ndarray` matrix.
     NDArray(Array2<f32>),
-
-    /// Memory-mapped matrix.
-    Mmap { map: Mmap, shape: Ix2 },
 }
 
 impl EmbeddingMatrix {
@@ -35,9 +29,6 @@ impl EmbeddingMatrix {
     fn view(&self) -> ArrayView2<f32> {
         match self {
             EmbeddingMatrix::NDArray(a) => a.view(),
-            EmbeddingMatrix::Mmap { map, shape } => unsafe {
-                ArrayView2::from_shape_ptr(*shape, map.as_ptr() as *const f32)
-            },
         }
     }
 }
@@ -105,9 +96,6 @@ impl Model {
     pub fn into_parts(self) -> (Config, SubwordVocab, Array2<f32>) {
         let matrix = match self.embed_matrix {
             EmbeddingMatrix::NDArray(matrix) => matrix,
-            EmbeddingMatrix::Mmap { map, shape } => {
-                unsafe { ArrayView2::from_shape_ptr(shape, map.as_ptr() as *const f32) }.to_owned()
-            }
         };
         (self.config, self.vocab, matrix)
     }
@@ -132,35 +120,6 @@ impl<'a> IntoIterator for &'a Model {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
-    }
-}
-
-impl MmapModelBinary for Model {
-    fn mmap_model_binary(f: File) -> Result<Self, Error> {
-        let mut read = BufReader::new(&f);
-
-        read_model_binary_header(&mut read)?;
-        let config = read_model_binary_config(&mut read)?;
-        let vocab = read_model_binary_vocab(&config, &mut read)?;
-
-        let n_embeds = vocab.len() as usize + 2usize.pow(config.buckets_exp);
-        let shape = Ix2(n_embeds, config.dims as usize);
-
-        // Set up memory mapping.
-        let offset = read.seek(SeekFrom::Current(0))?;
-        let mut mmap_opts = MmapOptions::new();
-        let map = unsafe {
-            mmap_opts
-                .offset(offset)
-                .len(shape.size() * mem::size_of::<f32>())
-                .map(&f)?
-        };
-
-        Ok(Model {
-            config: config.clone(),
-            vocab,
-            embed_matrix: EmbeddingMatrix::Mmap { map, shape },
-        })
     }
 }
 
