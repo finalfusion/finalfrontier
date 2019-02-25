@@ -10,8 +10,10 @@ use std::io::{BufReader, BufWriter};
 use clap::{App, AppSettings, Arg, ArgMatches};
 use failure::{err_msg, Error};
 use finalfrontier::{Model, ReadModelBinary, Vocab, WriteModelText, WriteModelWord2Vec};
-use rust2vec::{io::WriteEmbeddings, storage::Storage, vocab::Vocab as Rust2VecVocab, Embeddings};
-use stdinout::{OrExit, Output};
+use rust2vec::{
+    embeddings::Embeddings, io::WriteEmbeddings, storage::NdArray, vocab::SubwordVocab,
+};
+use stdinout::OrExit;
 
 static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
     AppSettings::DontCollapseArgsInUsage,
@@ -25,8 +27,9 @@ fn main() {
     let f = File::open(config.model_filename).or_exit("Cannot read model", 1);
     let model = Model::read_model_binary(&mut BufReader::new(f)).or_exit("Cannot load model", 1);
 
-    let output = Output::from(config.output_filename);
-    let mut writer = BufWriter::new(output.write().or_exit("Cannot open output for writing", 1));
+    let out_f =
+        File::create(config.output_filename).or_exit("Cannot open output file for writing", 1);
+    let mut writer = BufWriter::new(out_f);
 
     match config.output_format {
         OutputFormat::Rust2Vec => {
@@ -36,13 +39,8 @@ fn main() {
                 .iter()
                 .map(|l| l.label().to_owned())
                 .collect::<Vec<String>>();
-            let vocab = Rust2VecVocab::new_subword_vocab(
-                words,
-                config.min_n,
-                config.max_n,
-                config.buckets_exp,
-            );
-            let embeds = Embeddings::new(vocab, Storage::NdArray(matrix));
+            let vocab = SubwordVocab::new(words, config.min_n, config.max_n, config.buckets_exp);
+            let embeds = Embeddings::new(vocab, NdArray(matrix));
             embeds
                 .write_embeddings(&mut writer)
                 .or_exit("Could not write model", 1);
@@ -75,7 +73,12 @@ fn parse_args() -> ArgMatches<'static> {
                 .index(1)
                 .required(true),
         )
-        .arg(Arg::with_name(OUTPUT).help("Output file").index(2))
+        .arg(
+            Arg::with_name(OUTPUT)
+                .help("Output file")
+                .index(2)
+                .required(true),
+        )
         .arg(
             Arg::with_name(OUTPUT_FORMAT)
                 .short("f")
@@ -108,13 +111,13 @@ impl OutputFormat {
 
 struct Config {
     model_filename: String,
-    output_filename: Option<String>,
+    output_filename: String,
     output_format: OutputFormat,
 }
 
 fn config_from_matches(matches: &ArgMatches) -> Config {
     let model_filename = matches.value_of(INPUT).unwrap().to_owned();
-    let output_filename = matches.value_of(OUTPUT).map(ToOwned::to_owned);
+    let output_filename = matches.value_of(OUTPUT).unwrap().to_owned();
     let output_format = matches
         .value_of(OUTPUT_FORMAT)
         .map(|v| OutputFormat::try_from_str(v).or_exit("Cannot parse output format type", 1))
