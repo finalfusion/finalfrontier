@@ -25,6 +25,10 @@ pub struct SGD<R> {
 }
 
 impl<R> SGD<R> {
+    pub fn into_model(self) -> TrainModel {
+        self.model
+    }
+
     /// Get the training model associated with this SGD.
     pub fn model(&self) -> &TrainModel {
         &self.model

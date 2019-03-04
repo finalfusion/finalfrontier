@@ -1,7 +1,8 @@
 use failure::{err_msg, Error};
+use serde::Serialize;
 
 /// Model types.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize)]
 pub enum ModelType {
     // The skip-gram model (Mikolov, 2013).
     SkipGram,
@@ -29,7 +30,7 @@ impl ModelType {
 }
 
 /// Losses.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize)]
 pub enum LossType {
     /// Logistic regression with negative sampling.
     LogisticNegativeSampling,
@@ -45,7 +46,7 @@ impl LossType {
 }
 
 /// Embedding model hyperparameters.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct Config {
     /// The model type.
     pub model: ModelType,

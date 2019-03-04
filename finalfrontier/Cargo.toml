@@ -21,6 +21,9 @@ ndarray-rand = "0.9"
 ordered-float = "1"
 rand = "0.6"
 rand_core = "0.3"
+rust2vec = "0.5"
+serde = { version = "1", features = ["derive"] }
+toml = "0.4"
 zipf = "5"
 
 [dev-dependencies]

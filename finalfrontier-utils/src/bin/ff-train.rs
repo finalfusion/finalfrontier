@@ -74,7 +74,7 @@ fn main() {
         let _ = child.join();
     }
 
-    sgd.model()
+    sgd.into_model()
         .write_model_binary(&mut output_writer)
         .or_exit("Cannot write model", 1);
 }

@@ -1,9 +1,7 @@
-use std::io::{self, BufRead, Lines, Read, Write};
+use std::io::{self, BufRead, Lines, Write};
 
 use failure::Error;
 use util::EOS;
-
-pub(crate) const MODEL_VERSION: u32 = 3;
 
 /// Sentence iterator.
 ///
@@ -53,22 +51,12 @@ where
     }
 }
 
-/// Trait for reading models in binary format.
-pub trait ReadModelBinary<R>
-where
-    R: Read,
-    Self: Sized,
-{
-    /// Read a model from the given reader.
-    fn read_model_binary(read: &mut R) -> Result<Self, Error>;
-}
-
 /// Trait for writing models in binary format.
 pub trait WriteModelBinary<W>
 where
     W: Write,
 {
-    fn write_model_binary(&self, write: &mut W) -> Result<(), Error>;
+    fn write_model_binary(self, write: &mut W) -> Result<(), Error>;
 }
 
 fn whitespace_tokenize(line: &str) -> Vec<String> {

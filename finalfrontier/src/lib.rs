@@ -21,7 +21,6 @@ extern crate maplit;
 
 extern crate memmap;
 
-#[macro_use]
 extern crate ndarray;
 
 extern crate ndarray_rand;
@@ -35,6 +34,12 @@ extern crate rand_core;
 #[cfg(test)]
 extern crate rand_xorshift;
 
+extern crate rust2vec;
+
+extern crate serde;
+
+extern crate toml;
+
 extern crate zipf;
 
 mod config;
@@ -45,22 +50,15 @@ pub(crate) use deps::{DepIter, Dependency, DependencyIterator, PathIter};
 
 mod io;
 pub use io::{
-    ReadModelBinary, SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec,
+    SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec,
 };
 
 pub(crate) mod loss;
-
-pub mod model;
-
-#[doc(inline)]
-pub use model::Model;
 
 pub(crate) mod sampling;
 
 mod sgd;
 pub use sgd::SGD;
-
-pub mod similarity;
 
 pub(crate) mod subword;
 

@@ -1,14 +1,20 @@
-use std::io::Write;
+use std::io::{Seek, Write};
 use std::sync::Arc;
 
-use byteorder::{LittleEndian, WriteBytesExt};
-use failure::Error;
-use ndarray::{Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
+use failure::{err_msg, Error};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
+use rust2vec::{
+    embeddings::Embeddings,
+    io::WriteEmbeddings,
+    metadata::Metadata,
+    storage::NdArray,
+    vocab::{SubwordVocab as R2VSubwordVocab, Vocab as _},
+};
+use toml::Value;
 
 use hogwild::HogwildArray2;
-use io::MODEL_VERSION;
 use vec_simd::{l2_normalize, scale, scaled_add};
 use {Config, ModelType, SubwordVocab, Vocab, WriteModelBinary};
 
@@ -74,10 +80,19 @@ impl TrainModel where {
 
     /// Get the mean input embedding of the given indices.
     pub(crate) fn mean_input_embedding(&self, indices: &[u64]) -> Array1<f32> {
-        let mut embed = Array1::zeros((self.config.dims as usize,));
+        Self::mean_embedding(self.input.view(), indices)
+    }
+
+    /// Get the mean input embedding of the given indices.
+    fn mean_embedding(embeds: ArrayView2<f32>, indices: &[u64]) -> Array1<f32> {
+        let mut embed = Array1::zeros((embeds.cols(),));
 
         for &idx in indices.iter() {
-            scaled_add(embed.view_mut(), self.input_embedding(idx as usize), 1.0);
+            scaled_add(
+                embed.view_mut(),
+                embeds.index_axis(Axis(0), idx as usize),
+                1.0,
+            );
         }
 
         scale(embed.view_mut(), 1.0 / indices.len() as f32);
@@ -95,6 +110,20 @@ impl TrainModel where {
     #[inline]
     pub(crate) fn input_embedding_mut(&mut self, idx: usize) -> ArrayViewMut1<f32> {
         self.input.subview_mut(Axis(0), idx)
+    }
+
+    pub(crate) fn into_parts(self) -> Result<(Config, SubwordVocab, Array2<f32>), Error> {
+        let vocab = match Arc::try_unwrap(self.vocab) {
+            Ok(vocab) => vocab,
+            Err(_) => return Err(err_msg("Cannot unwrap vocabulary.")),
+        };
+
+        let input = match Arc::try_unwrap(self.input.into_inner()) {
+            Ok(input) => input.into_inner(),
+            Err(_) => return Err(err_msg("Cannot unwrap input matrix.")),
+        };
+
+        Ok((self.config, vocab, input))
     }
 
     /// Get the output embedding with the given index.
@@ -117,54 +146,32 @@ impl TrainModel where {
 
 impl<W> WriteModelBinary<W> for TrainModel
 where
-    W: Write,
+    W: Seek + Write,
 {
-    fn write_model_binary(&self, write: &mut W) -> Result<(), Error> {
-        write.write_all(&[b'D', b'F', b'F'])?;
-        write.write_u32::<LittleEndian>(MODEL_VERSION)?;
-        write.write_u8(self.config.model as u8)?;
-        write.write_u8(self.config.loss as u8)?;
-        write.write_u32::<LittleEndian>(self.config.context_size)?;
-        write.write_u32::<LittleEndian>(self.config.dims)?;
-        write.write_f32::<LittleEndian>(self.config.discard_threshold)?;
-        write.write_u32::<LittleEndian>(self.config.epochs)?;
-        write.write_u32::<LittleEndian>(self.config.min_count)?;
-        write.write_u32::<LittleEndian>(self.config.min_n)?;
-        write.write_u32::<LittleEndian>(self.config.max_n)?;
-        write.write_u32::<LittleEndian>(self.config.buckets_exp)?;
-        write.write_u32::<LittleEndian>(self.config.negative_samples)?;
-        write.write_f32::<LittleEndian>(self.config.lr)?;
-        write.write_u64::<LittleEndian>(self.vocab.n_types() as u64)?;
-        write.write_u64::<LittleEndian>(self.vocab.len() as u64)?;
+    fn write_model_binary(self, write: &mut W) -> Result<(), Error> {
+        let (config, subword_vocab, mut input_matrix) = self.into_parts()?;
 
-        for word in self.vocab.types() {
-            write.write_u32::<LittleEndian>(word.word().len() as u32)?;
-            write.write_all(word.word().as_bytes())?;
-            write.write_u64::<LittleEndian>(word.count() as u64)?;
-        }
+        let words = subword_vocab
+            .types()
+            .iter()
+            .map(|l| l.label().to_owned())
+            .collect::<Vec<_>>();
+        let vocab = R2VSubwordVocab::new(words, config.min_n, config.max_n, config.buckets_exp);
+        let metadata = Metadata(Value::try_from(config)?);
 
         // Compute and write word embeddings.
-        let mut norms = vec![0f32; self.vocab.len()];
-        for i in 0..self.vocab.len() {
-            let mut input = self.vocab.subword_indices_idx(i).unwrap().to_owned();
+        let mut norms = vec![0f32; vocab.len()];
+        for i in 0..subword_vocab.len() {
+            let mut input = subword_vocab.subword_indices_idx(i).unwrap().to_owned();
             input.push(i as u64);
-            let mut embed = self.mean_input_embedding(&input);
+            let mut embed = Self::mean_embedding(input_matrix.view(), &input);
             norms[i] = l2_normalize(embed.view_mut());
-            for &v in embed.iter() {
-                write.write_f32::<LittleEndian>(v)?;
-            }
+            input_matrix.index_axis_mut(Axis(0), i).assign(&embed);
         }
 
-        // Write subword embeddings
-        for &v in self.input.view().slice(s![self.vocab.len().., ..]) {
-            write.write_f32::<LittleEndian>(v)?;
-        }
+        let storage = NdArray(input_matrix);
 
-        for v in norms {
-            write.write_f32::<LittleEndian>(v)?;
-        }
-
-        Ok(())
+        Embeddings::new(Some(metadata), vocab, storage).write_embeddings(write)
     }
 }
 

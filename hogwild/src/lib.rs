@@ -60,6 +60,10 @@ impl<A, D> HogwildArray<A, D> {
         let ptr = self.0.as_ref().get();
         unsafe { &*ptr }
     }
+
+    pub fn into_inner(self) -> Arc<UnsafeCell<Array<A, D>>> {
+        self.0
+    }
 }
 
 impl<A, D> HogwildArray<A, D>
