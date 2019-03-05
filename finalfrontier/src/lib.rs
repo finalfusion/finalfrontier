@@ -49,9 +49,7 @@ mod deps;
 pub(crate) use deps::{DepIter, Dependency, DependencyIterator, PathIter};
 
 mod io;
-pub use io::{
-    SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec,
-};
+pub use io::{SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec};
 
 pub(crate) mod loss;
 

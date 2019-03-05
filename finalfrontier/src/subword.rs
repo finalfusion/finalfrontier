@@ -210,7 +210,7 @@ mod tests {
     }
 
     lazy_static! {
-        static ref SUBWORD_TESTS_2: HashMap<&'static str, Vec<u64>> = hashmap!{
+        static ref SUBWORD_TESTS_2: HashMap<&'static str, Vec<u64>> = hashmap! {
             "<Daniël>" =>
                 vec![0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3],
             "<hallo>" =>
@@ -219,7 +219,7 @@ mod tests {
     }
 
     lazy_static! {
-        static ref SUBWORD_TESTS_21: HashMap<&'static str, Vec<u64>> = hashmap!{
+        static ref SUBWORD_TESTS_21: HashMap<&'static str, Vec<u64>> = hashmap! {
             "<Daniël>" =>
                 vec![214157, 233912, 311961, 488897, 620206, 741276, 841219,
                      1167494, 1192256, 1489905, 1532271, 1644730, 1666166,
