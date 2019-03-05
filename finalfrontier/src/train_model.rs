@@ -16,9 +16,9 @@ use rust2vec::{
 };
 use toml::Value;
 
-use util::ReseedOnCloneRng;
 use hogwild::HogwildArray2;
 use skipgram_trainer::SkipGramIter;
+use util::ReseedOnCloneRng;
 use vec_simd::{l2_normalize, scale, scaled_add};
 use {Config, ModelType, SubwordVocab, Vocab, WriteModelBinary};
 
