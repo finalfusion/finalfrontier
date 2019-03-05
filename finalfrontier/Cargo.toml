@@ -9,16 +9,13 @@ repository = "https://github.com/danieldk/finalfrontier.git"
 license = "Apache-2.0"
 
 [dependencies]
-byteorder = "1"
 cfg-if = "0.1"
 conllx = "0.11"
 failure = "0.1"
 fnv = "1"
 hogwild = { path = "../hogwild", version = "0.4.0" }
-memmap = "0.7"
 ndarray = "0.12"
 ndarray-rand = "0.9"
-ordered-float = "1"
 rand = "0.6"
 rand_core = "0.4"
 rust2vec = "0.5"

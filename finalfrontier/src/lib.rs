@@ -1,5 +1,3 @@
-extern crate byteorder;
-
 #[macro_use]
 extern crate cfg_if;
 
@@ -19,13 +17,9 @@ extern crate lazy_static;
 #[cfg(test)]
 extern crate maplit;
 
-extern crate memmap;
-
 extern crate ndarray;
 
 extern crate ndarray_rand;
-
-extern crate ordered_float;
 
 extern crate rand;
 
