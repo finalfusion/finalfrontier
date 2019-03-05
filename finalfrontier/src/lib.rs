@@ -55,9 +55,10 @@ pub use sgd::SGD;
 pub(crate) mod subword;
 
 mod train_model;
-pub use train_model::TrainModel;
+pub use train_model::{TrainModel, Trainer};
 
 pub(crate) mod skipgram_trainer;
+pub use skipgram_trainer::SkipgramTrainer;
 
 pub(crate) mod util;
 

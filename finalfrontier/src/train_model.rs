@@ -6,84 +6,91 @@ use failure::{err_msg, Error};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
-use rand::{Rng, SeedableRng};
 use rust2vec::{
-    embeddings::Embeddings,
-    io::WriteEmbeddings,
-    metadata::Metadata,
-    storage::NdArray,
-    vocab::{SubwordVocab as R2VSubwordVocab, Vocab as _},
+    embeddings::Embeddings, io::WriteEmbeddings, metadata::Metadata, storage::NdArray,
+    vocab::SubwordVocab as R2VSubwordVocab,
 };
 use toml::Value;
 
 use hogwild::HogwildArray2;
-use skipgram_trainer::SkipGramIter;
-use util::ReseedOnCloneRng;
 use vec_simd::{l2_normalize, scale, scaled_add};
-use {Config, ModelType, SubwordVocab, Vocab, WriteModelBinary};
+use {Config, SubwordVocab, Vocab, WriteModelBinary};
 
 /// Training model.
 ///
 /// Instances of this type represent training models. Training models have
-/// an input matrix, an output matrix, and a vocabulary. The input matrix
-/// represents observed words, whereas the output matrix represents predicted
-/// words. The output matrix is typically discarded after training. The
-/// vocabulary holds lexical information, such as word -> index mappings
-/// and word discard probabilities.
+/// an input matrix, an output matrix, and a trainer. The input matrix
+/// represents observed inputs, whereas the output matrix represents
+/// predicted outputs. The output matrix is typically discarded after
+/// training. The trainer holds lexical information, such as word ->
+/// index mappings and word discard probabilities. Additionally the trainer
+/// provides the logic to transform some input to an iterator of training
+/// examples.
 ///
 /// `TrainModel` stores the matrices as `HogwildArray`s to share parameters
-/// between clones of the same model. The vocabulary is also shared between
+/// between clones of the same model. The trainer is also shared between
 /// clones due to memory considerations.
 #[derive(Clone)]
-pub struct TrainModel<R> {
-    config: Config,
-    vocab: Arc<SubwordVocab>,
+pub struct TrainModel<T> {
+    trainer: T,
     input: HogwildArray2<f32>,
     output: HogwildArray2<f32>,
-    rng: R,
+    config: Config,
 }
 
-impl<R> TrainModel<ReseedOnCloneRng<R>>
+impl<T> From<T> for TrainModel<T>
 where
-    R: Clone + Rng + SeedableRng,
+    T: Trainer,
 {
-    /// Construct a model from a vocabulary.
+    /// Construct a model from a Trainer.
     ///
     /// This randomly initializes the input and output matrices using a
     /// uniform distribution in the range [-1/dims, 1/dims).
     ///
     /// The number of rows of the input matrix is the vocabulary size
     /// plus the number of buckets for subword units. The number of rows
-    /// of the output matrix is the vocabulary size.
-    pub fn from_vocab(vocab: SubwordVocab, config: Config, rng: R) -> Self {
-        let reseed_on_clone = ReseedOnCloneRng(rng);
+    /// of the output matrix is the number of possible outputs for the model.
+    fn from(trainer: T) -> TrainModel<T> {
+        let config = *trainer.config();
         let init_bound = 1.0 / config.dims as f32;
         let distribution = Uniform::new_inclusive(-init_bound, init_bound);
 
-        let n_buckets = 2usize.pow(config.buckets_exp as u32);
-
         let input = Array2::random(
-            (vocab.len() + n_buckets, config.dims as usize),
+            (trainer.n_input_types(), config.dims as usize),
             distribution,
         )
         .into();
-
-        let output_vocab_size = match config.model {
-            ModelType::SkipGram => vocab.len(),
-            ModelType::StructuredSkipGram => vocab.len() * config.context_size as usize * 2,
-        };
-        let output = Array2::random((output_vocab_size, config.dims as usize), distribution).into();
-
+        let output = Array2::random(
+            (trainer.n_output_types(), config.dims as usize),
+            distribution,
+        )
+        .into();
         TrainModel {
-            config,
-            vocab: Arc::new(vocab),
+            trainer,
             input,
             output,
-            rng: reseed_on_clone,
+            config,
         }
     }
 }
-impl<R> TrainModel<R> {
+
+impl<V, T> TrainModel<T>
+where
+    T: Trainer<InputVocab = V>,
+    V: Vocab,
+{
+    /// Get this model's input vocabulary.
+    pub fn input_vocab(&self) -> &V {
+        self.trainer.input_vocab()
+    }
+}
+
+impl<T> TrainModel<T> {
+    /// Get this model's trainer mutably.
+    pub fn trainer(&mut self) -> &mut T {
+        &mut self.trainer
+    }
+
     /// Get the model configuration.
     pub fn config(&self) -> &Config {
         &self.config
@@ -123,18 +130,13 @@ impl<R> TrainModel<R> {
         self.input.subview_mut(Axis(0), idx)
     }
 
-    pub(crate) fn into_parts(self) -> Result<(Config, SubwordVocab, Array2<f32>), Error> {
-        let vocab = match Arc::try_unwrap(self.vocab) {
-            Ok(vocab) => vocab,
-            Err(_) => return Err(err_msg("Cannot unwrap vocabulary.")),
-        };
-
+    pub(crate) fn into_parts(self) -> Result<(Config, T, Array2<f32>), Error> {
         let input = match Arc::try_unwrap(self.input.into_inner()) {
             Ok(input) => input.into_inner(),
             Err(_) => return Err(err_msg("Cannot unwrap input matrix.")),
         };
 
-        Ok((self.config, vocab, input))
+        Ok((self.config, self.trainer, input))
     }
 
     /// Get the output embedding with the given index.
@@ -148,21 +150,18 @@ impl<R> TrainModel<R> {
     pub(crate) fn output_embedding_mut(&mut self, idx: usize) -> ArrayViewMut1<f32> {
         self.output.subview_mut(Axis(0), idx)
     }
-
-    /// Get the model's vocabulary.
-    pub fn vocab(&self) -> &SubwordVocab {
-        &self.vocab
-    }
 }
 
-impl<W, R> WriteModelBinary<W> for TrainModel<R>
+impl<W, T> WriteModelBinary<W> for TrainModel<T>
 where
     W: Seek + Write,
+    T: Trainer<InputVocab = SubwordVocab>,
 {
     fn write_model_binary(self, write: &mut W) -> Result<(), Error> {
-        let (config, subword_vocab, mut input_matrix) = self.into_parts()?;
+        let (config, trainer, mut input_matrix) = self.into_parts()?;
 
-        let words = subword_vocab
+        let words = trainer
+            .input_vocab()
             .types()
             .iter()
             .map(|l| l.label().to_owned())
@@ -171,10 +170,9 @@ where
         let metadata = Metadata(Value::try_from(config)?);
 
         // Compute and write word embeddings.
-        let mut norms = vec![0f32; vocab.len()];
-        for i in 0..subword_vocab.len() {
-            let mut input = subword_vocab.subword_indices_idx(i).unwrap().to_owned();
-            input.push(i as u64);
+        let mut norms = vec![0f32; trainer.input_vocab().len()];
+        for i in 0..trainer.input_vocab().len() {
+            let input = trainer.input_indices(i);
             let mut embed = Self::mean_embedding(input_matrix.view(), &input);
             norms[i] = l2_normalize(embed.view_mut());
             input_matrix.index_axis_mut(Axis(0), i).assign(&embed);
@@ -200,11 +198,10 @@ pub trait Trainer {
     ///
     /// In a model with subword units this value is calculated as:
     /// `2^n_buckets + input_vocab.len()`.
-    fn n_inputs_types(&self) -> usize;
+    fn n_input_types(&self) -> usize;
 
     /// Get the number of possible outputs.
     ///
-    /// The number of possible outputs is used to construct the output matrix for the `TrainModel`.
     /// In a structured skipgram model this value is calculated as:
     /// `output_vocab.len() * context_size * 2`
     fn n_output_types(&self) -> usize;
@@ -222,28 +219,8 @@ where
 {
     type Iter: Iterator<Item = (usize, Self::Contexts)> + FusedIterator;
     type Contexts: Sized + IntoIterator<Item = usize>;
+
     fn train_iter_from(&mut self, sequence: &S) -> Self::Iter;
-}
-
-impl<S, R> TrainIterFrom<[S]> for TrainModel<R>
-where
-    S: AsRef<str>,
-    R: Rng + Clone,
-{
-    type Iter = SkipGramIter<R>;
-    type Contexts = Vec<usize>;
-
-    fn train_iter_from(&mut self, sequence: &[S]) -> Self::Iter {
-        let mut ids = Vec::new();
-        for t in sequence.into_iter() {
-            if let Some(idx) = self.vocab.idx(t.as_ref()) {
-                if self.rng.gen_range(0f32, 1f32) < self.vocab.discard(idx) {
-                    ids.push(idx);
-                }
-            }
-        }
-        SkipGramIter::new(self.rng.clone(), ids, self.config)
-    }
 }
 
 /// Negative Samples
@@ -256,13 +233,12 @@ pub trait NegativeSamples {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use ndarray::Array2;
     use rand::FromEntropy;
     use rand_xorshift::XorShiftRng;
 
     use super::TrainModel;
+    use skipgram_trainer::SkipgramTrainer;
     use util::all_close;
     use {Config, LossType, ModelType, VocabBuilder};
 
@@ -300,10 +276,9 @@ mod tests {
 
         let mut model = TrainModel {
             config,
-            vocab: Arc::new(vocab),
+            trainer: SkipgramTrainer::new(vocab, XorShiftRng::from_entropy(), config),
             input,
             output,
-            rng: XorShiftRng::from_entropy(),
         };
 
         // Input embeddings

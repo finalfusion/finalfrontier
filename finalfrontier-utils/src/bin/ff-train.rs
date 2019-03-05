@@ -15,8 +15,8 @@ use std::time::Duration;
 
 use clap::{App, AppSettings, Arg, ArgMatches};
 use finalfrontier::{
-    Config, LossType, ModelType, SentenceIterator, SubwordVocab, TrainModel, Vocab, VocabBuilder,
-    WriteModelBinary, SGD,
+    Config, LossType, ModelType, SentenceIterator, SkipgramTrainer, SubwordVocab, Trainer, Vocab,
+    VocabBuilder, WriteModelBinary, SGD,
 };
 use finalfrontier_utils::{thread_data, FileProgress};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -47,9 +47,8 @@ fn main() {
         File::create(matches.value_of(OUTPUT).unwrap())
             .or_exit("Cannot open output file for writing.", 1),
     );
-
-    let model = TrainModel::from_vocab(vocab, config.clone(), XorShiftRng::from_entropy());
-    let sgd = SGD::new(model, XorShiftRng::from_entropy());
+    let trainer = SkipgramTrainer::new(vocab, XorShiftRng::from_entropy(), config);
+    let sgd = SGD::new(trainer.into());
 
     let corpus = matches.value_of(CORPUS).unwrap();
 
@@ -280,8 +279,12 @@ fn parse_args() -> ArgMatches<'static> {
         .get_matches()
 }
 
-fn show_progress<R>(config: &Config, sgd: &SGD<R>, update_interval: Duration) {
-    let n_tokens = sgd.model().vocab().n_types();
+fn show_progress<T, V>(config: &Config, sgd: &SGD<T>, update_interval: Duration)
+where
+    T: Trainer<InputVocab = V>,
+    V: Vocab,
+{
+    let n_tokens = sgd.model().input_vocab().n_types();
 
     let pb = ProgressBar::new(config.epochs as u64 * n_tokens as u64);
     pb.set_style(
@@ -310,7 +313,7 @@ fn show_progress<R>(config: &Config, sgd: &SGD<R>, update_interval: Duration) {
 
 fn do_work<P, R>(
     corpus_path: P,
-    mut sgd: SGD<R>,
+    mut sgd: SGD<SkipgramTrainer<R>>,
     thread: usize,
     n_threads: usize,
     epochs: u32,
@@ -319,7 +322,7 @@ fn do_work<P, R>(
     P: Into<PathBuf>,
     R: Clone + Rng,
 {
-    let n_tokens = sgd.model().vocab().n_types();
+    let n_tokens = sgd.model().input_vocab().n_types();
 
     let f = File::open(corpus_path.into()).or_exit("Cannot open corpus for reading", 1);
     let (data, start) =

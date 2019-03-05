@@ -93,7 +93,7 @@ where
         &self.vocab
     }
 
-    fn n_inputs_types(&self) -> usize {
+    fn n_input_types(&self) -> usize {
         let n_buckets = 2usize.pow(self.config.buckets_exp as u32);
         n_buckets + self.vocab.len()
     }

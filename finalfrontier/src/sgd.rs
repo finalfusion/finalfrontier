@@ -1,34 +1,43 @@
 use ndarray::{Array1, ArrayView1, ArrayViewMut1};
-use rand::{Rng, SeedableRng};
 
 use hogwild::Hogwild;
 use loss::log_logistic_loss;
-use sampling::{BandedRangeGenerator, RangeGenerator, ZipfRangeGenerator};
-use train_model::TrainIterFrom;
-use util::ReseedOnCloneRng;
+use train_model::{NegativeSamples, TrainIterFrom, Trainer};
 use vec_simd::scaled_add;
 
-use {ModelType, TrainModel, Vocab};
+use TrainModel;
 
 /// Stochastic gradient descent
 ///
 /// This data type applies stochastic gradient descent on sentences.
 #[derive(Clone)]
-pub struct SGD<R> {
+pub struct SGD<T> {
     loss: Hogwild<f32>,
-    model: TrainModel<R>,
+    model: TrainModel<T>,
     n_examples: Hogwild<usize>,
     n_tokens_processed: Hogwild<usize>,
-    sgd_impl: NegativeSamplingSGD<BandedRangeGenerator<R, ZipfRangeGenerator<R>>>,
+    sgd_impl: NegativeSamplingSGD,
 }
 
-impl<R> SGD<R> {
-    pub fn into_model(self) -> TrainModel<R> {
+impl<T> SGD<T> {
+    pub fn into_model(self) -> TrainModel<T> {
         self.model
     }
 
+    /// Construct a new SGD instance,
+    pub fn new(model: TrainModel<T>) -> Self {
+        let sgd_impl = NegativeSamplingSGD::new(model.config().negative_samples as usize);
+
+        SGD {
+            loss: Hogwild::default(),
+            model,
+            n_examples: Hogwild::default(),
+            n_tokens_processed: Hogwild::default(),
+            sgd_impl,
+        }
+    }
     /// Get the training model associated with this SGD.
-    pub fn model(&self) -> &TrainModel<R> {
+    pub fn model(&self) -> &TrainModel<T> {
         &self.model
     }
 
@@ -44,48 +53,7 @@ impl<R> SGD<R> {
     pub fn train_loss(&self) -> f32 {
         *self.loss / *self.n_examples as f32
     }
-}
 
-impl<R> SGD<ReseedOnCloneRng<R>>
-where
-    R: Clone + Rng + SeedableRng,
-{
-    /// Construct a new SGD instance.
-    pub fn new(model: TrainModel<ReseedOnCloneRng<R>>, rng: R) -> Self {
-        let reseed_on_clone = ReseedOnCloneRng(rng);
-
-        let band_size = match model.config().model {
-            ModelType::SkipGram => 1,
-            ModelType::StructuredSkipGram => model.config().context_size * 2,
-        };
-
-        let range_gen = BandedRangeGenerator::new(
-            reseed_on_clone.clone(),
-            ZipfRangeGenerator::new_with_exponent(
-                reseed_on_clone.clone(),
-                model.vocab().len(),
-                model.config().zipf_exponent,
-            ),
-            band_size as usize,
-        );
-
-        let sgd_impl =
-            NegativeSamplingSGD::new(model.config().negative_samples as usize, range_gen);
-
-        SGD {
-            loss: Hogwild::default(),
-            model,
-            n_examples: Hogwild::default(),
-            n_tokens_processed: Hogwild::default(),
-            sgd_impl,
-        }
-    }
-}
-
-impl<R> SGD<R>
-where
-    R: Rng,
-{
     /// Update the model parameters using the given sentence.
     ///
     /// This applies a gradient descent step on the sentence, with the given
@@ -93,19 +61,12 @@ where
     pub fn update_sentence<S>(&mut self, sentence: &S, lr: f32)
     where
         S: ?Sized,
-        TrainModel<R>: TrainIterFrom<S>,
+        T: TrainIterFrom<S> + Trainer + NegativeSamples,
     {
-        for (focus, contexts) in self.model.train_iter_from(sentence) {
-            // The input word is represented by its index and subword
-            // indices.
-            let mut input = self
-                .model
-                .vocab()
-                .subword_indices_idx(focus)
-                .unwrap()
-                .to_owned();
-            input.push(focus as u64);
-
+        for (focus, contexts) in self.model.trainer().train_iter_from(sentence) {
+            // Update parameters for the token focus token i and the
+            // context token j.
+            let input = self.model.trainer().input_indices(focus);
             let input_embed = self.model.mean_input_embedding(&input);
 
             for context in contexts {
@@ -142,21 +103,14 @@ where
 /// for all words that do not co-occur in every step. Instead, such
 /// negatives are sampled, weighted by word frequency.
 #[derive(Clone)]
-pub struct NegativeSamplingSGD<RS> {
+pub struct NegativeSamplingSGD {
     negative_samples: usize,
-    range_gen: RS,
 }
 
-impl<RS> NegativeSamplingSGD<RS>
-where
-    RS: RangeGenerator,
-{
+impl NegativeSamplingSGD {
     /// Create a new loss function.
-    pub fn new(negative_samples: usize, range_gen: RS) -> Self {
-        NegativeSamplingSGD {
-            negative_samples,
-            range_gen,
-        }
+    pub fn new(negative_samples: usize) -> Self {
+        NegativeSamplingSGD { negative_samples }
     }
 
     /// Perform a step of gradient descent.
@@ -167,16 +121,19 @@ where
     /// subwords).
     ///
     /// The function returns the sum of losses.
-    pub fn sgd_step<R>(
+    pub fn sgd_step<T>(
         &mut self,
-        model: &mut TrainModel<R>,
+        model: &mut TrainModel<T>,
         input: &[u64],
         input_embed: ArrayView1<f32>,
         output: usize,
         lr: f32,
-    ) -> f32 {
+    ) -> f32
+    where
+        T: NegativeSamples,
+    {
         let mut loss = 0.0;
-        let mut input_delta = Array1::zeros(model.config().dims as usize);
+        let mut input_delta = Array1::zeros(input_embed.shape()[0]);
 
         // Update the output embedding of the positive instance.
         loss += self.update_output(
@@ -201,29 +158,21 @@ where
     }
 
     /// Pick, predict and update negative samples.
-    fn negative_samples<R>(
+    fn negative_samples<T>(
         &mut self,
-        model: &mut TrainModel<R>,
+        model: &mut TrainModel<T>,
         input_embed: ArrayView1<f32>,
         mut input_delta: ArrayViewMut1<f32>,
         output: usize,
         lr: f32,
-    ) -> f32 {
+    ) -> f32
+    where
+        T: NegativeSamples,
+    {
         let mut loss = 0f32;
 
         for _ in 0..self.negative_samples {
-            let mut negative;
-            loop {
-                // Cannot panic, since the iterator is endless.
-                negative = self.range_gen.next().unwrap();
-
-                // We do not want to use the target word as a negative
-                // example.
-                if negative != output {
-                    break;
-                }
-            }
-
+            let negative = model.trainer().negative_sample(output);
             // Update input and output for this negative sample.
             loss += self.update_output(
                 model,
@@ -243,9 +192,9 @@ where
     /// This also accumulates an update for the input embedding.
     ///
     /// The method returns the loss for predicting the output.
-    fn update_output<R>(
+    fn update_output<T>(
         &mut self,
-        model: &mut TrainModel<R>,
+        model: &mut TrainModel<T>,
         input_embed: ArrayView1<f32>,
         input_delta: ArrayViewMut1<f32>,
         output: usize,
