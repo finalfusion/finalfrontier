@@ -169,15 +169,6 @@ where
             discards,
         }
     }
-
-    /// Get a specific context
-    pub fn get<Q>(&self, context: &Q) -> Option<&CountedType<T>>
-    where
-        T: Borrow<Q>,
-        Q: Hash + ?Sized + Eq,
-    {
-        self.idx(context).map(|idx| &self.types[idx])
-    }
 }
 
 /// Trait for lookup of indices.
@@ -552,12 +543,9 @@ mod tests {
         let vocab: SimpleVocab<&str> = builder.into();
 
         assert_eq!(vocab.len(), 3);
-        assert_eq!(vocab.get("c"), None);
 
         assert_eq!(vocab.n_types(), 18);
-        let a = vocab.get("a").unwrap();
-        assert_eq!("a", a.label);
-        assert_eq!(5, a.count());
+
         // 0.0001 / 5/18 + (0.0001 / 5/18).sqrt() = 0.019334
         assert!(util::close(
             0.019334,

@@ -100,12 +100,6 @@ impl TrainModel where {
         embed
     }
 
-    /// Get the input embedding with the given index.
-    #[inline]
-    pub(crate) fn input_embedding(&self, idx: usize) -> ArrayView1<f32> {
-        self.input.subview(Axis(0), idx)
-    }
-
     /// Get the input embedding with the given index mutably.
     #[inline]
     pub(crate) fn input_embedding_mut(&mut self, idx: usize) -> ArrayViewMut1<f32> {
@@ -223,18 +217,6 @@ mod tests {
             input,
             output,
         };
-
-        // Input embeddings
-        assert!(all_close(
-            model.input_embedding(0).as_slice().unwrap(),
-            &[1., 2., 3.],
-            1e-5
-        ));
-        assert!(all_close(
-            model.input_embedding(1).as_slice().unwrap(),
-            &[4., 5., 6.],
-            1e-5
-        ));
 
         // Mutable input embeddings
         assert!(all_close(

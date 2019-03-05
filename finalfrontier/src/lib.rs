@@ -45,9 +45,6 @@ extern crate zipf;
 mod config;
 pub use config::{Config, LossType, ModelType};
 
-mod deps;
-pub(crate) use deps::{DepIter, Dependency, DependencyIterator, PathIter};
-
 mod io;
 pub use io::{SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec};
 
