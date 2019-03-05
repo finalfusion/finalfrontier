@@ -1,8 +1,116 @@
-use rand::Rng;
 use std::cmp;
 use std::iter::FusedIterator;
-use Config;
-use ModelType;
+use std::sync::Arc;
+
+use rand::{Rng, SeedableRng};
+
+use train_model::{NegativeSamples, TrainIterFrom, Trainer};
+use util::ReseedOnCloneRng;
+use {Config, ModelType, SubwordVocab, Vocab};
+
+/// Skipgram Trainer
+///
+/// The `SkipgramTrainer` holds the information and logic necessary to transform a tokenized
+/// sentence into an iterator of focus and context tuples. The struct is cheap to clone because
+/// the vocabulary is shared between clones.
+#[derive(Clone)]
+pub struct SkipgramTrainer<R> {
+    vocab: Arc<SubwordVocab>,
+    rng: R,
+    config: Config,
+}
+
+impl<R> SkipgramTrainer<ReseedOnCloneRng<R>>
+where
+    R: Rng + Clone + SeedableRng,
+{
+    /// Constructs a new `SkipgramTrainer`.
+    pub fn new(vocab: SubwordVocab, rng: R, config: Config) -> Self {
+        let vocab = Arc::new(vocab);
+        let rng = ReseedOnCloneRng(rng);
+        SkipgramTrainer { vocab, rng, config }
+    }
+}
+
+impl<S, R> TrainIterFrom<[S]> for SkipgramTrainer<R>
+where
+    S: AsRef<str>,
+    R: Rng + Clone,
+{
+    type Iter = SkipGramIter<R>;
+    type Contexts = Vec<usize>;
+
+    fn train_iter_from(&mut self, sequence: &[S]) -> Self::Iter {
+        let mut ids = Vec::new();
+        for t in sequence {
+            if let Some(idx) = self.vocab.idx(t.as_ref()) {
+                if self.rng.gen_range(0f32, 1f32) < self.vocab.discard(idx) {
+                    ids.push(idx);
+                }
+            }
+        }
+        SkipGramIter::new(self.rng.clone(), ids, self.config)
+    }
+}
+
+impl<R> NegativeSamples for SkipgramTrainer<R>
+where
+    R: Rng,
+{
+    fn negative_sample(&mut self, output: usize) -> usize {
+        loop {
+            let negative = match self.config.model {
+                ModelType::StructuredSkipGram => {
+                    let context_size = self.config.context_size as usize;
+                    let offset = output % (context_size * 2);
+                    let rand_type = self.rng.gen_range(0, self.vocab.len());
+                    // in structured skipgram the offset into the output matrix is calculated as:
+                    // (vocab_idx * context_size * 2) + offset
+                    rand_type * context_size * 2 + offset
+                }
+                ModelType::SkipGram => self.rng.gen_range(0, self.vocab.len()),
+            };
+            if negative != output {
+                return negative;
+            }
+        }
+    }
+}
+
+impl<R> Trainer for SkipgramTrainer<R>
+where
+    R: Rng + Clone,
+{
+    type InputVocab = SubwordVocab;
+
+    fn input_indices(&self, idx: usize) -> Vec<u64> {
+        let mut v = self.vocab.subword_indices_idx(idx).unwrap().to_vec();
+        v.push(idx as u64);
+        v
+    }
+
+    fn input_vocab(&self) -> &SubwordVocab {
+        &self.vocab
+    }
+
+    fn n_inputs_types(&self) -> usize {
+        let n_buckets = 2usize.pow(self.config.buckets_exp as u32);
+        n_buckets + self.vocab.len()
+    }
+
+    fn n_output_types(&self) -> usize {
+        match self.config.model {
+            ModelType::StructuredSkipGram => {
+                self.vocab.len() * 2 * self.config.context_size as usize
+            }
+            ModelType::SkipGram => self.vocab.len(),
+        }
+    }
+
+    fn config(&self) -> &Config {
+        &self.config
+    }
+}
 
 /// Iterator over focus identifier and associated context identifiers in a sentence.
 pub struct SkipGramIter<R> {

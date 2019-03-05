@@ -186,6 +186,33 @@ where
     }
 }
 
+/// Trainer Trait.
+pub trait Trainer {
+    type InputVocab: Vocab;
+
+    /// Given an input index get all associated indices.
+    fn input_indices(&self, idx: usize) -> Vec<u64>;
+
+    /// Get the trainer's input vocabulary.
+    fn input_vocab(&self) -> &Self::InputVocab;
+
+    /// Get the number of possible input types.
+    ///
+    /// In a model with subword units this value is calculated as:
+    /// `2^n_buckets + input_vocab.len()`.
+    fn n_inputs_types(&self) -> usize;
+
+    /// Get the number of possible outputs.
+    ///
+    /// The number of possible outputs is used to construct the output matrix for the `TrainModel`.
+    /// In a structured skipgram model this value is calculated as:
+    /// `output_vocab.len() * context_size * 2`
+    fn n_output_types(&self) -> usize;
+
+    /// Get this Trainer's `Config`
+    fn config(&self) -> &Config;
+}
+
 /// TrainIterFrom.
 ///
 /// This trait defines how some input `&S` is transformed into an iterator of training examples.
@@ -205,6 +232,7 @@ where
 {
     type Iter = SkipGramIter<R>;
     type Contexts = Vec<usize>;
+
     fn train_iter_from(&mut self, sequence: &[S]) -> Self::Iter {
         let mut ids = Vec::new();
         for t in sequence.into_iter() {
@@ -216,6 +244,14 @@ where
         }
         SkipGramIter::new(self.rng.clone(), ids, self.config)
     }
+}
+
+/// Negative Samples
+///
+/// This trait defines a method on how to draw a negative sample given some output. The return value
+/// should follow the distribution of the underlying output vocabulary.
+pub trait NegativeSamples {
+    fn negative_sample(&mut self, output: usize) -> usize;
 }
 
 #[cfg(test)]
