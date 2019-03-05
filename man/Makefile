@@ -1,4 +1,4 @@
-all: ff-compute-accuracy.1 ff-convert.1 ff-similar.1 ff-train.1 ff-format.5
+all: ff-train.1
 
 clean:
 	rm -f *.1 *.5

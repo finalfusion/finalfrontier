@@ -106,7 +106,3 @@ structured skip-gram model:
     ff-train --model structgram --dims 100 \
 	  dewiki.txt dewiki-structgram.bin
 
-SEE ALSO
-========
-
-ff-compute-accuracy, ff-format(5), ff-convert(1), ff-similar(1)

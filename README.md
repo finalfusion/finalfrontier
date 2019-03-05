@@ -17,15 +17,16 @@ word embeddings. finalfrontier currently has the following features:
   * Hogwild SGD (Recht et al., 2011)
 
 This is an early release of finalfrontier, we are planning to add more features
-in the future.
+in the future. The trained embeddings are stored in `finalfusion` format, which
+can be read and used with the [rust2vec](https://github.com/danieldk/rust2vec)
+crate and the [finalfusion](https://github.com/danieldk/finalfusion-python) Python
+module.
 
 ## Where to go from here
 
   * [Installation](docs/INSTALL.md)
   * [Quickstart](docs/QUICKSTART.md)
   * Manual pages:
-    - [ff-convert(1)](man/ff-convert.1.md) — convert finalfrontier models to other formats
-    - [ff-format(5)](man/ff-format.5.md) — finalfrontier binary format
-    - [ff-similar(1)](man/ff-similar.1.md) — word similarity queries
     - [ff-train(1)](man/ff-train.1.md) — train word embeddings with subword representations
-  * [Python module](https://github.com/danieldk/finalfrontier-python)
+  * [rust2vec](https://github.com/danieldk/rust2vec) rust2vec crate
+  * [Python module](https://github.com/danieldk/finalfusion-python)
