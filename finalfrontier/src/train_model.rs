@@ -6,15 +6,13 @@ use failure::{err_msg, Error};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
-use rust2vec::{
-    embeddings::Embeddings, io::WriteEmbeddings, metadata::Metadata, storage::NdArray,
-    vocab::SubwordVocab as R2VSubwordVocab,
-};
+use rust2vec::{embeddings::Embeddings, io::WriteEmbeddings, metadata::Metadata, storage::NdArray};
 use toml::Value;
 
 use hogwild::HogwildArray2;
+use rust2vec::vocab::VocabWrap;
 use vec_simd::{l2_normalize, scale, scaled_add};
-use {Config, SubwordVocab, Vocab, WriteModelBinary};
+use {Config, Vocab, WriteModelBinary};
 
 /// Training model.
 ///
@@ -152,21 +150,15 @@ impl<T> TrainModel<T> {
     }
 }
 
-impl<W, T> WriteModelBinary<W> for TrainModel<T>
+impl<W, T, V> WriteModelBinary<W> for TrainModel<T>
 where
     W: Seek + Write,
-    T: Trainer<InputVocab = SubwordVocab>,
+    T: Trainer<InputVocab = V>,
+    V: Vocab + Into<VocabWrap>,
 {
     fn write_model_binary(self, write: &mut W) -> Result<(), Error> {
         let (config, trainer, mut input_matrix) = self.into_parts()?;
 
-        let words = trainer
-            .input_vocab()
-            .types()
-            .iter()
-            .map(|l| l.label().to_owned())
-            .collect::<Vec<_>>();
-        let vocab = R2VSubwordVocab::new(words, config.min_n, config.max_n, config.buckets_exp);
         let metadata = Metadata(Value::try_from(config)?);
 
         // Compute and write word embeddings.
@@ -178,6 +170,7 @@ where
             input_matrix.index_axis_mut(Axis(0), i).assign(&embed);
         }
 
+        let vocab: VocabWrap = trainer.try_into_input_vocab()?.into();
         let storage = NdArray(input_matrix);
 
         Embeddings::new(Some(metadata), vocab, storage).write_embeddings(write)
@@ -193,6 +186,9 @@ pub trait Trainer {
 
     /// Get the trainer's input vocabulary.
     fn input_vocab(&self) -> &Self::InputVocab;
+
+    /// Destruct the trainer and get the input vocabulary.
+    fn try_into_input_vocab(self) -> Result<Self::InputVocab, Error>;
 
     /// Get the number of possible input types.
     ///

@@ -2,6 +2,8 @@ use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
 
+use rust2vec::vocab::{SimpleVocab as R2VSimpleVocab, SubwordVocab as R2VSubwordVocab, VocabWrap};
+
 use subword::SubwordIndices;
 use {util, Config};
 
@@ -177,6 +179,35 @@ where
         Q: Hash + ?Sized + Eq,
     {
         self.idx(context).map(|idx| &self.types[idx])
+    }
+}
+
+impl From<SimpleVocab<String>> for VocabWrap {
+    fn from(vocab: SimpleVocab<String>) -> VocabWrap {
+        R2VSimpleVocab::new(
+            vocab
+                .types
+                .iter()
+                .map(|l| l.label().to_owned())
+                .collect::<Vec<_>>(),
+        )
+        .into()
+    }
+}
+
+impl From<SubwordVocab> for VocabWrap {
+    fn from(vocab: SubwordVocab) -> VocabWrap {
+        R2VSubwordVocab::new(
+            vocab
+                .words
+                .iter()
+                .map(|l| l.label().to_owned())
+                .collect::<Vec<_>>(),
+            vocab.config.min_n,
+            vocab.config.max_n,
+            vocab.config.buckets_exp,
+        )
+        .into()
     }
 }
 

@@ -2,6 +2,7 @@ use std::cmp;
 use std::iter::FusedIterator;
 use std::sync::Arc;
 
+use failure::{err_msg, Error};
 use rand::{Rng, SeedableRng};
 
 use train_model::{NegativeSamples, TrainIterFrom, Trainer};
@@ -91,6 +92,13 @@ where
 
     fn input_vocab(&self) -> &SubwordVocab {
         &self.vocab
+    }
+
+    fn try_into_input_vocab(self) -> Result<SubwordVocab, Error> {
+        match Arc::try_unwrap(self.vocab) {
+            Ok(vocab) => Ok(vocab),
+            Err(_) => return Err(err_msg("Cannot unwrap input vocab.")),
+        }
     }
 
     fn n_input_types(&self) -> usize {

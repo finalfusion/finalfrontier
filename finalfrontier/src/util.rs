@@ -1,6 +1,5 @@
 use rand::{FromEntropy, SeedableRng};
 use rand_core::{self, RngCore};
-use rust2vec::vocab::Vocab;
 
 pub static EOS: &str = "</s>";
 
