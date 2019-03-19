@@ -97,12 +97,12 @@ where
     fn try_into_input_vocab(self) -> Result<SubwordVocab, Error> {
         match Arc::try_unwrap(self.vocab) {
             Ok(vocab) => Ok(vocab),
-            Err(_) => return Err(err_msg("Cannot unwrap input vocab.")),
+            Err(_) => Err(err_msg("Cannot unwrap input vocab.")),
         }
     }
 
     fn n_input_types(&self) -> usize {
-        let n_buckets = 2usize.pow(self.config.buckets_exp as u32);
+        let n_buckets = 2usize.pow(self.config.buckets_exp);
         n_buckets + self.vocab.len()
     }
 

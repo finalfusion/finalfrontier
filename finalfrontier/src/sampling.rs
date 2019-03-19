@@ -84,6 +84,7 @@ where
 /// descending frequency. Since the token frequencies (presumably) have a
 /// Zipfian distribution, this will pick a token with a probability that
 /// is proportional to its frequency.
+#[allow(dead_code)]
 pub struct ZipfRangeGenerator<R> {
     upper_bound: usize,
     exponent: f64,
@@ -163,6 +164,7 @@ where
     R: Rng,
     G: RangeGenerator,
 {
+    #[allow(dead_code)]
     pub fn new(rng: R, band_range_gen: G, band_size: usize) -> Self {
         BandedRangeGenerator {
             uniform: Uniform::new(0, band_size),

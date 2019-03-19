@@ -104,6 +104,7 @@ impl<'a> DependencyIterator<'a> {
     /// Constructs a new `DependencyIterator` which returns up to `max_depth`-order dependencies.
     ///
     /// If `max_depth == 0`, all contexts are extracted.
+    #[allow(dead_code)]
     pub fn new(graph: &'a DepGraph<'a>, max_depth: usize) -> Self {
         DependencyIterator {
             max_depth,
