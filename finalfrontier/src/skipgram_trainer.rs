@@ -4,10 +4,11 @@ use std::sync::Arc;
 
 use failure::{err_msg, Error};
 use rand::{Rng, SeedableRng};
+use serde::Serialize;
 
 use train_model::{NegativeSamples, TrainIterFrom, Trainer};
 use util::ReseedOnCloneRng;
-use {Config, ModelType, SubwordVocab, Vocab};
+use {CommonConfig, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabConfig, Vocab};
 
 /// Skipgram Trainer
 ///
@@ -18,7 +19,8 @@ use {Config, ModelType, SubwordVocab, Vocab};
 pub struct SkipgramTrainer<R> {
     vocab: Arc<SubwordVocab>,
     rng: R,
-    config: Config,
+    common_config: CommonConfig,
+    skipgram_config: SkipGramConfig,
 }
 
 impl<R> SkipgramTrainer<ReseedOnCloneRng<R>>
@@ -26,10 +28,20 @@ where
     R: Rng + Clone + SeedableRng,
 {
     /// Constructs a new `SkipgramTrainer`.
-    pub fn new(vocab: SubwordVocab, rng: R, config: Config) -> Self {
+    pub fn new(
+        vocab: SubwordVocab,
+        rng: R,
+        common_config: CommonConfig,
+        skipgram_config: SkipGramConfig,
+    ) -> Self {
         let vocab = Arc::new(vocab);
         let rng = ReseedOnCloneRng(rng);
-        SkipgramTrainer { vocab, rng, config }
+        SkipgramTrainer {
+            vocab,
+            rng,
+            common_config,
+            skipgram_config,
+        }
     }
 }
 
@@ -50,7 +62,7 @@ where
                 }
             }
         }
-        SkipGramIter::new(self.rng.clone(), ids, self.config)
+        SkipGramIter::new(self.rng.clone(), ids, self.skipgram_config)
     }
 }
 
@@ -60,9 +72,9 @@ where
 {
     fn negative_sample(&mut self, output: usize) -> usize {
         loop {
-            let negative = match self.config.model {
+            let negative = match self.skipgram_config.model {
                 ModelType::StructuredSkipGram => {
-                    let context_size = self.config.context_size as usize;
+                    let context_size = self.skipgram_config.context_size as usize;
                     let offset = output % (context_size * 2);
                     let rand_type = self.rng.gen_range(0, self.vocab.len());
                     // in structured skipgram the offset into the output matrix is calculated as:
@@ -83,6 +95,7 @@ where
     R: Rng + Clone,
 {
     type InputVocab = SubwordVocab;
+    type Metadata = SkipgramMetadata<SubwordVocabConfig>;
 
     fn input_indices(&self, idx: usize) -> Vec<u64> {
         let mut v = self.vocab.subword_indices_idx(idx).unwrap().to_vec();
@@ -102,21 +115,29 @@ where
     }
 
     fn n_input_types(&self) -> usize {
-        let n_buckets = 2usize.pow(self.config.buckets_exp);
-        n_buckets + self.vocab.len()
+        let n_buckets = 2usize.pow(self.input_vocab().config().buckets_exp);
+        n_buckets + self.input_vocab().len()
     }
 
     fn n_output_types(&self) -> usize {
-        match self.config.model {
+        match self.skipgram_config.model {
             ModelType::StructuredSkipGram => {
-                self.vocab.len() * 2 * self.config.context_size as usize
+                self.vocab.len() * 2 * self.skipgram_config.context_size as usize
             }
             ModelType::SkipGram => self.vocab.len(),
         }
     }
 
-    fn config(&self) -> &Config {
-        &self.config
+    fn config(&self) -> &CommonConfig {
+        &self.common_config
+    }
+
+    fn to_metadata(&self) -> SkipgramMetadata<SubwordVocabConfig> {
+        SkipgramMetadata {
+            common_config: self.common_config,
+            skipgram_config: self.skipgram_config,
+            vocab_config: self.vocab.config(),
+        }
     }
 }
 
@@ -136,13 +157,13 @@ where
     /// Constructs a new `SkipGramIter`.
     ///
     /// The `rng` is used to determine the window size for each focus token.
-    pub fn new(rng: R, ids: Vec<usize>, config: Config) -> Self {
+    pub fn new(rng: R, ids: Vec<usize>, skip_config: SkipGramConfig) -> Self {
         SkipGramIter {
             ids,
             rng,
             i: 0,
-            model_type: config.model,
-            ctx_size: config.context_size as usize,
+            model_type: skip_config.model,
+            ctx_size: skip_config.context_size as usize,
         }
     }
 
@@ -189,3 +210,15 @@ where
 }
 
 impl<R> FusedIterator for SkipGramIter<R> where R: Rng + Clone {}
+
+/// Metadata for Skipgramlike training algorithms.
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct SkipgramMetadata<V>
+where
+    V: Serialize,
+{
+    common_config: CommonConfig,
+    #[serde(rename = "model_config")]
+    skipgram_config: SkipGramConfig,
+    vocab_config: V,
+}

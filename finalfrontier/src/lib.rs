@@ -37,7 +37,9 @@ extern crate toml;
 extern crate zipf;
 
 mod config;
-pub use config::{Config, LossType, ModelType};
+pub use config::{
+    CommonConfig, LossType, ModelType, SimpleVocabConfig, SkipGramConfig, SubwordVocabConfig,
+};
 
 mod deps;
 

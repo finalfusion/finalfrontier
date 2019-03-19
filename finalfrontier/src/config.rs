@@ -45,28 +45,11 @@ impl LossType {
     }
 }
 
-/// Embedding model hyperparameters.
+/// Common embedding model hyperparameters.
 #[derive(Clone, Copy, Debug, Serialize)]
-pub struct Config {
-    /// The model type.
-    pub model: ModelType,
-
+pub struct CommonConfig {
     /// The loss function used for the model.
     pub loss: LossType,
-
-    /// The number of preceding and succeeding tokens that will be consider
-    /// as context during training.
-    ///
-    /// For example, a context size of 5 will consider the 5 tokens preceding
-    /// and the 5 tokens succeeding the focus token.
-    pub context_size: u32,
-
-    /// Discard threshold.
-    ///
-    /// The discard threshold is used to compute the discard probability of
-    /// a token. E.g. with a threshold of 0.00001 tokens with approximately
-    /// that probability will never be discarded.
-    pub discard_threshold: f32,
 
     /// Word embedding dimensionality.
     pub dims: u32,
@@ -74,12 +57,23 @@ pub struct Config {
     /// The number of training epochs.
     pub epochs: u32,
 
-    /// Minimum token count.
-    ///
-    /// No word-specific embeddings will be trained for tokens occurring less
-    /// than this count.
-    pub min_count: u32,
+    /// Number of negative samples to use for each context word.
+    pub negative_samples: u32,
 
+    /// The initial learning rate.
+    pub lr: f32,
+
+    /// Exponent in zipfian distribution.
+    ///
+    /// This is s in *f(k) = 1 / (k^s H_{N, s})*.
+    pub zipf_exponent: f64,
+}
+
+/// Hyperparameters for subword-vocabs.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename = "SubwordVocab")]
+#[serde(tag = "type")]
+pub struct SubwordVocabConfig {
     /// Minimum n-gram length for subword units (inclusive).
     pub min_n: u32,
 
@@ -92,14 +86,51 @@ pub struct Config {
     /// buckets.
     pub buckets_exp: u32,
 
-    /// Number of negative samples to use for each context word.
-    pub negative_samples: u32,
-
-    /// The initial learning rate.
-    pub lr: f32,
-
-    /// Exponent in zipfian distribution.
+    /// Minimum token count.
     ///
-    /// This is s in *f(k) = 1 / (k^s H_{N, s})*.
-    pub zipf_exponent: f64,
+    /// No word-specific embeddings will be trained for tokens occurring less
+    /// than this count.
+    pub min_count: u32,
+
+    /// Discard threshold.
+    ///
+    /// The discard threshold is used to compute the discard probability of
+    /// a token. E.g. with a threshold of 0.00001 tokens with approximately
+    /// that probability will never be discarded.
+    pub discard_threshold: f32,
+}
+
+/// Hyperparameters for simple vocabs.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename = "SimpleVocab")]
+#[serde(tag = "type")]
+pub struct SimpleVocabConfig {
+    /// Minimum token count.
+    ///
+    /// No word-specific embeddings will be trained for tokens occurring less
+    /// than this count.
+    pub min_count: u32,
+
+    /// Discard threshold.
+    ///
+    /// The discard threshold is used to compute the discard probability of
+    /// a token. E.g. with a threshold of 0.00001 tokens with approximately
+    /// that probability will never be discarded.
+    pub discard_threshold: f32,
+}
+
+/// Hyperparameters for SkipGram-like models.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(tag = "type")]
+#[serde(rename = "SkipGramLike")]
+pub struct SkipGramConfig {
+    /// The model type.
+    pub model: ModelType,
+
+    /// The number of preceding and succeeding tokens that will be consider
+    /// as context during training.
+    ///
+    /// For example, a context size of 5 will consider the 5 tokens preceding
+    /// and the 5 tokens succeeding the focus token.
+    pub context_size: u32,
 }

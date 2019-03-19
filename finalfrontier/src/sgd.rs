@@ -19,7 +19,10 @@ pub struct SGD<T> {
     sgd_impl: NegativeSamplingSGD,
 }
 
-impl<T> SGD<T> {
+impl<T> SGD<T>
+where
+    T: Trainer,
+{
     pub fn into_model(self) -> TrainModel<T> {
         self.model
     }
