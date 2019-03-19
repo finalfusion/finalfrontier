@@ -117,6 +117,7 @@ impl<T> TrainModel<T> {
     }
 
     /// Get the input embedding with the given index.
+    #[allow(dead_code)]
     #[inline]
     pub(crate) fn input_embedding(&self, idx: usize) -> ArrayView1<f32> {
         self.input.subview(Axis(0), idx)
@@ -163,10 +164,14 @@ where
 
         // Compute and write word embeddings.
         let mut norms = vec![0f32; trainer.input_vocab().len()];
-        for i in 0..trainer.input_vocab().len() {
+        for (i, norm) in norms
+            .iter_mut()
+            .enumerate()
+            .take(trainer.input_vocab().len())
+        {
             let input = trainer.input_indices(i);
             let mut embed = Self::mean_embedding(input_matrix.view(), &input);
-            norms[i] = l2_normalize(embed.view_mut());
+            *norm = l2_normalize(embed.view_mut());
             input_matrix.index_axis_mut(Axis(0), i).assign(&embed);
         }
 

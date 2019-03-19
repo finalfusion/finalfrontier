@@ -215,6 +215,10 @@ impl From<SubwordVocab> for VocabWrap {
 pub trait Vocab {
     type VocabType;
 
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Get the number of entries in the vocabulary.
     fn len(&self) -> usize {
         self.types().len()

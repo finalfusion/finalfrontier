@@ -286,7 +286,7 @@ where
 {
     let n_tokens = sgd.model().input_vocab().n_types();
 
-    let pb = ProgressBar::new(config.epochs as u64 * n_tokens as u64);
+    let pb = ProgressBar::new(u64::from(config.epochs) * n_tokens as u64);
     pb.set_style(
         ProgressStyle::default_bar().template("{bar:40} {percent}% {msg} ETA: {eta_precise}"),
     );
@@ -356,7 +356,7 @@ where
 
     let sentences = SentenceIterator::new(BufReader::new(file_progress));
 
-    let mut builder: VocabBuilder<String> = VocabBuilder::new(config.clone());
+    let mut builder: VocabBuilder<String> = VocabBuilder::new(*config);
     for sentence in sentences {
         let sentence = sentence.or_exit("Cannot read sentence", 1);
 

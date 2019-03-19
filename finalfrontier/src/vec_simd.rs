@@ -133,7 +133,7 @@ pub fn dot_unvectorized(u: &[f32], v: &[f32]) -> f32 {
     u.iter().zip(v).map(|(&a, &b)| a * b).sum()
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, clippy::float_cmp)]
 unsafe fn scaled_add_f32x4(mut u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
     assert_eq!(u.len(), v.len());
 
@@ -209,6 +209,7 @@ unsafe fn scaled_add_f32x8(mut u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32
     scaled_add_unvectorized(u, v, a);
 }
 
+#[allow(clippy::float_cmp)]
 fn scaled_add_unvectorized(u: &mut [f32], v: &[f32], a: f32) {
     assert_eq!(u.len(), v.len());
 
@@ -260,8 +261,8 @@ unsafe fn scale_f32x8(mut u: ArrayViewMut1<f32>, a: f32) {
 }
 
 fn scale_unvectorized(u: &mut [f32], a: f32) {
-    for i in 0..u.len() {
-        u[i] *= a;
+    for mut c in u {
+        *c *= a;
     }
 }
 
