@@ -15,8 +15,8 @@ use std::time::Duration;
 
 use clap::{App, AppSettings, Arg, ArgMatches};
 use finalfrontier::{
-    Config, LossType, ModelType, SentenceIterator, SkipgramTrainer, SubwordVocab, Trainer, Vocab,
-    VocabBuilder, WriteModelBinary, SGD,
+    CommonConfig, LossType, ModelType, SentenceIterator, SkipGramConfig, SkipgramTrainer,
+    SubwordVocab, SubwordVocabConfig, Trainer, Vocab, VocabBuilder, WriteModelBinary, SGD,
 };
 use finalfrontier_utils::{thread_data, FileProgress};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -34,23 +34,29 @@ const PROGRESS_UPDATE_INTERVAL: u64 = 200;
 fn main() {
     let matches = parse_args();
 
-    let config = config_from_matches(&matches);
+    let common_config = common_config_from_matches(&matches);
+    let skipgram_config = skipgram_config_from_matches(&matches);
+    let vocab_config = subword_config_from_matches(&matches);
 
     let n_threads = matches
         .value_of("threads")
         .map(|v| v.parse().or_exit("Cannot parse number of threads", 1))
         .unwrap_or(num_cpus::get() / 2);
 
-    let vocab = build_vocab(&config, matches.value_of("CORPUS").unwrap());
+    let corpus = matches.value_of(CORPUS).unwrap();
+    let vocab = build_vocab(vocab_config, corpus);
 
     let mut output_writer = BufWriter::new(
         File::create(matches.value_of(OUTPUT).unwrap())
             .or_exit("Cannot open output file for writing.", 1),
     );
-    let trainer = SkipgramTrainer::new(vocab, XorShiftRng::from_entropy(), config);
+    let trainer = SkipgramTrainer::new(
+        vocab,
+        XorShiftRng::from_entropy(),
+        common_config,
+        skipgram_config,
+    );
     let sgd = SGD::new(trainer.into());
-
-    let corpus = matches.value_of(CORPUS).unwrap();
 
     let mut children = Vec::with_capacity(n_threads);
     for thread in 0..n_threads {
@@ -58,12 +64,19 @@ fn main() {
         let sgd = sgd.clone();
 
         children.push(thread::spawn(move || {
-            do_work(corpus, sgd, thread, n_threads, config.epochs, config.lr);
+            do_work(
+                corpus,
+                sgd,
+                thread,
+                n_threads,
+                common_config.epochs,
+                common_config.lr,
+            );
         }));
     }
 
     show_progress(
-        &config,
+        &common_config,
         &sgd,
         Duration::from_millis(PROGRESS_UPDATE_INTERVAL),
     );
@@ -97,19 +110,7 @@ static ZIPF_EXPONENT: &str = "zipf";
 static CORPUS: &str = "CORPUS";
 static OUTPUT: &str = "OUTPUT";
 
-fn config_from_matches<'a>(matches: &ArgMatches<'a>) -> Config {
-    let buckets_exp = matches
-        .value_of(BUCKETS)
-        .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
-        .unwrap_or(21);
-    let context_size = matches
-        .value_of(CONTEXT)
-        .map(|v| v.parse().or_exit("Cannot parse context size", 1))
-        .unwrap_or(5);
-    let discard_threshold = matches
-        .value_of(DISCARD)
-        .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
-        .unwrap_or(1e-4);
+fn common_config_from_matches(matches: &ArgMatches) -> CommonConfig {
     let dims = matches
         .value_of(DIMS)
         .map(|v| v.parse().or_exit("Cannot parse dimensionality", 1))
@@ -122,22 +123,6 @@ fn config_from_matches<'a>(matches: &ArgMatches<'a>) -> Config {
         .value_of(LR)
         .map(|v| v.parse().or_exit("Cannot parse learning rate", 1))
         .unwrap_or(0.05);
-    let min_count = matches
-        .value_of(MINCOUNT)
-        .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
-        .unwrap_or(5);
-    let min_n = matches
-        .value_of(MINN)
-        .map(|v| v.parse().or_exit("Cannot parse minimum n-gram length", 1))
-        .unwrap_or(3);
-    let max_n = matches
-        .value_of(MAXN)
-        .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
-        .unwrap_or(6);
-    let model = matches
-        .value_of(MODEL)
-        .map(|v| ModelType::try_from_str(v).or_exit("Cannot parse model type", 1))
-        .unwrap_or(ModelType::SkipGram);
     let negative_samples = matches
         .value_of(NS)
         .map(|v| {
@@ -153,20 +138,60 @@ fn config_from_matches<'a>(matches: &ArgMatches<'a>) -> Config {
         })
         .unwrap_or(0.5);
 
-    Config {
-        context_size,
-        dims,
-        discard_threshold,
-        epochs,
+    CommonConfig {
         loss: LossType::LogisticNegativeSampling,
+        dims,
+        epochs,
+        lr,
+        negative_samples,
+        zipf_exponent,
+    }
+}
+
+fn skipgram_config_from_matches(matches: &ArgMatches) -> SkipGramConfig {
+    let context_size = matches
+        .value_of(CONTEXT)
+        .map(|v| v.parse().or_exit("Cannot parse context size", 1))
+        .unwrap_or(5);
+    let model = matches
+        .value_of(MODEL)
+        .map(|v| ModelType::try_from_str(v).or_exit("Cannot parse model type", 1))
+        .unwrap_or(ModelType::SkipGram);
+
+    SkipGramConfig {
+        context_size,
         model,
-        min_count,
+    }
+}
+
+fn subword_config_from_matches(matches: &ArgMatches) -> SubwordVocabConfig {
+    let buckets_exp = matches
+        .value_of(BUCKETS)
+        .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
+        .unwrap_or(21);
+    let discard_threshold = matches
+        .value_of(DISCARD)
+        .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
+        .unwrap_or(1e-4);
+    let min_count = matches
+        .value_of(MINCOUNT)
+        .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
+        .unwrap_or(5);
+    let min_n = matches
+        .value_of(MINN)
+        .map(|v| v.parse().or_exit("Cannot parse minimum n-gram length", 1))
+        .unwrap_or(3);
+    let max_n = matches
+        .value_of(MAXN)
+        .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
+        .unwrap_or(6);
+
+    SubwordVocabConfig {
         min_n,
         max_n,
         buckets_exp,
-        negative_samples,
-        lr,
-        zipf_exponent,
+        min_count,
+        discard_threshold,
     }
 }
 
@@ -279,7 +304,7 @@ fn parse_args() -> ArgMatches<'static> {
         .get_matches()
 }
 
-fn show_progress<T, V>(config: &Config, sgd: &SGD<T>, update_interval: Duration)
+fn show_progress<T, V>(config: &CommonConfig, sgd: &SGD<T>, update_interval: Duration)
 where
     T: Trainer<InputVocab = V>,
     V: Vocab,
@@ -347,7 +372,7 @@ fn do_work<P, R>(
     }
 }
 
-fn build_vocab<P>(config: &Config, corpus_path: P) -> SubwordVocab
+fn build_vocab<P>(config: SubwordVocabConfig, corpus_path: P) -> SubwordVocab
 where
     P: AsRef<Path>,
 {
@@ -356,7 +381,7 @@ where
 
     let sentences = SentenceIterator::new(BufReader::new(file_progress));
 
-    let mut builder: VocabBuilder<String> = VocabBuilder::new(*config);
+    let mut builder: VocabBuilder<SubwordVocabConfig, String> = VocabBuilder::new(config);
     for sentence in sentences {
         let sentence = sentence.or_exit("Cannot read sentence", 1);
 

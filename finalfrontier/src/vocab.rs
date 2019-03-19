@@ -5,7 +5,7 @@ use std::hash::Hash;
 use rust2vec::vocab::{SimpleVocab as R2VSimpleVocab, SubwordVocab as R2VSubwordVocab, VocabWrap};
 
 use subword::SubwordIndices;
-use {util, Config};
+use {util, SimpleVocabConfig, SubwordVocabConfig};
 
 const BOW: char = '<';
 const EOW: char = '>';
@@ -40,7 +40,7 @@ impl CountedType<String> {
 /// A corpus vocabulary with subword lookup.
 #[derive(Clone)]
 pub struct SubwordVocab {
-    config: Config,
+    config: SubwordVocabConfig,
     words: Vec<Word>,
     subwords: Vec<Vec<u64>>,
     discards: Vec<f32>,
@@ -53,7 +53,7 @@ impl SubwordVocab {
     ///
     /// Normally a `VocabBuilder` should be used. This constructor is used
     /// for deserialization.
-    pub(crate) fn new(config: Config, words: Vec<Word>, n_tokens: usize) -> Self {
+    pub(crate) fn new(config: SubwordVocabConfig, words: Vec<Word>, n_tokens: usize) -> Self {
         let index = create_indices(&words);
         let subwords = Self::create_subword_indices(&config, &words);
         let discards = create_discards(config.discard_threshold, &words, n_tokens);
@@ -67,7 +67,7 @@ impl SubwordVocab {
         }
     }
 
-    fn create_subword_indices(config: &Config, words: &[Word]) -> Vec<Vec<u64>> {
+    fn create_subword_indices(config: &SubwordVocabConfig, words: &[Word]) -> Vec<Vec<u64>> {
         let mut subword_indices = Vec::new();
 
         for word in words {
@@ -148,7 +148,7 @@ pub struct SimpleVocab<T>
 where
     T: Hash + Eq,
 {
-    config: Config,
+    config: SimpleVocabConfig,
     types: Vec<CountedType<T>>,
     index: HashMap<T, usize>,
     n_types: usize,
@@ -160,7 +160,11 @@ where
     T: Hash + Eq + Clone + Ord,
 {
     /// Constructor only used by the Vocabbuilder
-    pub(crate) fn new(config: Config, types: Vec<CountedType<T>>, n_types: usize) -> Self {
+    pub(crate) fn new(
+        config: SimpleVocabConfig,
+        types: Vec<CountedType<T>>,
+        n_types: usize,
+    ) -> Self {
         let discards = create_discards(config.discard_threshold, &types, n_types);
         let index = create_indices(&types);
         SimpleVocab {
@@ -214,6 +218,10 @@ impl From<SubwordVocab> for VocabWrap {
 /// Trait for lookup of indices.
 pub trait Vocab {
     type VocabType;
+    type Config;
+
+    /// Return this vocabulary's config.
+    fn config(&self) -> Self::Config;
 
     fn is_empty(&self) -> bool {
         self.len() == 0
@@ -246,6 +254,11 @@ pub trait Vocab {
 
 impl Vocab for SubwordVocab {
     type VocabType = String;
+    type Config = SubwordVocabConfig;
+
+    fn config(&self) -> SubwordVocabConfig {
+        self.config
+    }
 
     fn idx<Q>(&self, key: &Q) -> Option<usize>
     where
@@ -273,6 +286,11 @@ where
     T: Hash + Eq,
 {
     type VocabType = T;
+    type Config = SimpleVocabConfig;
+
+    fn config(&self) -> SimpleVocabConfig {
+        self.config
+    }
 
     fn idx<Q>(&self, key: &Q) -> Option<usize>
     where
@@ -300,20 +318,20 @@ where
 /// Items are added to the vocabulary and counted using the `count` method.
 /// There is no explicit build method, conversion is done via implementing
 /// `From<VocabBuilder<T>>`.
-pub struct VocabBuilder<T>
+pub struct VocabBuilder<C, T>
 where
     T: Hash + Eq,
 {
-    config: Config,
+    config: C,
     items: HashMap<T, usize>,
     n_items: usize,
 }
 
-impl<T> VocabBuilder<T>
+impl<C, T> VocabBuilder<C, T>
 where
     T: Hash + Eq,
 {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: C) -> Self {
         VocabBuilder {
             config,
             items: HashMap::new(),
@@ -332,12 +350,12 @@ where
 }
 
 /// Constructs a `SimpleVocab<S>` from a `VocabBuilder<T>` where `T: Into<S>`.
-impl<T, S> From<VocabBuilder<T>> for SimpleVocab<S>
+impl<T, S> From<VocabBuilder<SimpleVocabConfig, T>> for SimpleVocab<S>
 where
     T: Hash + Eq + Into<S>,
     S: Hash + Eq + Clone + Ord,
 {
-    fn from(builder: VocabBuilder<T>) -> Self {
+    fn from(builder: VocabBuilder<SimpleVocabConfig, T>) -> Self {
         let min_count = builder.config.min_count;
 
         let mut types: Vec<_> = builder
@@ -352,11 +370,11 @@ where
 }
 
 /// Constructs a `SubwordVocab` from a `VocabBuilder<T>` where `T: Into<String>`.
-impl<T> From<VocabBuilder<T>> for SubwordVocab
+impl<T> From<VocabBuilder<SubwordVocabConfig, T>> for SubwordVocab
 where
     T: Hash + Eq + Into<String>,
 {
-    fn from(builder: VocabBuilder<T>) -> Self {
+    fn from(builder: VocabBuilder<SubwordVocabConfig, T>) -> Self {
         let config = builder.config;
 
         let mut words: Vec<_> = builder
@@ -422,30 +440,27 @@ fn bracket(word: &str) -> String {
 mod tests {
     use super::{bracket, SimpleVocab, SubwordVocab, Vocab, VocabBuilder};
     use subword::SubwordIndices;
-    use {util, Config, LossType, ModelType};
+    use {util, SimpleVocabConfig, SubwordVocabConfig};
 
-    const TEST_CONFIG: Config = Config {
+    const TEST_SUBWORDCONFIG: SubwordVocabConfig = SubwordVocabConfig {
         buckets_exp: 21,
-        context_size: 5,
-        dims: 300,
         discard_threshold: 1e-4,
-        epochs: 5,
-        loss: LossType::LogisticNegativeSampling,
-        lr: 0.05,
         min_count: 2,
         max_n: 6,
         min_n: 3,
-        model: ModelType::SkipGram,
-        negative_samples: 5,
-        zipf_exponent: 0.5,
+    };
+
+    const TEST_SIMPLECONFIG: SimpleVocabConfig = SimpleVocabConfig {
+        discard_threshold: 1e-4,
+        min_count: 2,
     };
 
     #[test]
     pub fn vocab_is_sorted() {
-        let mut config = TEST_CONFIG.clone();
+        let mut config = TEST_SUBWORDCONFIG.clone();
         config.min_count = 1;
 
-        let mut builder: VocabBuilder<&str> = VocabBuilder::new(config);
+        let mut builder: VocabBuilder<SubwordVocabConfig, &str> = VocabBuilder::new(config);
         builder.count("to");
         builder.count("be");
         builder.count("or");
@@ -467,7 +482,8 @@ mod tests {
 
     #[test]
     pub fn test_vocab_builder() {
-        let mut builder: VocabBuilder<&str> = VocabBuilder::new(TEST_CONFIG.clone());
+        let mut builder: VocabBuilder<SubwordVocabConfig, &str> =
+            VocabBuilder::new(TEST_SUBWORDCONFIG.clone());
         builder.count("to");
         builder.count("be");
         builder.count("or");
@@ -535,9 +551,9 @@ mod tests {
         assert_eq!(
             bracket("too")
                 .subword_indices(
-                    TEST_CONFIG.min_n as usize,
-                    TEST_CONFIG.max_n as usize,
-                    TEST_CONFIG.buckets_exp as usize
+                    TEST_SUBWORDCONFIG.min_n as usize,
+                    TEST_SUBWORDCONFIG.max_n as usize,
+                    TEST_SUBWORDCONFIG.buckets_exp as usize
                 )
                 .into_iter()
                 .map(|idx| idx + 3)
@@ -548,7 +564,8 @@ mod tests {
 
     #[test]
     pub fn types_are_sorted_simple_vocab() {
-        let mut builder: VocabBuilder<&str> = VocabBuilder::new(TEST_CONFIG);
+        let mut builder: VocabBuilder<SimpleVocabConfig, &str> =
+            VocabBuilder::new(TEST_SIMPLECONFIG);
         for _ in 0..5 {
             builder.count("a");
         }
@@ -572,7 +589,8 @@ mod tests {
 
     #[test]
     pub fn test_simple_vocab_builder() {
-        let mut builder: VocabBuilder<&str> = VocabBuilder::new(TEST_CONFIG);
+        let mut builder: VocabBuilder<SimpleVocabConfig, &str> =
+            VocabBuilder::new(TEST_SIMPLECONFIG);
         for _ in 0..5 {
             builder.count("a");
         }

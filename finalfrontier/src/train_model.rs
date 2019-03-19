@@ -7,12 +7,13 @@ use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
 use rust2vec::{embeddings::Embeddings, io::WriteEmbeddings, metadata::Metadata, storage::NdArray};
+use serde::Serialize;
 use toml::Value;
 
 use hogwild::HogwildArray2;
 use rust2vec::vocab::VocabWrap;
 use vec_simd::{l2_normalize, scale, scaled_add};
-use {Config, Vocab, WriteModelBinary};
+use {CommonConfig, Vocab, WriteModelBinary};
 
 /// Training model.
 ///
@@ -33,7 +34,6 @@ pub struct TrainModel<T> {
     trainer: T,
     input: HogwildArray2<f32>,
     output: HogwildArray2<f32>,
-    config: Config,
 }
 
 impl<T> From<T> for TrainModel<T>
@@ -67,8 +67,17 @@ where
             trainer,
             input,
             output,
-            config,
         }
+    }
+}
+
+impl<T> TrainModel<T>
+where
+    T: Trainer,
+{
+    /// Get the model configuration.
+    pub fn config(&self) -> &CommonConfig {
+        &self.trainer.config()
     }
 }
 
@@ -87,11 +96,6 @@ impl<T> TrainModel<T> {
     /// Get this model's trainer mutably.
     pub fn trainer(&mut self) -> &mut T {
         &mut self.trainer
-    }
-
-    /// Get the model configuration.
-    pub fn config(&self) -> &Config {
-        &self.config
     }
 
     /// Get the mean input embedding of the given indices.
@@ -129,13 +133,13 @@ impl<T> TrainModel<T> {
         self.input.subview_mut(Axis(0), idx)
     }
 
-    pub(crate) fn into_parts(self) -> Result<(Config, T, Array2<f32>), Error> {
+    pub(crate) fn into_parts(self) -> Result<(T, Array2<f32>), Error> {
         let input = match Arc::try_unwrap(self.input.into_inner()) {
             Ok(input) => input.into_inner(),
             Err(_) => return Err(err_msg("Cannot unwrap input matrix.")),
         };
 
-        Ok((self.config, self.trainer, input))
+        Ok((self.trainer, input))
     }
 
     /// Get the output embedding with the given index.
@@ -151,16 +155,17 @@ impl<T> TrainModel<T> {
     }
 }
 
-impl<W, T, V> WriteModelBinary<W> for TrainModel<T>
+impl<W, T, V, M> WriteModelBinary<W> for TrainModel<T>
 where
     W: Seek + Write,
-    T: Trainer<InputVocab = V>,
+    T: Trainer<InputVocab = V, Metadata = M>,
     V: Vocab + Into<VocabWrap>,
+    M: Serialize,
 {
     fn write_model_binary(self, write: &mut W) -> Result<(), Error> {
-        let (config, trainer, mut input_matrix) = self.into_parts()?;
+        let (trainer, mut input_matrix) = self.into_parts()?;
 
-        let metadata = Metadata(Value::try_from(config)?);
+        let metadata = Metadata(Value::try_from(trainer.to_metadata())?);
 
         // Compute and write word embeddings.
         let mut norms = vec![0f32; trainer.input_vocab().len()];
@@ -185,6 +190,7 @@ where
 /// Trainer Trait.
 pub trait Trainer {
     type InputVocab: Vocab;
+    type Metadata;
 
     /// Given an input index get all associated indices.
     fn input_indices(&self, idx: usize) -> Vec<u64>;
@@ -207,8 +213,11 @@ pub trait Trainer {
     /// `output_vocab.len() * context_size * 2`
     fn n_output_types(&self) -> usize;
 
-    /// Get this Trainer's `Config`
-    fn config(&self) -> &Config;
+    /// Get this Trainer's common hyperparameters.
+    fn config(&self) -> &CommonConfig;
+
+    /// Get this Trainer's configuration.
+    fn to_metadata(&self) -> Self::Metadata;
 }
 
 /// TrainIterFrom.
@@ -241,32 +250,43 @@ mod tests {
     use super::TrainModel;
     use skipgram_trainer::SkipgramTrainer;
     use util::all_close;
-    use {Config, LossType, ModelType, VocabBuilder};
+    use {
+        CommonConfig, LossType, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabConfig,
+        VocabBuilder,
+    };
 
-    const TEST_CONFIG: Config = Config {
-        buckets_exp: 21,
-        context_size: 5,
+    const TEST_COMMON_CONFIG: CommonConfig = CommonConfig {
         dims: 3,
-        discard_threshold: 1e-4,
         epochs: 5,
         loss: LossType::LogisticNegativeSampling,
         lr: 0.05,
-        min_count: 2,
-        max_n: 6,
-        min_n: 3,
-        model: ModelType::SkipGram,
         negative_samples: 5,
         zipf_exponent: 0.5,
     };
 
+    const TEST_SKIP_CONFIG: SkipGramConfig = SkipGramConfig {
+        context_size: 5,
+        model: ModelType::SkipGram,
+    };
+
+    const VOCAB_CONF: SubwordVocabConfig = SubwordVocabConfig {
+        buckets_exp: 21,
+        discard_threshold: 1e-4,
+        min_count: 2,
+        max_n: 6,
+        min_n: 3,
+    };
+
     #[test]
     pub fn model_embed_methods() {
-        let mut config = TEST_CONFIG.clone();
-        config.min_count = 1;
+        let mut vocab_config = VOCAB_CONF.clone();
+        vocab_config.min_count = 1;
 
+        let common_config = TEST_COMMON_CONFIG.clone();
+        let skipgram_config = TEST_SKIP_CONFIG.clone();
         // We just need some bogus vocabulary
-        let builder: VocabBuilder<String> = VocabBuilder::new(TEST_CONFIG.clone());
-        let vocab = builder.into();
+        let builder: VocabBuilder<SubwordVocabConfig, String> = VocabBuilder::new(vocab_config);
+        let vocab: SubwordVocab = builder.into();
 
         let input = Array2::from_shape_vec((2, 3), vec![1., 2., 3., 4., 5., 6.])
             .unwrap()
@@ -276,8 +296,12 @@ mod tests {
             .into();
 
         let mut model = TrainModel {
-            config,
-            trainer: SkipgramTrainer::new(vocab, XorShiftRng::from_entropy(), config),
+            trainer: SkipgramTrainer::new(
+                vocab,
+                XorShiftRng::from_entropy(),
+                common_config,
+                skipgram_config,
+            ),
             input,
             output,
         };
