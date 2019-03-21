@@ -1,7 +1,7 @@
 use ndarray::{Array1, ArrayView1, ArrayViewMut1};
 
 use crate::loss::log_logistic_loss;
-use crate::train_model::{NegativeSamples, TrainIterFrom, Trainer};
+use crate::train_model::{Indices, NegativeSamples, TrainIterFrom, Trainer};
 use crate::vec_simd::scaled_add;
 use hogwild::Hogwild;
 
@@ -17,6 +17,21 @@ pub struct SGD<T> {
     n_examples: Hogwild<usize>,
     n_tokens_processed: Hogwild<usize>,
     sgd_impl: NegativeSamplingSGD,
+}
+
+impl<T> SGD<T> {
+    /// Get the number of tokens that are processed by this SGD.
+    pub fn n_tokens_processed(&self) -> usize {
+        *self.n_tokens_processed
+    }
+
+    /// Get the average training loss of this SGD.
+    ///
+    /// This returns the average training loss over all instances seen by
+    /// this SGD instance since its construction.
+    pub fn train_loss(&self) -> f32 {
+        *self.loss / *self.n_examples as f32
+    }
 }
 
 impl<T> SGD<T>
@@ -39,24 +54,17 @@ where
             sgd_impl,
         }
     }
+
     /// Get the training model associated with this SGD.
     pub fn model(&self) -> &TrainModel<T> {
         &self.model
     }
+}
 
-    /// Get the number of tokens that are processed by this SGD.
-    pub fn n_tokens_processed(&self) -> usize {
-        *self.n_tokens_processed
-    }
-
-    /// Get the average training loss of this SGD.
-    ///
-    /// This returns the average training loss over all instances seen by
-    /// this SGD instance since its construction.
-    pub fn train_loss(&self) -> f32 {
-        *self.loss / *self.n_examples as f32
-    }
-
+impl<T> SGD<T>
+where
+    T: Trainer + NegativeSamples,
+{
     /// Update the model parameters using the given sentence.
     ///
     /// This applies a gradient descent step on the sentence, with the given
@@ -64,7 +72,7 @@ where
     pub fn update_sentence<S>(&mut self, sentence: &S, lr: f32)
     where
         S: ?Sized,
-        T: TrainIterFrom<S> + Trainer + NegativeSamples,
+        T: TrainIterFrom<S>,
     {
         for (focus, contexts) in self.model.trainer().train_iter_from(sentence) {
             // Update parameters for the token focus token i and the
@@ -127,7 +135,7 @@ impl NegativeSamplingSGD {
     pub fn sgd_step<T>(
         &mut self,
         model: &mut TrainModel<T>,
-        input: &[u64],
+        input: &Indices,
         input_embed: ArrayView1<f32>,
         output: usize,
         lr: f32,
@@ -152,7 +160,7 @@ impl NegativeSamplingSGD {
         loss += self.negative_samples(model, input_embed, input_delta.view_mut(), output, lr);
 
         // Update the input embeddings with the accumulated gradient.
-        for &idx in input {
+        for idx in input.iter() {
             let input_embed = model.input_embedding_mut(idx as usize);
             scaled_add(input_embed, input_delta.view(), 1.0);
         }

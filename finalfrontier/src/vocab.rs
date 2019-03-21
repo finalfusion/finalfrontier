@@ -2,6 +2,7 @@ use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
 
+use failure::{err_msg, Error};
 use finalfusion::vocab::{
     SimpleVocab as FiFuSimpleVocab, SubwordVocab as FiFuSubwordVocab, VocabWrap,
 };
@@ -125,10 +126,6 @@ impl SubwordVocab {
         }
     }
 
-    pub(crate) fn subword_indices_idx(&self, idx: usize) -> Option<&[u64]> {
-        self.subwords.get(idx).map(|v| v.as_slice())
-    }
-
     /// Get all indices of a word, both regular and subword.
     ///
     /// This method copies the subword list for known words into a new Vec.
@@ -216,7 +213,7 @@ impl From<SubwordVocab> for VocabWrap {
 
 /// Trait for lookup of indices.
 pub trait Vocab {
-    type VocabType;
+    type VocabType: Hash + Eq;
     type Config;
 
     /// Return this vocabulary's config.
@@ -237,6 +234,12 @@ pub trait Vocab {
         Self::VocabType: Borrow<Q>,
         Q: Hash + ?Sized + Eq;
 
+    /// Get indices related to `idx`.
+    ///
+    /// Returns `Error` if `idx` is out of bounds.
+    /// Returns `Ok(None)` if the vocabulary doesn't contain additional indices.
+    fn idx2indices(&self, idx: usize) -> Result<Option<&[u64]>, Error>;
+
     /// Get the discard probability of the entry with the given index.
     fn discard(&self, idx: usize) -> f32;
 
@@ -249,6 +252,11 @@ pub trait Vocab {
     /// was constructed from, **before** removing types that are below the
     /// minimum count.
     fn n_types(&self) -> usize;
+
+    /// Get the number of distinct input types.
+    ///
+    /// This method returns the number of distinct indices that this lookup provides.
+    fn n_input_types(&self) -> usize;
 }
 
 impl Vocab for SubwordVocab {
@@ -267,6 +275,13 @@ impl Vocab for SubwordVocab {
         self.index.get(key).cloned()
     }
 
+    fn idx2indices(&self, idx: usize) -> Result<Option<&[u64]>, Error> {
+        match self.subwords.get(idx) {
+            Some(subwords) => Ok(Some(subwords.as_slice())),
+            None => Err(err_msg("Index out of bounds")),
+        }
+    }
+
     fn discard(&self, idx: usize) -> f32 {
         self.discards[idx]
     }
@@ -277,6 +292,11 @@ impl Vocab for SubwordVocab {
 
     fn n_types(&self) -> usize {
         self.n_tokens
+    }
+
+    fn n_input_types(&self) -> usize {
+        let n_buckets = 2usize.pow(self.config.buckets_exp);
+        n_buckets + self.words.len()
     }
 }
 
@@ -299,6 +319,14 @@ where
         self.index.get(key).cloned()
     }
 
+    fn idx2indices(&self, idx: usize) -> Result<Option<&[u64]>, Error> {
+        if self.types.len() >= idx {
+            Ok(None)
+        } else {
+            Err(err_msg("Index out of bounds"))
+        }
+    }
+
     fn discard(&self, idx: usize) -> f32 {
         self.discards[idx]
     }
@@ -309,6 +337,10 @@ where
 
     fn n_types(&self) -> usize {
         self.n_types
+    }
+
+    fn n_input_types(&self) -> usize {
+        self.types.len()
     }
 }
 

@@ -6,7 +6,7 @@ use rand::{Rng, SeedableRng};
 use serde::Serialize;
 
 use crate::sampling::ZipfRangeGenerator;
-use crate::train_model::{NegativeSamples, TrainIterFrom};
+use crate::train_model::{Indices, NegativeSamples, TrainIterFrom};
 use crate::util::ReseedOnCloneRng;
 use crate::{
     CommonConfig, DepembedsConfig, Dependency, DependencyIterator, SimpleVocab, SimpleVocabConfig,
@@ -122,10 +122,14 @@ where
     type InputVocab = SubwordVocab;
     type Metadata = DepembedsMetadata<SubwordVocabConfig, SimpleVocabConfig>;
 
-    fn input_indices(&self, idx: usize) -> Vec<u64> {
-        let mut v = self.input_vocab.subword_indices_idx(idx).unwrap().to_vec();
-        v.push(idx as u64);
-        v
+    fn input_indices(&self, idx: usize) -> Indices {
+        if let Some(indices) = self.input_vocab.idx2indices(idx).unwrap() {
+            let mut v = indices.to_vec();
+            v.push(idx as u64);
+            Indices::Multiple(v)
+        } else {
+            Indices::Single([idx as u64])
+        }
     }
 
     fn input_vocab(&self) -> &SubwordVocab {

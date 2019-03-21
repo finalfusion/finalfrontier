@@ -101,15 +101,15 @@ impl<T> TrainModel<T> {
     }
 
     /// Get the mean input embedding of the given indices.
-    pub(crate) fn mean_input_embedding(&self, indices: &[u64]) -> Array1<f32> {
+    pub(crate) fn mean_input_embedding(&self, indices: &Indices) -> Array1<f32> {
         Self::mean_embedding(self.input.view(), indices)
     }
 
     /// Get the mean input embedding of the given indices.
-    fn mean_embedding(embeds: ArrayView2<f32>, indices: &[u64]) -> Array1<f32> {
+    fn mean_embedding(embeds: ArrayView2<f32>, indices: &Indices) -> Array1<f32> {
         let mut embed = Array1::zeros((embeds.cols(),));
 
-        for &idx in indices.iter() {
+        for idx in indices.iter() {
             scaled_add(
                 embed.view_mut(),
                 embeds.index_axis(Axis(0), idx as usize),
@@ -196,7 +196,7 @@ pub trait Trainer {
     type Metadata;
 
     /// Given an input index get all associated indices.
-    fn input_indices(&self, idx: usize) -> Vec<u64>;
+    fn input_indices(&self, idx: usize) -> Indices;
 
     /// Get the trainer's input vocabulary.
     fn input_vocab(&self) -> &Self::InputVocab;
@@ -221,6 +221,53 @@ pub trait Trainer {
 
     /// Get this Trainer's configuration.
     fn to_metadata(&self) -> Self::Metadata;
+}
+
+/// Indices Enum.
+///
+/// Enum to generalize over single-index and multi-index lookups.
+pub enum Indices {
+    Multiple(Vec<u64>),
+    Single([u64; 1]),
+}
+
+impl Indices {
+    /// Constructs an iterator over the indices.
+    pub(crate) fn iter(&self) -> IndicesIter {
+        match self {
+            Indices::Multiple(indices) => IndicesIter {
+                indices: indices.as_slice(),
+            },
+            Indices::Single(index) => IndicesIter { indices: index },
+        }
+    }
+
+    /// Returns the number of indices.
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            Indices::Multiple(indices) => indices.len(),
+            Indices::Single(_) => 1,
+        }
+    }
+}
+
+impl<'a> Iterator for IndicesIter<'a> {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<u64> {
+        if self.indices.is_empty() {
+            None
+        } else {
+            let ret = self.indices[0];
+            self.indices = &self.indices[1..];
+            Some(ret)
+        }
+    }
+}
+
+/// Indices Iterator.
+pub(crate) struct IndicesIter<'a> {
+    indices: &'a [u64],
 }
 
 /// TrainIterFrom.
@@ -252,6 +299,7 @@ mod tests {
 
     use super::TrainModel;
     use crate::skipgram_trainer::SkipgramTrainer;
+    use crate::train_model::Indices;
     use crate::util::all_close;
     use crate::{
         CommonConfig, LossType, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabConfig,
@@ -360,7 +408,10 @@ mod tests {
 
         // Mean input embedding.
         assert!(all_close(
-            model.mean_input_embedding(&[0, 1]).as_slice().unwrap(),
+            model
+                .mean_input_embedding(&Indices::Multiple(vec![0, 1]))
+                .as_slice()
+                .unwrap(),
             &[2.5, 3.5, 4.5],
             1e-5
         ));

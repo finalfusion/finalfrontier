@@ -1,4 +1,6 @@
+use std::borrow::Borrow;
 use std::cmp;
+use std::hash::Hash;
 use std::iter::FusedIterator;
 use std::sync::Arc;
 
@@ -7,9 +9,9 @@ use rand::{Rng, SeedableRng};
 use serde::Serialize;
 
 use crate::sampling::{BandedRangeGenerator, ZipfRangeGenerator};
-use crate::train_model::{NegativeSamples, TrainIterFrom, Trainer};
+use crate::train_model::{Indices, NegativeSamples, TrainIterFrom, Trainer};
 use crate::util::ReseedOnCloneRng;
-use crate::{CommonConfig, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabConfig, Vocab};
+use crate::{CommonConfig, ModelType, SkipGramConfig, Vocab};
 
 /// Skipgram Trainer
 ///
@@ -17,21 +19,22 @@ use crate::{CommonConfig, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabC
 /// sentence into an iterator of focus and context tuples. The struct is cheap to clone because
 /// the vocabulary is shared between clones.
 #[derive(Clone)]
-pub struct SkipgramTrainer<R> {
-    vocab: Arc<SubwordVocab>,
+pub struct SkipgramTrainer<R, V> {
+    vocab: Arc<V>,
     rng: R,
     range_gen: BandedRangeGenerator<R, ZipfRangeGenerator<R>>,
     common_config: CommonConfig,
     skipgram_config: SkipGramConfig,
 }
 
-impl<R> SkipgramTrainer<ReseedOnCloneRng<R>>
+impl<R, V> SkipgramTrainer<ReseedOnCloneRng<R>, V>
 where
     R: Rng + Clone + SeedableRng,
+    V: Vocab,
 {
     /// Constructs a new `SkipgramTrainer`.
     pub fn new(
-        vocab: SubwordVocab,
+        vocab: V,
         rng: R,
         common_config: CommonConfig,
         skipgram_config: SkipGramConfig,
@@ -63,10 +66,12 @@ where
     }
 }
 
-impl<S, R> TrainIterFrom<[S]> for SkipgramTrainer<R>
+impl<S, R, V> TrainIterFrom<[S]> for SkipgramTrainer<R, V>
 where
-    S: AsRef<str>,
+    S: Hash + Eq,
     R: Rng + Clone,
+    V: Vocab,
+    V::VocabType: Borrow<S>,
 {
     type Iter = SkipGramIter<R>;
     type Contexts = Vec<usize>;
@@ -74,7 +79,7 @@ where
     fn train_iter_from(&mut self, sequence: &[S]) -> Self::Iter {
         let mut ids = Vec::new();
         for t in sequence {
-            if let Some(idx) = self.vocab.idx(t.as_ref()) {
+            if let Some(idx) = self.vocab.idx(t) {
                 if self.rng.gen_range(0f32, 1f32) < self.vocab.discard(idx) {
                     ids.push(idx);
                 }
@@ -84,9 +89,10 @@ where
     }
 }
 
-impl<R> NegativeSamples for SkipgramTrainer<R>
+impl<R, V> NegativeSamples for SkipgramTrainer<R, V>
 where
     R: Rng,
+    V: Vocab,
 {
     fn negative_sample(&mut self, output: usize) -> usize {
         loop {
@@ -98,24 +104,30 @@ where
     }
 }
 
-impl<R> Trainer for SkipgramTrainer<R>
+impl<R, V, VC> Trainer for SkipgramTrainer<R, V>
 where
     R: Rng + Clone,
+    V: Vocab<Config = VC>,
+    VC: Serialize,
 {
-    type InputVocab = SubwordVocab;
-    type Metadata = SkipgramMetadata<SubwordVocabConfig>;
+    type InputVocab = V;
+    type Metadata = SkipgramMetadata<VC>;
 
-    fn input_indices(&self, idx: usize) -> Vec<u64> {
-        let mut v = self.vocab.subword_indices_idx(idx).unwrap().to_vec();
-        v.push(idx as u64);
-        v
+    fn input_indices(&self, idx: usize) -> Indices {
+        if let Some(indices) = self.vocab.idx2indices(idx).unwrap() {
+            let mut v = indices.to_vec();
+            v.push(idx as u64);
+            Indices::Multiple(v)
+        } else {
+            Indices::Single([idx as u64])
+        }
     }
 
-    fn input_vocab(&self) -> &SubwordVocab {
+    fn input_vocab(&self) -> &V {
         &self.vocab
     }
 
-    fn try_into_input_vocab(self) -> Result<SubwordVocab, Error> {
+    fn try_into_input_vocab(self) -> Result<V, Error> {
         match Arc::try_unwrap(self.vocab) {
             Ok(vocab) => Ok(vocab),
             Err(_) => Err(err_msg("Cannot unwrap input vocab.")),
@@ -123,8 +135,7 @@ where
     }
 
     fn n_input_types(&self) -> usize {
-        let n_buckets = 2usize.pow(self.input_vocab().config().buckets_exp);
-        n_buckets + self.input_vocab().len()
+        self.input_vocab().n_input_types()
     }
 
     fn n_output_types(&self) -> usize {
@@ -141,7 +152,7 @@ where
         &self.common_config
     }
 
-    fn to_metadata(&self) -> SkipgramMetadata<SubwordVocabConfig> {
+    fn to_metadata(&self) -> SkipgramMetadata<VC> {
         SkipgramMetadata {
             common_config: self.common_config,
             skipgram_config: self.skipgram_config,
