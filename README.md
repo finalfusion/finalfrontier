@@ -1,6 +1,6 @@
 [![Crate](https://img.shields.io/crates/v/finalfrontier.svg)](https://crates.io/crates/finalfrontier)
 [![Docs](https://docs.rs/finalfrontier/badge.svg)](https://docs.rs/finalfrontier/)
-[![Build Status](https://travis-ci.org/danieldk/finalfrontier.svg?branch=master)](https://travis-ci.org/danieldk/finalfrontier)
+[![Build Status](https://travis-ci.org/finalfusion/finalfrontier.svg?branch=master)](https://travis-ci.org/finalfusion/finalfrontier)
 
 # finalfrontier
 
@@ -30,4 +30,4 @@ module.
   * Manual pages:
     - [ff-train(1)](man/ff-train.1.md) — train word embeddings with subword representations
   * [finalfusion crate](https://github.com/finalfusion/finalfusion-rust)
-  * [Python module](https://github.com/danieldk/finalfusion-python)
+  * [Python module](https://github.com/finalfusion/finalfusion-python)
