@@ -11,6 +11,7 @@ The format of the input file is simple: tokens are separated by spaces,
 sentences by newlines (`\n`).
 
 After training, you can use and query the embeddings with
-[rust2vec](https://github.com/danieldk/rust2vec) and `rust2vec-utils`:
+[finalfusion](https://github.com/finalfusion/finalfusion-rust) and
+`finalfusion-utils`:
 
-    r2v-similar corpus-embeddings.fifu
+    ff-similar corpus-embeddings.fifu

@@ -2,7 +2,9 @@ use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use rust2vec::vocab::{SimpleVocab as R2VSimpleVocab, SubwordVocab as R2VSubwordVocab, VocabWrap};
+use finalfusion::vocab::{
+    SimpleVocab as FiFuSimpleVocab, SubwordVocab as FiFuSubwordVocab, VocabWrap,
+};
 
 use subword::SubwordIndices;
 use {util, SimpleVocabConfig, SubwordVocabConfig};
@@ -188,7 +190,7 @@ where
 
 impl From<SimpleVocab<String>> for VocabWrap {
     fn from(vocab: SimpleVocab<String>) -> VocabWrap {
-        R2VSimpleVocab::new(
+        FiFuSimpleVocab::new(
             vocab
                 .types
                 .iter()
@@ -201,7 +203,7 @@ impl From<SimpleVocab<String>> for VocabWrap {
 
 impl From<SubwordVocab> for VocabWrap {
     fn from(vocab: SubwordVocab) -> VocabWrap {
-        R2VSubwordVocab::new(
+        FiFuSubwordVocab::new(
             vocab
                 .words
                 .iter()
