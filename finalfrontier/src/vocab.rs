@@ -6,8 +6,8 @@ use finalfusion::vocab::{
     SimpleVocab as FiFuSimpleVocab, SubwordVocab as FiFuSubwordVocab, VocabWrap,
 };
 
-use subword::SubwordIndices;
-use {util, SimpleVocabConfig, SubwordVocabConfig};
+use crate::subword::SubwordIndices;
+use crate::{util, SimpleVocabConfig, SubwordVocabConfig};
 
 const BOW: char = '<';
 const EOW: char = '>';
@@ -441,8 +441,8 @@ fn bracket(word: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{bracket, SimpleVocab, SubwordVocab, Vocab, VocabBuilder};
-    use subword::SubwordIndices;
-    use {util, SimpleVocabConfig, SubwordVocabConfig};
+    use crate::subword::SubwordIndices;
+    use crate::{util, SimpleVocabConfig, SubwordVocabConfig};
 
     const TEST_SUBWORDCONFIG: SubwordVocabConfig = SubwordVocabConfig {
         buckets_exp: 21,

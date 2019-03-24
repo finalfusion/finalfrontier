@@ -297,12 +297,12 @@ where
 mod tests {
     use std::io::Cursor;
 
+    use crate::deps::DepIter;
+    use crate::deps::Dependency;
+    use crate::deps::Dependency::Untyped;
+    use crate::deps::{DependencyIterator, PathIter};
     use conllx::graph::Node;
     use conllx::io::{ReadSentence, Reader};
-    use deps::DepIter;
-    use deps::Dependency;
-    use deps::Dependency::Untyped;
-    use deps::{DependencyIterator, PathIter};
 
     static DEP: &[u8; 143] = b"1	Er	a	_	_	_	2	SUBJ	_	_\n\
     2	geht	b	_	_	_	0	ROOT	_	_\n\
@@ -328,7 +328,7 @@ mod tests {
         let g = sentence.dep_graph();
         assert_eq!(g.len() - 1, v.len());
         for (target, node) in v.into_iter().zip(1..g.len()) {
-            let mut path = g.path_iter(node);
+            let path = g.path_iter(node);
             assert_eq!(
                 path.map(|triple| triple.head())
                     .map(|head| match &g[head] {

@@ -1,7 +1,8 @@
 use std::io::{self, BufRead, Lines, Write};
 
 use failure::Error;
-use util::EOS;
+
+use crate::util::EOS;
 
 /// Sentence iterator.
 ///
@@ -96,7 +97,7 @@ mod tests {
     use std::io::Cursor;
 
     use super::SentenceIterator;
-    use util::EOS;
+    use crate::util::EOS;
 
     #[test]
     fn sentence_iterator_test() {

@@ -1,3 +1,4 @@
+use cfg_if::cfg_if;
 use ndarray::{ArrayView1, ArrayViewMut1};
 
 #[cfg(target_arch = "x86")]
@@ -261,7 +262,7 @@ unsafe fn scale_f32x8(mut u: ArrayViewMut1<f32>, a: f32) {
 }
 
 fn scale_unvectorized(u: &mut [f32], a: f32) {
-    for mut c in u {
+    for c in u {
         *c *= a;
     }
 }
@@ -282,7 +283,7 @@ mod tests {
     use ndarray_rand::RandomExt;
     use rand::distributions::Uniform;
 
-    use util::{all_close, array_all_close, close};
+    use crate::util::{all_close, array_all_close, close};
 
     use super::{
         dot_f32x4, dot_unvectorized, l2_normalize, scale_f32x4, scale_unvectorized,

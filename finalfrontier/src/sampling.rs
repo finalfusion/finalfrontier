@@ -210,7 +210,7 @@ mod tests {
     use rand_xorshift::XorShiftRng;
 
     use super::{BandedRangeGenerator, RangeGenerator, WeightedRangeGenerator, ZipfRangeGenerator};
-    use util::{all_close, close};
+    use crate::util::{all_close, close};
 
     const SEED: [u8; 16] = [
         0xe9, 0xfe, 0xf0, 0xfb, 0x6a, 0x23, 0x2a, 0xb3, 0x7c, 0xce, 0x27, 0x9b, 0x56, 0xac, 0xdb,

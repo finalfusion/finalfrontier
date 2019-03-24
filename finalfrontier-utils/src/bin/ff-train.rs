@@ -1,12 +1,3 @@
-extern crate clap;
-extern crate finalfrontier;
-extern crate finalfrontier_utils;
-extern crate indicatif;
-extern crate num_cpus;
-extern crate rand;
-extern crate rand_xorshift;
-extern crate stdinout;
-
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
