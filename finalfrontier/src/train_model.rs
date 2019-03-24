@@ -2,16 +2,16 @@ use std::io::{Seek, Write};
 use std::sync::Arc;
 
 use failure::{err_msg, Error};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
-use ndarray_rand::RandomExt;
-use rand::distributions::Uniform;
-use rust2vec::{
+use finalfusion::{
     embeddings::Embeddings,
     io::WriteEmbeddings,
     metadata::Metadata,
     storage::NdArray,
-    vocab::{SubwordVocab as R2VSubwordVocab, Vocab as _},
+    vocab::{SubwordVocab as FiFuSubwordVocab, Vocab as FiFuVocab},
 };
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
+use ndarray_rand::RandomExt;
+use rand::distributions::Uniform;
 use toml::Value;
 
 use hogwild::HogwildArray2;
@@ -150,7 +150,7 @@ where
             .iter()
             .map(|l| l.label().to_owned())
             .collect::<Vec<_>>();
-        let vocab = R2VSubwordVocab::new(words, config.min_n, config.max_n, config.buckets_exp);
+        let vocab = FiFuSubwordVocab::new(words, config.min_n, config.max_n, config.buckets_exp);
         let metadata = Metadata(Value::try_from(config)?);
 
         // Compute and write word embeddings.
