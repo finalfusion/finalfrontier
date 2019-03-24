@@ -1,11 +1,11 @@
 use ndarray::{Array1, ArrayView1, ArrayViewMut1};
 
+use crate::loss::log_logistic_loss;
+use crate::train_model::{NegativeSamples, TrainIterFrom, Trainer};
+use crate::vec_simd::scaled_add;
 use hogwild::Hogwild;
-use loss::log_logistic_loss;
-use train_model::{NegativeSamples, TrainIterFrom, Trainer};
-use vec_simd::scaled_add;
 
-use TrainModel;
+use crate::TrainModel;
 
 /// Stochastic gradient descent
 ///
@@ -153,7 +153,7 @@ impl NegativeSamplingSGD {
 
         // Update the input embeddings with the accumulated gradient.
         for &idx in input {
-            let mut input_embed = model.input_embedding_mut(idx as usize);
+            let input_embed = model.input_embedding_mut(idx as usize);
             scaled_add(input_embed, input_delta.view(), 1.0);
         }
 

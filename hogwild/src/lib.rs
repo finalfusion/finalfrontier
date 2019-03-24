@@ -1,5 +1,3 @@
-extern crate ndarray;
-
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -25,9 +23,6 @@ use ndarray::{Array, ArrayView, ArrayViewMut, Axis, Dimension, Ix, Ix1, Ix2, Ix3
 /// # Example
 ///
 /// ```
-/// extern crate hogwild;
-/// extern crate ndarray;
-///
 /// use hogwild::HogwildArray2;
 /// use ndarray::Array2;
 ///

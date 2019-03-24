@@ -1,7 +1,7 @@
 use ndarray::ArrayView1;
 
-use util;
-use vec_simd::dot;
+use crate::util;
+use crate::vec_simd::dot;
 
 /// Absolute activations to round in logistic regression.
 ///
@@ -104,7 +104,7 @@ fn logistic_function(a: f32) -> f32 {
 mod tests {
     use ndarray::Array1;
 
-    use util::{all_close, close};
+    use crate::util::{all_close, close};
 
     use super::{log_logistic_loss, logistic_function};
 

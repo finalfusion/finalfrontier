@@ -13,9 +13,9 @@ use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
 use serde::Serialize;
 use toml::Value;
-use vec_simd::{l2_normalize, scale, scaled_add};
 
-use {CommonConfig, Vocab, WriteModelBinary};
+use crate::vec_simd::{l2_normalize, scale, scaled_add};
+use crate::{CommonConfig, Vocab, WriteModelBinary};
 
 /// Training model.
 ///
@@ -250,9 +250,9 @@ mod tests {
     use rand_xorshift::XorShiftRng;
 
     use super::TrainModel;
-    use skipgram_trainer::SkipgramTrainer;
-    use util::all_close;
-    use {
+    use crate::skipgram_trainer::SkipgramTrainer;
+    use crate::util::all_close;
+    use crate::{
         CommonConfig, LossType, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabConfig,
         VocabBuilder,
     };

@@ -6,9 +6,9 @@ use failure::{err_msg, Error};
 use rand::{Rng, SeedableRng};
 use serde::Serialize;
 
-use train_model::{NegativeSamples, TrainIterFrom, Trainer};
-use util::ReseedOnCloneRng;
-use {CommonConfig, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabConfig, Vocab};
+use crate::train_model::{NegativeSamples, TrainIterFrom, Trainer};
+use crate::util::ReseedOnCloneRng;
+use crate::{CommonConfig, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabConfig, Vocab};
 
 /// Skipgram Trainer
 ///

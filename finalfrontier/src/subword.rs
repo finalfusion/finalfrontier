@@ -113,6 +113,9 @@ impl SubwordIndices for str {
 mod tests {
     use std::collections::HashMap;
 
+    use lazy_static::lazy_static;
+    use maplit::hashmap;
+
     use super::{NGrams, SubwordIndices};
 
     #[test]
