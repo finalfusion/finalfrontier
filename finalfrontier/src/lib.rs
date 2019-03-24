@@ -5,6 +5,8 @@ extern crate conllx;
 
 extern crate failure;
 
+extern crate finalfusion;
+
 extern crate fnv;
 
 extern crate hogwild;
@@ -27,8 +29,6 @@ extern crate rand_core;
 
 #[cfg(test)]
 extern crate rand_xorshift;
-
-extern crate rust2vec;
 
 extern crate serde;
 

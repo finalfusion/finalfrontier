@@ -3,16 +3,18 @@ use std::iter::FusedIterator;
 use std::sync::Arc;
 
 use failure::{err_msg, Error};
+use finalfusion::vocab::VocabWrap;
+use finalfusion::{
+    embeddings::Embeddings, io::WriteEmbeddings, metadata::Metadata, storage::NdArray,
+};
+use hogwild::HogwildArray2;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
-use rust2vec::{embeddings::Embeddings, io::WriteEmbeddings, metadata::Metadata, storage::NdArray};
 use serde::Serialize;
 use toml::Value;
-
-use hogwild::HogwildArray2;
-use rust2vec::vocab::VocabWrap;
 use vec_simd::{l2_normalize, scale, scaled_add};
+
 use {CommonConfig, Vocab, WriteModelBinary};
 
 /// Training model.
