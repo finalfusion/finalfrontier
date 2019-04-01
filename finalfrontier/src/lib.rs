@@ -1,9 +1,14 @@
 mod config;
 pub use crate::config::{
-    CommonConfig, LossType, ModelType, SimpleVocabConfig, SkipGramConfig, SubwordVocabConfig,
+    CommonConfig, DepembedsConfig, LossType, ModelType, SimpleVocabConfig, SkipGramConfig,
+    SubwordVocabConfig,
 };
 
 mod deps;
+pub use crate::deps::{DepIter, Dependency, DependencyIterator};
+
+pub(crate) mod dep_trainer;
+pub use crate::dep_trainer::DepembedsTrainer;
 
 mod io;
 pub use crate::io::{SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec};
@@ -28,4 +33,4 @@ pub(crate) mod util;
 pub(crate) mod vec_simd;
 
 mod vocab;
-pub use crate::vocab::{CountedType, SubwordVocab, Vocab, VocabBuilder, Word};
+pub use crate::vocab::{CountedType, SimpleVocab, SubwordVocab, Vocab, VocabBuilder, Word};

@@ -1,5 +1,8 @@
-use conllx::graph::{DepGraph, DepTriple};
 use std::mem;
+
+use conllx::graph::{DepGraph, DepTriple};
+
+use crate::DepembedsConfig;
 
 /// Trait to provide iterators over the path in a tree from `start` to the root.
 pub trait PathIter {
@@ -37,7 +40,7 @@ impl<'a, 'b> Iterator for PathIterator<'a, 'b> {
 }
 
 /// Enum for different types of dependencies. Typed through direction, depth, attached form and label.
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Dependency {
     /// Typed dependency through Direction (`Regular` and `Inverse`), depth, relation label and form.
     Typed {
@@ -79,7 +82,7 @@ impl Dependency {
 }
 
 /// Enum to denote the direction of a dependency relation.
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum DependencyDirection {
     /// Inverse relation: relation seen from a dependent to its head.
     Inverse,
@@ -104,7 +107,6 @@ impl<'a> DependencyIterator<'a> {
     /// Constructs a new `DependencyIterator` which returns up to `max_depth`-order dependencies.
     ///
     /// If `max_depth == 0`, all contexts are extracted.
-    #[allow(dead_code)]
     pub fn new(graph: &'a DepGraph<'a>, max_depth: usize) -> Self {
         DependencyIterator {
             max_depth,
@@ -113,6 +115,25 @@ impl<'a> DependencyIterator<'a> {
             buffer: None,
             graph,
             path_iter: graph.path_iter(1),
+        }
+    }
+
+    /// Construct a `DependencyIterator` and apply parameters given in `config`.
+    pub fn new_from_config(
+        graph: &'a DepGraph<'a>,
+        config: DepembedsConfig,
+    ) -> Box<Iterator<Item = (usize, Dependency)> + 'a> {
+        let iter = DependencyIterator::new(graph, config.depth as usize);
+
+        match (config.normalize, config.untyped, config.use_root) {
+            (false, false, false) => Box::new(iter.filter_root()),
+            (false, false, true) => Box::new(iter),
+            (false, true, false) => Box::new(iter.untyped().filter_root()),
+            (false, true, true) => Box::new(iter.untyped()),
+            (true, false, false) => Box::new(iter.normalized().filter_root()),
+            (true, false, true) => Box::new(iter.normalized()),
+            (true, true, false) => Box::new(iter.normalized().untyped().filter_root()),
+            (true, true, true) => Box::new(iter.normalized().untyped()),
         }
     }
 
@@ -193,13 +214,13 @@ impl<I> DepIter for I
 where
     I: Iterator<Item = (usize, Dependency)>,
 {
-    fn normalized(self) -> Normalized<Self> {
+    fn normalized(self) -> Normalized<I> {
         Normalized { inner: self }
     }
-    fn untyped(self) -> Untyped<Self> {
+    fn untyped(self) -> Untyped<I> {
         Untyped { inner: self }
     }
-    fn filter_root(self) -> FilterRoot<Self> {
+    fn filter_root(self) -> FilterRoot<I> {
         FilterRoot { inner: self }
     }
 }
