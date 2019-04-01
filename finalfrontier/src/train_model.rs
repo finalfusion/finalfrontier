@@ -1,5 +1,4 @@
 use std::io::{Seek, Write};
-use std::iter::FusedIterator;
 use std::sync::Arc;
 
 use failure::{err_msg, Error};
@@ -229,7 +228,7 @@ pub trait TrainIterFrom<S>
 where
     S: ?Sized,
 {
-    type Iter: Iterator<Item = (usize, Self::Contexts)> + FusedIterator;
+    type Iter: Iterator<Item = (usize, Self::Contexts)>;
     type Contexts: Sized + IntoIterator<Item = usize>;
 
     fn train_iter_from(&mut self, sequence: &S) -> Self::Iter;

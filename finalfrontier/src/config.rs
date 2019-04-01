@@ -69,6 +69,26 @@ pub struct CommonConfig {
     pub zipf_exponent: f64,
 }
 
+/// Hyperparameters for Dependency Embeddings.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(tag = "type")]
+#[serde(rename = "Depembeds")]
+pub struct DepembedsConfig {
+    /// Maximum depth to extract dependency contexts from.
+    pub depth: u32,
+
+    /// Include the ROOT as dependency context.
+    pub use_root: bool,
+
+    /// Lowercase all tokens when used as context.
+    pub normalize: bool,
+
+    /// Extract untyped dependency contexts.
+    ///
+    /// Only takes the attached word-form into account.
+    pub untyped: bool,
+}
+
 /// Hyperparameters for subword-vocabs.
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename = "SubwordVocab")]
