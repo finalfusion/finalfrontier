@@ -2,19 +2,31 @@ language: rust
 env:
   global:
     - PROJECT_NAME: finalfrontier
+addons:
+  apt:
+    packages:
+      - musl-tools
+install:
+  - if [[ $TRAVIS_OS_NAME = linux && ${TARGET} != x86_64-unknown-linux-gnu ]]; then rustup target add ${TARGET}; fi
+
 matrix:
   fast_finish: true
   include:
     - os: linux
       rust: stable
       env: TARGET=x86_64-unknown-linux-gnu
+    - os: linux
+      rust: stable
+      env: TARGET=x86_64-unknown-linux-musl
     - os: osx
       rust: stable
       env: TARGET=x86_64-apple-darwin
     - os: linux
       rust: 1.31.0
+      env: TARGET=x86_64-unknown-linux-gnu
     - os: linux
       rust: nightly
+      env: TARGET=x86_64-unknown-linux-gnu
   allow_failures:
   - rust: nightly
 before_script:
@@ -22,8 +34,8 @@ before_script:
   - rustup component add rustfmt
 script:
   - cargo fmt --all -- --check
-  - cargo build
-  - cargo test
+  - cargo build --target ${TARGET}
+  - cargo test --target ${TARGET}
 before_deploy: ci/before_deploy.sh
 deploy:
   provider: releases
