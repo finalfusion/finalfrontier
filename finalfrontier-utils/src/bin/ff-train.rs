@@ -16,32 +16,19 @@ use stdinout::OrExit;
 const PROGRESS_UPDATE_INTERVAL: u64 = 200;
 
 fn main() {
-    let matches = AppBuilder::build_with_common_opts("final-frontier")
-        .add_skipgram_opts()
-        .build()
-        .get_matches();
-
-    let common_config = common_config_from_matches(&matches);
-    let skipgram_config = skipgram_config_from_matches(&matches);
-    let vocab_config = subword_config_from_matches(&matches);
-
-    let n_threads = matches
-        .value_of("threads")
-        .map(|v| v.parse().or_exit("Cannot parse number of threads", 1))
-        .unwrap_or(num_cpus::get() / 2);
-
-    let corpus = matches.value_of(CORPUS).unwrap();
-    let vocab = build_vocab(vocab_config, corpus);
-
+    let app = SkipGramApp::new();
+    let corpus = app.corpus();
+    let n_threads = app.n_threads();
+    let common_config = app.common_config();
+    let vocab = build_vocab(app.vocab_config(), corpus);
     let mut output_writer = BufWriter::new(
-        File::create(matches.value_of(OUTPUT).unwrap())
-            .or_exit("Cannot open output file for writing.", 1),
+        File::create(app.output()).or_exit("Cannot open output file for writing.", 1),
     );
     let trainer = SkipgramTrainer::new(
         vocab,
         XorShiftRng::from_entropy(),
         common_config,
-        skipgram_config,
+        app.skipgram_config(),
     );
     let sgd = SGD::new(trainer.into());
 
@@ -77,10 +64,6 @@ fn main() {
         .write_model_binary(&mut output_writer)
         .or_exit("Cannot write model", 1);
 }
-
-// Argument constants
-static CORPUS: &str = "CORPUS";
-static OUTPUT: &str = "OUTPUT";
 
 fn do_work<P, R>(
     corpus_path: P,

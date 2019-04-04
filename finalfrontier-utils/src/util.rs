@@ -6,7 +6,8 @@ use indicatif::{ProgressBar, ProgressStyle};
 use stdinout::OrExit;
 
 use finalfrontier::{
-    CommonConfig, LossType, ModelType, SkipGramConfig, SubwordVocabConfig, Trainer, Vocab, SGD,
+    CommonConfig, DepembedsConfig, LossType, ModelType, SimpleVocabConfig, SkipGramConfig,
+    SubwordVocabConfig, Trainer, Vocab, SGD,
 };
 
 static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
@@ -17,6 +18,9 @@ static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
 // Option constants
 static BUCKETS: &str = "buckets";
 static CONTEXT: &str = "context";
+static CONTEXT_MINCOUNT: &str = "context_mincount";
+static CONTEXT_DISCARD: &str = "context_discard";
+static DEPENDENCY_DEPTH: &str = "dependency_depth";
 static DIMS: &str = "dims";
 static DISCARD: &str = "discard";
 static EPOCHS: &str = "epochs";
@@ -25,78 +29,42 @@ static MINCOUNT: &str = "mincount";
 static MINN: &str = "minn";
 static MAXN: &str = "maxn";
 static MODEL: &str = "model";
+static UNTYPED_DEPS: &str = "untyped";
+static NORMALIZE_CONTEXT: &str = "normalize";
 static NS: &str = "ns";
 static THREADS: &str = "threads";
+static USE_ROOT: &str = "use_root";
 static ZIPF_EXPONENT: &str = "zipf";
 
 // Argument constants
 static CORPUS: &str = "CORPUS";
 static OUTPUT: &str = "OUTPUT";
 
-/// AppBuilder.
-pub struct AppBuilder<'a, 'b> {
-    app: App<'a, 'b>,
+/// SkipGramApp.
+pub struct SkipGramApp {
+    corpus: String,
+    output: String,
+    n_threads: usize,
+    common_config: CommonConfig,
+    skipgram_config: SkipGramConfig,
+    vocab_config: SubwordVocabConfig,
 }
 
-impl<'a, 'b> AppBuilder<'a, 'b> {
-    /// Construct an `AppBuilder` with common options.
-    pub fn build_with_common_opts(name: &str) -> AppBuilder<'a, 'b> {
-        let app = App::new(name)
-            .settings(DEFAULT_CLAP_SETTINGS)
+impl Default for SkipGramApp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SkipGramApp {
+    /// Construct new `SkipGramApp`.
+    pub fn new() -> Self {
+        let matches = build_with_common_opts("ff-train")
             .arg(
-                Arg::with_name(BUCKETS)
-                    .long("buckets")
-                    .value_name("EXP")
-                    .help("Number of buckets: 2^EXP (default: 21)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name(DIMS)
-                    .long("dims")
-                    .value_name("DIMENSIONS")
-                    .help("Embedding dimensionality (default: 100)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name(DISCARD)
-                    .long("discard")
-                    .value_name("THRESHOLD")
-                    .help("Discard threshold (default: 1e-4)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name(EPOCHS)
-                    .long("epochs")
-                    .value_name("N")
-                    .help("Number of epochs (default: 5)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name(LR)
-                    .long("lr")
-                    .value_name("LEARNING_RATE")
-                    .help("Initial learning rate (default: 0.05)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name(MINCOUNT)
-                    .long("mincount")
-                    .value_name("FREQ")
-                    .help("Minimum token frequency (default: 5)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name(MINN)
-                    .long("minn")
-                    .value_name("LEN")
-                    .help("Minimum ngram length (default: 3)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name(MAXN)
-                    .long("maxn")
-                    .value_name("LEN")
-                    .help("Maximum ngram length (default: 6)")
+                Arg::with_name(CONTEXT)
+                    .long("context")
+                    .value_name("CONTEXT_SIZE")
+                    .help("Context size (default: 5)")
                     .takes_value(true),
             )
             .arg(
@@ -106,62 +74,310 @@ impl<'a, 'b> AppBuilder<'a, 'b> {
                     .help("Model: skipgram or structgram")
                     .takes_value(true),
             )
-            .arg(
-                Arg::with_name(NS)
-                    .long("ns")
-                    .value_name("FREQ")
-                    .help("Negative samples per word (default: 5)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name(THREADS)
-                    .long("threads")
-                    .value_name("N")
-                    .help("Number of threads (default: logical_cpus / 2)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name(ZIPF_EXPONENT)
-                    .long("zipf")
-                    .value_name("EXP")
-                    .help("Exponent Zipf distribution for negative sampling (default: 0.5)")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name(CORPUS)
-                    .help("Tokenized corpus")
-                    .index(1)
-                    .required(true),
-            )
-            .arg(
-                Arg::with_name(OUTPUT)
-                    .help("Embeddings output")
-                    .index(2)
-                    .required(true),
-            );
-        AppBuilder { app }
+            .get_matches();
+        let corpus = matches.value_of(CORPUS).unwrap().into();
+        let output = matches.value_of(OUTPUT).unwrap().into();
+        let n_threads = matches
+            .value_of("threads")
+            .map(|v| v.parse().or_exit("Cannot parse number of threads", 1))
+            .unwrap_or(num_cpus::get() / 2);
+        SkipGramApp {
+            corpus,
+            output,
+            n_threads,
+            common_config: common_config_from_matches(&matches),
+            skipgram_config: Self::skipgram_config_from_matches(&matches),
+            vocab_config: subword_config_from_matches(&matches),
+        }
     }
 
-    /// Add SkipGram options to the `AppBuilder`.
-    pub fn add_skipgram_opts(mut self) -> Self {
-        self.app = self.app.arg(
-            Arg::with_name(CONTEXT)
-                .long("context")
-                .value_name("CONTEXT_SIZE")
-                .help("Context size (default: 5)")
-                .takes_value(true),
-        );
-        self
+    /// Get the corpus path.
+    pub fn corpus(&self) -> &str {
+        self.corpus.as_str()
     }
 
-    /// Build the `App`.
-    pub fn build(self) -> App<'a, 'b> {
-        self.app
+    /// Get the output path.
+    pub fn output(&self) -> &str {
+        self.output.as_str()
+    }
+
+    /// Get the number of threads.
+    pub fn n_threads(&self) -> usize {
+        self.n_threads
+    }
+
+    /// Get the common config.
+    pub fn common_config(&self) -> CommonConfig {
+        self.common_config
+    }
+
+    /// Get the skipgram config.
+    pub fn skipgram_config(&self) -> SkipGramConfig {
+        self.skipgram_config
+    }
+
+    /// Get the vocab config.
+    pub fn vocab_config(&self) -> SubwordVocabConfig {
+        self.vocab_config
+    }
+
+    fn skipgram_config_from_matches(matches: &ArgMatches) -> SkipGramConfig {
+        let context_size = matches
+            .value_of(CONTEXT)
+            .map(|v| v.parse().or_exit("Cannot parse context size", 1))
+            .unwrap_or(5);
+        let model = matches
+            .value_of(MODEL)
+            .map(|v| ModelType::try_from_str(v).or_exit("Cannot parse model type", 1))
+            .unwrap_or(ModelType::SkipGram);
+
+        SkipGramConfig {
+            context_size,
+            model,
+        }
     }
 }
 
+/// DepembedsApp.
+pub struct DepembedsApp {
+    corpus: String,
+    output: String,
+    n_threads: usize,
+    common_config: CommonConfig,
+    depembeds_config: DepembedsConfig,
+    input_vocab_config: SubwordVocabConfig,
+    output_vocab_config: SimpleVocabConfig,
+}
+
+impl Default for DepembedsApp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DepembedsApp {
+    /// Construct a new `DepembedsApp`.
+    pub fn new() -> Self {
+        let matches = Self::add_depembeds_opts(build_with_common_opts("ff-deps")).get_matches();
+        let corpus = matches.value_of(CORPUS).unwrap().into();
+        let output = matches.value_of(OUTPUT).unwrap().into();
+        let n_threads = matches
+            .value_of("threads")
+            .map(|v| v.parse().or_exit("Cannot parse number of threads", 1))
+            .unwrap_or(num_cpus::get() / 2);
+
+        let discard_threshold = matches
+            .value_of(CONTEXT_DISCARD)
+            .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
+            .unwrap_or(1e-4);
+        let min_count = matches
+            .value_of(CONTEXT_MINCOUNT)
+            .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
+            .unwrap_or(5);
+
+        let output_vocab_config = SimpleVocabConfig {
+            min_count,
+            discard_threshold,
+        };
+
+        DepembedsApp {
+            corpus,
+            output,
+            n_threads,
+            common_config: common_config_from_matches(&matches),
+            depembeds_config: Self::depembeds_config_from_matches(&matches),
+            input_vocab_config: subword_config_from_matches(&matches),
+            output_vocab_config,
+        }
+    }
+
+    /// Get the corpus path.
+    pub fn corpus(&self) -> &str {
+        self.corpus.as_str()
+    }
+
+    /// Get the output path.
+    pub fn output(&self) -> &str {
+        self.output.as_str()
+    }
+
+    /// Get the number of threads.
+    pub fn n_threads(&self) -> usize {
+        self.n_threads
+    }
+
+    /// Get the common config.
+    pub fn common_config(&self) -> CommonConfig {
+        self.common_config
+    }
+
+    /// Get the depembeds config.
+    pub fn depembeds_config(&self) -> DepembedsConfig {
+        self.depembeds_config
+    }
+
+    /// Get the input vocab config.
+    pub fn input_vocab_config(&self) -> SubwordVocabConfig {
+        self.input_vocab_config
+    }
+
+    /// Get the output vocab config.
+    pub fn output_vocab_config(&self) -> SimpleVocabConfig {
+        self.output_vocab_config
+    }
+
+    fn add_depembeds_opts<'a, 'b>(app: App<'a, 'b>) -> App<'a, 'b> {
+        app.arg(
+            Arg::with_name(CONTEXT_DISCARD)
+                .long("context_discard")
+                .value_name("CONTEXT_THRESHOLD")
+                .help("Context discard threshold (default: 1e-4)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(CONTEXT_MINCOUNT)
+                .long("context_mincount")
+                .value_name("CONTEXT MINCOUNT")
+                .help("Context mincount (default: 5)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(DEPENDENCY_DEPTH)
+                .long("dependency_depth")
+                .value_name("DEPENDENCY_DEPTH")
+                .help("Dependency depth (default: 2)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(UNTYPED_DEPS)
+                .long("untyped_deps")
+                .help("Don't use dependency relation labels"),
+        )
+        .arg(
+            Arg::with_name(NORMALIZE_CONTEXT)
+                .long("normalize_context")
+                .help("Normalize contexts"),
+        )
+        .arg(
+            Arg::with_name(USE_ROOT)
+                .long("use_root")
+                .help("Use root when extracting dependency contexts"),
+        )
+    }
+
+    fn depembeds_config_from_matches(matches: &ArgMatches) -> DepembedsConfig {
+        let depth = matches
+            .value_of(DEPENDENCY_DEPTH)
+            .map(|v| v.parse().or_exit("Cannot parse dependency depth", 1))
+            .unwrap_or(1);
+        let untyped = matches.is_present(UNTYPED_DEPS);
+        let normalize = matches.is_present(NORMALIZE_CONTEXT);
+        let use_root = matches.is_present(USE_ROOT);
+        DepembedsConfig {
+            depth,
+            untyped,
+            normalize,
+            use_root,
+        }
+    }
+}
+
+fn build_with_common_opts<'a, 'b>(name: &str) -> App<'a, 'b> {
+    App::new(name)
+        .settings(DEFAULT_CLAP_SETTINGS)
+        .arg(
+            Arg::with_name(BUCKETS)
+                .long("buckets")
+                .value_name("EXP")
+                .help("Number of buckets: 2^EXP (default: 21)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(DIMS)
+                .long("dims")
+                .value_name("DIMENSIONS")
+                .help("Embedding dimensionality (default: 100)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(DISCARD)
+                .long("discard")
+                .value_name("THRESHOLD")
+                .help("Discard threshold (default: 1e-4)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(EPOCHS)
+                .long("epochs")
+                .value_name("N")
+                .help("Number of epochs (default: 5)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(LR)
+                .long("lr")
+                .value_name("LEARNING_RATE")
+                .help("Initial learning rate (default: 0.05)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(MINCOUNT)
+                .long("mincount")
+                .value_name("FREQ")
+                .help("Minimum token frequency (default: 5)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(MINN)
+                .long("minn")
+                .value_name("LEN")
+                .help("Minimum ngram length (default: 3)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(MAXN)
+                .long("maxn")
+                .value_name("LEN")
+                .help("Maximum ngram length (default: 6)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(NS)
+                .long("ns")
+                .value_name("FREQ")
+                .help("Negative samples per word (default: 5)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(THREADS)
+                .long("threads")
+                .value_name("N")
+                .help("Number of threads (default: logical_cpus / 2)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(ZIPF_EXPONENT)
+                .long("zipf")
+                .value_name("EXP")
+                .help("Exponent Zipf distribution for negative sampling (default: 0.5)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(CORPUS)
+                .help("Tokenized corpus")
+                .index(1)
+                .required(true),
+        )
+        .arg(
+            Arg::with_name(OUTPUT)
+                .help("Embeddings output")
+                .index(2)
+                .required(true),
+        )
+}
+
 /// Construct `CommonConfig` from `matches`.
-pub fn common_config_from_matches(matches: &ArgMatches) -> CommonConfig {
+fn common_config_from_matches(matches: &ArgMatches) -> CommonConfig {
     let dims = matches
         .value_of(DIMS)
         .map(|v| v.parse().or_exit("Cannot parse dimensionality", 1))
@@ -199,25 +415,8 @@ pub fn common_config_from_matches(matches: &ArgMatches) -> CommonConfig {
     }
 }
 
-/// Construct `SkipGramConfig` from `matches`.
-pub fn skipgram_config_from_matches(matches: &ArgMatches) -> SkipGramConfig {
-    let context_size = matches
-        .value_of(CONTEXT)
-        .map(|v| v.parse().or_exit("Cannot parse context size", 1))
-        .unwrap_or(5);
-    let model = matches
-        .value_of(MODEL)
-        .map(|v| ModelType::try_from_str(v).or_exit("Cannot parse model type", 1))
-        .unwrap_or(ModelType::SkipGram);
-
-    SkipGramConfig {
-        context_size,
-        model,
-    }
-}
-
 /// Construct `SubwordVocabConfig` from `matches`.
-pub fn subword_config_from_matches(matches: &ArgMatches) -> SubwordVocabConfig {
+fn subword_config_from_matches(matches: &ArgMatches) -> SubwordVocabConfig {
     let buckets_exp = matches
         .value_of(BUCKETS)
         .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
