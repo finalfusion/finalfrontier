@@ -230,6 +230,7 @@ name = "finalfrontier-utils"
 version = "0.4.0"
 dependencies = [
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "conllx 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "finalfrontier 0.4.0",
  "indicatif 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
