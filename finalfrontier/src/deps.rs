@@ -86,13 +86,13 @@ impl Dependency {
 pub enum DependencyDirection {
     /// Inverse relation: relation seen from a dependent to its head.
     Inverse,
-    /// Untyped: Just the attached form.
+    /// Regular relation: relation seen from a head to a dependent.
     Regular,
 }
 
 /// Struct to iterate over the dependencies in a `conllx::DepGraph`.
 ///
-/// Provides `Vec`s of tuples with form `(focus_idx, Dependency)` where focus_idx is the index of the
+/// Provides tuples with form `(focus_idx, Dependency)` where focus_idx is the index of the
 /// focus token for the Dependency context.
 pub struct DependencyIterator<'a> {
     max_depth: usize,
@@ -318,10 +318,8 @@ where
 mod tests {
     use std::io::Cursor;
 
-    use crate::deps::DepIter;
-    use crate::deps::Dependency;
-    use crate::deps::Dependency::Untyped;
-    use crate::deps::{DependencyIterator, PathIter};
+    use crate::deps::{DepIter, Dependency, Dependency::Untyped, DependencyIterator, PathIter};
+
     use conllx::graph::Node;
     use conllx::io::{ReadSentence, Reader};
 
