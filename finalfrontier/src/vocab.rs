@@ -146,10 +146,7 @@ impl SubwordVocab {
 ///
 /// Can be used as an input or output lookup.
 #[derive(Clone)]
-pub struct SimpleVocab<T>
-where
-    T: Hash + Eq,
-{
+pub struct SimpleVocab<T> {
     config: SimpleVocabConfig,
     types: Vec<CountedType<T>>,
     index: HashMap<T, usize>,
@@ -320,10 +317,7 @@ where
 /// Items are added to the vocabulary and counted using the `count` method.
 /// There is no explicit build method, conversion is done via implementing
 /// `From<VocabBuilder<T>>`.
-pub struct VocabBuilder<C, T>
-where
-    T: Hash + Eq,
-{
+pub struct VocabBuilder<C, T> {
     config: C,
     items: HashMap<T, usize>,
     n_items: usize,
