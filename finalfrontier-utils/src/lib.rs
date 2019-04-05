@@ -1,5 +1,5 @@
 mod data;
-pub use crate::data::thread_data;
+pub use crate::data::{thread_data_conllx, thread_data_text};
 
 mod progress;
 pub use crate::progress::FileProgress;

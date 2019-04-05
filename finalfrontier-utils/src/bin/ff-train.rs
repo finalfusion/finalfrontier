@@ -80,7 +80,7 @@ fn do_work<P, R>(
 
     let f = File::open(corpus_path.into()).or_exit("Cannot open corpus for reading", 1);
     let (data, start) =
-        thread_data(&f, thread, n_threads).or_exit("Could not get thread-specific data", 1);
+        thread_data_text(&f, thread, n_threads).or_exit("Could not get thread-specific data", 1);
 
     let mut sentences = SentenceIterator::new(&data[start..]);
     while sgd.n_tokens_processed() < epochs as usize * n_tokens {
