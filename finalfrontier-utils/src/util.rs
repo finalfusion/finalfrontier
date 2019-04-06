@@ -32,6 +32,7 @@ static MODEL: &str = "model";
 static UNTYPED_DEPS: &str = "untyped";
 static NORMALIZE_CONTEXT: &str = "normalize";
 static NS: &str = "ns";
+static PROJECTIVIZE: &str = "projectivize";
 static THREADS: &str = "threads";
 static USE_ROOT: &str = "use_root";
 static ZIPF_EXPONENT: &str = "zipf";
@@ -251,7 +252,7 @@ impl DepembedsApp {
         .arg(
             Arg::with_name(UNTYPED_DEPS)
                 .long("untyped_deps")
-                .help("Don't use dependency relation labels"),
+                .help("Don't use dependency relation labels."),
         )
         .arg(
             Arg::with_name(NORMALIZE_CONTEXT)
@@ -259,9 +260,14 @@ impl DepembedsApp {
                 .help("Normalize contexts"),
         )
         .arg(
+            Arg::with_name(PROJECTIVIZE)
+                .long("projectivize")
+                .help("Projectivize dependency graphs before training."),
+        )
+        .arg(
             Arg::with_name(USE_ROOT)
                 .long("use_root")
-                .help("Use root when extracting dependency contexts"),
+                .help("Use root when extracting dependency contexts."),
         )
     }
 
@@ -272,11 +278,13 @@ impl DepembedsApp {
             .unwrap_or(1);
         let untyped = matches.is_present(UNTYPED_DEPS);
         let normalize = matches.is_present(NORMALIZE_CONTEXT);
+        let projectivize = matches.is_present(PROJECTIVIZE);
         let use_root = matches.is_present(USE_ROOT);
         DepembedsConfig {
             depth,
             untyped,
             normalize,
+            projectivize,
             use_root,
         }
     }

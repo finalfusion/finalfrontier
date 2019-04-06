@@ -1,11 +1,12 @@
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
+use std::io::{BufRead, BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 
-use conllx::graph::Node;
+use conllx::graph::{Node, Sentence};
 use conllx::io::{ReadSentence, Reader};
+use conllx::proj::{HeadProjectivizer, Projectivize};
 use finalfrontier::{
     DepembedsConfig, DepembedsTrainer, Dependency, DependencyIterator, SimpleVocab,
     SimpleVocabConfig, SubwordVocab, SubwordVocabConfig, Vocab, VocabBuilder, WriteModelBinary,
@@ -42,6 +43,7 @@ fn main() {
     );
     let sgd = SGD::new(trainer.into());
 
+    let projectivize = app.depembeds_config().projectivize;
     let mut children = Vec::with_capacity(n_threads);
     for thread in 0..n_threads {
         let corpus = corpus.to_owned();
@@ -55,6 +57,7 @@ fn main() {
                 n_threads,
                 common_config.epochs,
                 common_config.lr,
+                projectivize,
             );
         }));
     }
@@ -82,6 +85,7 @@ fn do_work<P, R>(
     n_threads: usize,
     epochs: u32,
     start_lr: f32,
+    projectivize: bool,
 ) where
     P: Into<PathBuf>,
     R: Clone + Rng,
@@ -91,21 +95,22 @@ fn do_work<P, R>(
     let f = File::open(corpus_path.into()).or_exit("Cannot open corpus for reading", 1);
     let (data, start) =
         thread_data_conllx(&f, thread, n_threads).or_exit("Could not get thread-specific data", 1);
+    let projectivizer = if projectivize {
+        Some(HeadProjectivizer::new())
+    } else {
+        None
+    };
 
-    let mut sentences = Reader::new(BufReader::new(&data[start..]));
+    let mut sentences = SentenceIter::new(BufReader::new(&data[start..]), projectivizer);
     while sgd.n_tokens_processed() < epochs as usize * n_tokens {
-        let sentence = if let Some(sentence) = sentences
-            .read_sentence()
-            .or_exit("Could not read sentence", 1)
-        {
-            sentence
-        } else {
-            sentences = Reader::new(BufReader::new(&*data));
-            sentences
-                .read_sentence()
-                .unwrap()
-                .or_exit("Iterator does not provide sentences", 1)
-        };
+        let sentence = sentences
+            .next()
+            .or_else(|| {
+                sentences = SentenceIter::new(BufReader::new(&*data), projectivizer);
+                sentences.next()
+            })
+            .or_exit("Cannot read sentence.", 1);
+
         let lr = (1.0 - (sgd.n_tokens_processed() as f32 / (epochs as usize * n_tokens) as f32))
             * start_lr;
         sgd.update_sentence(&sentence, lr);
@@ -126,8 +131,13 @@ where
     let mut input_builder: VocabBuilder<_, String> = VocabBuilder::new(input_config);
     let mut output_builder: VocabBuilder<_, Dependency> = VocabBuilder::new(output_config);
 
-    for sentence in Reader::new(BufReader::new(file_progress)) {
-        let sentence = sentence.or_exit("Cannot read sentence", 1);
+    let projectivizer = if dep_config.projectivize {
+        Some(HeadProjectivizer::new())
+    } else {
+        None
+    };
+
+    for sentence in SentenceIter::new(BufReader::new(file_progress), projectivizer) {
         for token in sentence.iter().filter_map(Node::token) {
             input_builder.count(token.form());
         }
@@ -138,4 +148,41 @@ where
     }
 
     (input_builder.into(), output_builder.into())
+}
+
+struct SentenceIter<P, R> {
+    inner: Reader<R>,
+    projectivizer: Option<P>,
+}
+
+impl<P, R> SentenceIter<P, R> {
+    fn new(read: R, projectivizer: Option<P>) -> Self
+    where
+        R: BufRead,
+    {
+        SentenceIter {
+            inner: Reader::new(read),
+            projectivizer,
+        }
+    }
+}
+
+impl<P, R> Iterator for SentenceIter<P, R>
+where
+    P: Projectivize,
+    R: BufRead,
+{
+    type Item = Sentence;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut sentence = self
+            .inner
+            .read_sentence()
+            .or_exit("Cannot read sentence", 1)?;
+        if let Some(proj) = &self.projectivizer {
+            proj.projectivize(&mut sentence)
+                .or_exit("Cannot projectivize sentence.", 1);
+        }
+        Some(sentence)
+    }
 }

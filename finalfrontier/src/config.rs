@@ -83,6 +83,9 @@ pub struct DepembedsConfig {
     /// Lowercase all tokens when used as context.
     pub normalize: bool,
 
+    /// Projectivize dependency graphs before training.
+    pub projectivize: bool,
+
     /// Extract untyped dependency contexts.
     ///
     /// Only takes the attached word-form into account.
