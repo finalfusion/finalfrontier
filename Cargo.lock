@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "conllx"
-version = "0.11.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -208,7 +208,7 @@ name = "finalfrontier"
 version = "0.4.0"
 dependencies = [
  "cfg-if 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "conllx 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "conllx 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "finalfusion 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -230,7 +230,7 @@ name = "finalfrontier-utils"
 version = "0.4.0"
 dependencies = [
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "conllx 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "conllx 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "finalfrontier 0.4.0",
  "indicatif 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -880,7 +880,7 @@ dependencies = [
 "checksum clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b957d88f4b6a63b9d70d5f454ac8011819c6efa7727858f458ab71c756ce2d3e"
 "checksum clicolors-control 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "73abfd4c73d003a674ce5d2933fca6ce6c42480ea84a5ffe0a2dc39ed56300f9"
 "checksum cloudabi 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
-"checksum conllx 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ba38ab4b11523f720290e83c113e8a38659460a485961954ef4e4d71776afbf3"
+"checksum conllx 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4b56ce06073dad27db862b267b7bf02a2f84ae0d21951808afc6cd6caec0f79b"
 "checksum console 0.7.5 (registry+https://github.com/rust-lang/crates.io-index)" = "2bf3720d3f3fc30b721ef1ae54e13af3264af4af39dc476a8de56a6ee1e2184b"
 "checksum crossbeam-deque 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f739f8c5363aca78cfb059edf753d8f0d36908c348f3d8d1503f03d8b75d9cf3"
 "checksum crossbeam-epoch 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "927121f5407de9956180ff5e936fe3cf4324279280001cd56b669d28ee7e9150"

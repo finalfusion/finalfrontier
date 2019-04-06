@@ -26,6 +26,12 @@ pub struct DepembedsTrainer<R> {
     rng: R,
 }
 
+impl<R> DepembedsTrainer<R> {
+    pub fn dep_config(&self) -> DepembedsConfig {
+        self.dep_config
+    }
+}
+
 impl<R> DepembedsTrainer<ReseedOnCloneRng<R>>
 where
     R: Rng + Clone + SeedableRng,
