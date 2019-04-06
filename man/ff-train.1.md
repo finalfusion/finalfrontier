@@ -10,14 +10,15 @@ NAME
 SYNOPSIS
 ========
 
-**ff-train** [*options*] *corpus* *output_model*
+**ff-train** [*options*] *corpus* *output*
 
 DESCRIPTION
 ===========
 
-The **ff-train** trains word embeddings using data from a *corpus*. The corpus
-should have tokens separated by spaces and sentences separated by newlines.
-After training, the embeddings are written to *output_model*.
+The **ff-train** trains word embeddings using data from a *corpus*. The
+corpus should have tokens separated by spaces and sentences separated by
+newlines. After training, the embeddings are written to *output* in the
+finalfusion format.
 
 OPTIONS
 =======
@@ -35,6 +36,11 @@ OPTIONS
 
 :   Words within the *CONTEXT_SIZE* of a focus word will be used to learn
     the representation of the focus word. The default context size is *5*.
+
+`--dims` *DIMENSIONS*
+
+:   The dimensionality of the trained word embeddings. The default
+    dimensionality is 100.
 
 `--discard` *THRESHOLD*
 
@@ -77,6 +83,9 @@ OPTIONS
     into account and results in embeddings that are typically better
     suited for syntax-oriented tasks.
 
+    The dependency embeddings model is supported by the separate
+    `ff-deps`(1) utility.
+
     The default model is *skipgram*.
 
 `--ns` *FREQ*
@@ -99,10 +108,14 @@ EXAMPLES
 Train embeddings on *dewiki.txt* using the skip-gram model:
 
     ff-train dewiki.txt dewiki-skipgram.bin
-	
-Train embeddings with dimensionality 100 on *dewiki.txt* using the
-structured skip-gram model:
 
-    ff-train --model structgram --dims 100 \
-	  dewiki.txt dewiki-structgram.bin
+Train embeddings with dimensionality 300 on *dewiki.txt* using the
+structured skip-gram model with a context window of 10 tokens:
 
+    ff-train --model structgram --context 10 --dims 300 \
+      dewiki.txt dewiki-structgram.bin
+
+SEE ALSO
+========
+
+`ff-deps`(1)
