@@ -5,7 +5,12 @@ env:
 addons:
   apt:
     packages:
+      - make
       - musl-tools
+      - pandoc
+  homebrew:
+    packages:
+      - pandoc
 install:
   - if [[ $TRAVIS_OS_NAME = linux && ${TARGET} != x86_64-unknown-linux-gnu ]]; then rustup target add ${TARGET}; fi
 
