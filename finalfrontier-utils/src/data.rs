@@ -67,11 +67,9 @@ pub fn thread_data_conllx(
     while start < mmap.len() - 1 {
         let next = mmap[start];
         start += 1;
-        if next == b'\n' {
-            if mmap[start] == b'\n' {
-                start += 1;
-                break;
-            }
+        if next == b'\n' && mmap[start] == b'\n' {
+            start += 1;
+            break;
         }
     }
 
