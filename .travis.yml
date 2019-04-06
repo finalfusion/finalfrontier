@@ -37,11 +37,7 @@ matrix:
 before_script:
   - rustup component add clippy
   - rustup component add rustfmt
-script:
-  - cargo fmt --all -- --check
-  - cargo build --target ${TARGET}
-  - cargo test --target ${TARGET}
-  - cargo clippy
+script: ci/script.sh
 before_deploy: ci/before_deploy.sh
 deploy:
   provider: releases
