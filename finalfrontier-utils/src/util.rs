@@ -60,7 +60,7 @@ impl Default for SkipGramApp {
 impl SkipGramApp {
     /// Construct new `SkipGramApp`.
     pub fn new() -> Self {
-        let matches = build_with_common_opts("ff-train")
+        let matches = build_with_common_opts("ff-train-skipgram")
             .arg(
                 Arg::with_name(CONTEXT)
                     .long("context")
@@ -159,7 +159,8 @@ impl Default for DepembedsApp {
 impl DepembedsApp {
     /// Construct a new `DepembedsApp`.
     pub fn new() -> Self {
-        let matches = Self::add_depembeds_opts(build_with_common_opts("ff-deps")).get_matches();
+        let matches =
+            Self::add_depembeds_opts(build_with_common_opts("ff-train-deps")).get_matches();
         let corpus = matches.value_of(CORPUS).unwrap().into();
         let output = matches.value_of(OUTPUT).unwrap().into();
         let n_threads = matches

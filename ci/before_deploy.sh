@@ -13,8 +13,10 @@ mkdir "${staging}"
 out_dir="$(pwd)/deployment"
 mkdir "${out_dir}"
 
-cp "target/${TARGET}/release/ff-train" "${staging}/ff-train"
-strip "${staging}/ff-train"
+cp "target/${TARGET}/release/ff-train-skipgram" "${staging}/ff-train-skipgram"
+cp "target/${TARGET}/release/ff-train-deps" "${staging}/ff-train-deps"
+strip "${staging}/ff-train-skipgram"
+strip "${staging}/ff-train-deps"
 cp {README.md,LICENSE,NOTICE} "${staging}/"
 cp man/*.1 "${staging}/"
 
