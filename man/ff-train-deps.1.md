@@ -1,20 +1,20 @@
-% FF-DEPS(1) % Daniel de Kok, Sebastian Pütz % Apr 6, 2019
+% FF-TRAIN-DEPS(1) % Daniel de Kok, Sebastian Pütz % Apr 6, 2019
 
 NAME
 ====
 
-**ff-deps** -- train dependency-based word embeddings with subword
+**ff-train-deps** -- train dependency-based word embeddings with subword
 representations
 
 SYNOPSIS
 ========
 
-**ff-deps** [*options*] *corpus* *output*
+**ff-train-deps** [*options*] *corpus* *output*
 
 DESCRIPTION
 ===========
 
-The **ff-deps** trains dependency based word embeddings (Levy and Goldberg,
+The **ff-train-deps** trains dependency based word embeddings (Levy and Goldberg,
 2014) using data from a *corpus* in CONLL-X format. The corpus contains
 sentences seperated by empty lines. Each sentence needs to be annotated with a
 dependency graph. After training, the embeddings are written to *output* in the
@@ -121,11 +121,11 @@ EXAMPLES
 Train embeddings on *dewiki.txt* using the dependency model with default
 parameters:
 
-    ff-deps dewiki.conll dewiki-deps.bin
+    ff-train-deps dewiki.conll dewiki-deps.bin
 
 Train embeddings with dimensionality 300 on *dewiki.conll* using the dependency
 model from contexts with depth up to 2:
 
-    ff-deps --depth 2 --normalize --dims 300 \
+    ff-train-deps --depth 2 --normalize --dims 300 \
       dewiki.conll dewiki-deps.bin
 

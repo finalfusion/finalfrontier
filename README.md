@@ -28,6 +28,6 @@ module.
   * [Installation](docs/INSTALL.md)
   * [Quickstart](docs/QUICKSTART.md)
   * Manual pages:
-    - [ff-train(1)](man/ff-train.1.md) — train word embeddings with subword representations
+    - [ff-train-skipgram(1)](man/ff-train-skipgram.1.md) — train word embeddings with subword representations
   * [finalfusion crate](https://github.com/finalfusion/finalfusion-rust)
   * [Python module](https://github.com/finalfusion/finalfusion-python)
