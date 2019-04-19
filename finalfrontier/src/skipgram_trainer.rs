@@ -6,6 +6,7 @@ use failure::{err_msg, Error};
 use rand::{Rng, SeedableRng};
 use serde::Serialize;
 
+use crate::sampling::{BandedRangeGenerator, ZipfRangeGenerator};
 use crate::train_model::{NegativeSamples, TrainIterFrom, Trainer};
 use crate::util::ReseedOnCloneRng;
 use crate::{CommonConfig, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabConfig, Vocab};
@@ -19,6 +20,7 @@ use crate::{CommonConfig, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabC
 pub struct SkipgramTrainer<R> {
     vocab: Arc<SubwordVocab>,
     rng: R,
+    range_gen: BandedRangeGenerator<R, ZipfRangeGenerator<R>>,
     common_config: CommonConfig,
     skipgram_config: SkipGramConfig,
 }
@@ -36,9 +38,24 @@ where
     ) -> Self {
         let vocab = Arc::new(vocab);
         let rng = ReseedOnCloneRng(rng);
+        let band_size = match skipgram_config.model {
+            ModelType::SkipGram => 1,
+            ModelType::StructuredSkipGram => skipgram_config.context_size * 2,
+        };
+
+        let range_gen = BandedRangeGenerator::new(
+            rng.clone(),
+            ZipfRangeGenerator::new_with_exponent(
+                rng.clone(),
+                vocab.len(),
+                common_config.zipf_exponent,
+            ),
+            band_size as usize,
+        );
         SkipgramTrainer {
             vocab,
             rng,
+            range_gen,
             common_config,
             skipgram_config,
         }
@@ -72,17 +89,7 @@ where
 {
     fn negative_sample(&mut self, output: usize) -> usize {
         loop {
-            let negative = match self.skipgram_config.model {
-                ModelType::StructuredSkipGram => {
-                    let context_size = self.skipgram_config.context_size as usize;
-                    let offset = output % (context_size * 2);
-                    let rand_type = self.rng.gen_range(0, self.vocab.len());
-                    // in structured skipgram the offset into the output matrix is calculated as:
-                    // (vocab_idx * context_size * 2) + offset
-                    rand_type * context_size * 2 + offset
-                }
-                ModelType::SkipGram => self.rng.gen_range(0, self.vocab.len()),
-            };
+            let negative = self.range_gen.next().unwrap();
             if negative != output {
                 return negative;
             }
