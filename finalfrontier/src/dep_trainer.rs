@@ -5,6 +5,7 @@ use failure::{err_msg, Error};
 use rand::{Rng, SeedableRng};
 use serde::Serialize;
 
+use crate::sampling::ZipfRangeGenerator;
 use crate::train_model::{NegativeSamples, TrainIterFrom};
 use crate::util::ReseedOnCloneRng;
 use crate::{
@@ -23,6 +24,7 @@ pub struct DepembedsTrainer<R> {
     common_config: CommonConfig,
     input_vocab: Arc<SubwordVocab>,
     output_vocab: Arc<SimpleVocab<Dependency>>,
+    range_gen: ZipfRangeGenerator<R>,
     rng: R,
 }
 
@@ -44,12 +46,19 @@ where
         dep_config: DepembedsConfig,
         rng: R,
     ) -> Self {
+        let rng = ReseedOnCloneRng(rng);
+        let range_gen = ZipfRangeGenerator::new_with_exponent(
+            rng.clone(),
+            output_vocab.len(),
+            common_config.zipf_exponent,
+        );
         DepembedsTrainer {
             common_config,
             dep_config,
             input_vocab: Arc::new(input_vocab),
             output_vocab: Arc::new(output_vocab),
-            rng: ReseedOnCloneRng(rng),
+            range_gen,
+            rng,
         }
     }
 }
@@ -60,7 +69,7 @@ where
 {
     fn negative_sample(&mut self, output: usize) -> usize {
         loop {
-            let negative = self.rng.gen_range(0, self.output_vocab.len());
+            let negative = self.range_gen.next().unwrap();
             if negative != output {
                 return negative;
             }

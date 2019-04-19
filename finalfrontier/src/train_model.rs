@@ -286,7 +286,8 @@ mod tests {
         let common_config = TEST_COMMON_CONFIG.clone();
         let skipgram_config = TEST_SKIP_CONFIG.clone();
         // We just need some bogus vocabulary
-        let builder: VocabBuilder<SubwordVocabConfig, String> = VocabBuilder::new(vocab_config);
+        let mut builder: VocabBuilder<SubwordVocabConfig, String> = VocabBuilder::new(vocab_config);
+        builder.count("bla".to_string());
         let vocab: SubwordVocab = builder.into();
 
         let input = Array2::from_shape_vec((2, 3), vec![1., 2., 3., 4., 5., 6.])
