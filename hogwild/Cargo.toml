@@ -5,8 +5,8 @@ edition = "2018"
 authors = ["Daniël de Kok <me@danieldk.eu>"]
 description = "Data types for hogwild SGD"
 documentation = "https://docs.rs/hogwild/"
-homepage = "https://github.com/danieldk/finalfrontier"
-repository = "https://github.com/danieldk/finalfrontier.git"
+homepage = "https://github.com/finalfusion/finalfrontier"
+repository = "https://github.com/finalfusion/finalfrontier.git"
 license = "Apache-2.0"
 
 [dependencies]
