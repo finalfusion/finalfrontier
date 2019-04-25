@@ -239,7 +239,7 @@ impl DepembedsApp {
         .arg(
             Arg::with_name(CONTEXT_MINCOUNT)
                 .long("context_mincount")
-                .value_name("CONTEXT MINCOUNT")
+                .value_name("CONTEXT_FREQ")
                 .help("Context mincount (default: 5)")
                 .takes_value(true),
         )
