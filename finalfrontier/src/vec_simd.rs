@@ -7,58 +7,71 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-/// Dot product: u · v
-///
-/// This SIMD-vectorized function computes the dot product
-/// (BLAS sdot).
 cfg_if! {
     if #[cfg(target_feature = "avx")] {
+        /// Dot product: u · v
+        ///
+        /// This SIMD-vectorized function computes the dot product
+        /// (BLAS sdot).
         pub fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
             unsafe { dot_f32x8(u, v) }
         }
     } else if #[cfg(target_feature = "sse")] {
+        /// Dot product: u · v
+        ///
+        /// This SIMD-vectorized function computes the dot product
+        /// (BLAS sdot).
         pub fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
             unsafe { dot_f32x4(u, v) }
         }
     } else {
+        /// Unvectorized dot product: u · v
         pub fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
             dot_unvectorized(u, v)
         }
     }
 }
 
-/// Scaling: u = au
-///
-/// This function performs SIMD-vectorized scaling (BLAS sscal).
 cfg_if! {
     if #[cfg(target_feature = "avx")] {
+        /// Scaling: u = au
+        ///
+        /// This function performs SIMD-vectorized scaling (BLAS sscal).
         pub fn scale(u: ArrayViewMut1<f32>, a: f32) {
             unsafe { scale_f32x8(u, a) }
         }
     } else if #[cfg(target_feature = "sse")] {
+        /// Scaling: u = au
+        ///
+        /// This function performs SIMD-vectorized scaling (BLAS sscal).
         pub fn scale(u: ArrayViewMut1<f32>, a: f32) {
             unsafe { scale_f32x4(u, a) }
         }
     } else {
+        /// Unvectorized Scaling: u = au
         pub fn scale(u: ArrayViewMut1<f32>, a: f32) {
             scale_unvectorized(u, a)
         }
     }
 }
 
-/// Scaled addition: *u = u + av*
-///
-/// This function performs SIMD-vectorized scaled addition (BLAS saxpy).
 cfg_if! {
     if #[cfg(target_feature = "avx")] {
+        /// Scaled addition: *u = u + av*
+        ///
+        /// This function performs SIMD-vectorized scaled addition (BLAS saxpy).
         pub fn scaled_add(u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
             unsafe { scaled_add_f32x8(u, v, a) }
         }
     } else if #[cfg(target_feature = "sse")] {
+        /// Scaled addition: *u = u + av*
+        ///
+        /// This function performs SIMD-vectorized scaled addition (BLAS saxpy).
         pub fn scaled_add(u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
             unsafe { scaled_add_f32x4(u, v, a) }
         }
     } else {
+        /// Unvectorized scaled addition: *u = u + av*.
         pub fn scaled_add(u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
             scaled_add_unvectorized(u, v, a)
         }
