@@ -4,7 +4,8 @@ use std::sync::Arc;
 use failure::{err_msg, Error};
 use finalfusion::vocab::VocabWrap;
 use finalfusion::{
-    embeddings::Embeddings, io::WriteEmbeddings, metadata::Metadata, storage::NdArray,
+    embeddings::Embeddings, io::WriteEmbeddings, metadata::Metadata, norms::NdNorms,
+    storage::NdArray,
 };
 use hogwild::HogwildArray2;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
@@ -183,8 +184,9 @@ where
 
         let vocab: VocabWrap = trainer.try_into_input_vocab()?.into();
         let storage = NdArray(input_matrix);
+        let norms = NdNorms(Array1::from_vec(norms));
 
-        Embeddings::new(Some(metadata), vocab, storage).write_embeddings(write)
+        Embeddings::new(Some(metadata), vocab, storage, norms).write_embeddings(write)
     }
 }
 
