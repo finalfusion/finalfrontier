@@ -99,7 +99,7 @@ impl SubwordVocab {
 
     /// Get the given word.
     pub fn word(&self, word: &str) -> Option<&Word> {
-        self.idx(word).map(|idx| &self.words[idx])
+        self.idx(word).map(|idx| &self.words[idx.single_idx()])
     }
 
     /// Get the subword indices of a word.
@@ -135,7 +135,7 @@ impl SubwordVocab {
     pub fn indices(&self, word: &str) -> Vec<u64> {
         let mut indices = self.subword_indices(word).into_owned();
         if let Some(index) = self.idx(word) {
-            indices.push(index as u64);
+            indices.push(index.single_idx() as u64);
         }
 
         indices
@@ -181,7 +181,7 @@ where
         T: Borrow<Q>,
         Q: Hash + ?Sized + Eq,
     {
-        self.idx(context).map(|idx| &self.types[idx])
+        self.idx(context).map(|idx| &self.types[idx.single_idx()])
     }
 }
 
@@ -214,10 +214,65 @@ impl From<SubwordVocab> for VocabWrap {
     }
 }
 
+/// Index trait.
+///
+/// Trait defining methods on indices stored in the vocabulary.
+#[allow(clippy::len_without_is_empty)]
+pub trait Idx {
+    /// Return the unique index for the Index.
+    fn single_idx(&self) -> usize;
+
+    /// Return the number of indices.
+    fn len(&self) -> usize;
+
+    /// Return `Self` with only the unique index.
+    fn to_single(&self) -> Self;
+
+    /// Return an Iterator over the indices.
+    fn indices_iter<'a>(&'a self) -> Box<Iterator<Item = usize> + 'a>;
+}
+
+impl Idx for u64 {
+    fn single_idx(&self) -> usize {
+        *self as usize
+    }
+
+    fn len(&self) -> usize {
+        1
+    }
+
+    fn to_single(&self) -> Self {
+        *self
+    }
+
+    fn indices_iter<'a>(&'a self) -> Box<Iterator<Item = usize> + 'a> {
+        Box::new(Some(*self as usize).into_iter())
+    }
+}
+
+impl Idx for Vec<u64> {
+    fn single_idx(&self) -> usize {
+        *self.last().unwrap() as usize
+    }
+
+    fn len(&self) -> usize {
+        self.len()
+    }
+
+    fn to_single(&self) -> Self {
+        vec![self.single_idx() as u64]
+    }
+
+    fn indices_iter<'a>(&'a self) -> Box<Iterator<Item = usize> + 'a> {
+        Box::new(self.iter().map(|i| *i as usize))
+    }
+}
+
 /// Trait for lookup of indices.
 pub trait Vocab {
-    type VocabType;
+    type VocabType: Hash + Eq;
     type Config;
+    type Idx: Idx;
 
     /// Return this vocabulary's config.
     fn config(&self) -> Self::Config;
@@ -232,13 +287,16 @@ pub trait Vocab {
     }
 
     /// Get the index of the entry, will return None if the item is not present.
-    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    fn idx<Q>(&self, key: &Q) -> Option<Self::Idx>
     where
         Self::VocabType: Borrow<Q>,
         Q: Hash + ?Sized + Eq;
 
     /// Get the discard probability of the entry with the given index.
     fn discard(&self, idx: usize) -> f32;
+
+    /// Get the number of possible input types.
+    fn n_input_types(&self) -> usize;
 
     /// Get all types in the vocabulary.
     fn types(&self) -> &[CountedType<Self::VocabType>];
@@ -254,21 +312,33 @@ pub trait Vocab {
 impl Vocab for SubwordVocab {
     type VocabType = String;
     type Config = SubwordVocabConfig;
+    type Idx = Vec<u64>;
 
     fn config(&self) -> SubwordVocabConfig {
         self.config
     }
 
-    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    fn idx<Q>(&self, key: &Q) -> Option<Self::Idx>
     where
         Self::VocabType: Borrow<Q>,
         Q: Hash + ?Sized + Eq,
     {
-        self.index.get(key).cloned()
+        self.index.get(key).and_then(|idx| {
+            self.subword_indices_idx(*idx).map(|v| {
+                let mut v = v.to_vec();
+                v.push(*idx as u64);
+                v
+            })
+        })
     }
 
     fn discard(&self, idx: usize) -> f32 {
         self.discards[idx]
+    }
+
+    fn n_input_types(&self) -> usize {
+        let n_buckets = 2usize.pow(self.config().buckets_exp);
+        self.len() + n_buckets
     }
 
     fn types(&self) -> &[Word] {
@@ -286,21 +356,26 @@ where
 {
     type VocabType = T;
     type Config = SimpleVocabConfig;
+    type Idx = u64;
 
     fn config(&self) -> SimpleVocabConfig {
         self.config
     }
 
-    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    fn idx<Q>(&self, key: &Q) -> Option<Self::Idx>
     where
         Self::VocabType: Borrow<Q>,
         Q: Hash + ?Sized + Eq,
     {
-        self.index.get(key).cloned()
+        self.index.get(key).cloned().map(|idx| idx as u64)
     }
 
     fn discard(&self, idx: usize) -> f32 {
         self.discards[idx]
+    }
+
+    fn n_input_types(&self) -> usize {
+        self.len()
     }
 
     fn types(&self) -> &[CountedType<Self::VocabType>] {
@@ -436,6 +511,7 @@ fn bracket(word: &str) -> String {
 mod tests {
     use super::{bracket, SimpleVocab, SubwordVocab, Vocab, VocabBuilder};
     use crate::subword::SubwordIndices;
+    use crate::vocab::Idx;
     use crate::{util, SimpleVocabConfig, SubwordVocabConfig};
 
     const TEST_SUBWORDCONFIG: SubwordVocabConfig = SubwordVocabConfig {
@@ -506,7 +582,7 @@ mod tests {
         assert_eq!(4, vocab.indices("to").len());
         assert!(util::close(
             0.019058,
-            vocab.discard(vocab.idx("to").unwrap()),
+            vocab.discard(vocab.idx("to").unwrap().single_idx()),
             1e-5
         ));
 
@@ -521,7 +597,7 @@ mod tests {
         assert_eq!(4, vocab.indices("be").len());
         assert!(util::close(
             0.019058,
-            vocab.discard(vocab.idx("be").unwrap()),
+            vocab.discard(vocab.idx("be").unwrap().single_idx()),
             1e-5
         ));
 
@@ -533,7 +609,7 @@ mod tests {
         assert_eq!(1, vocab.indices(util::EOS).len());
         assert!(util::close(
             0.027158,
-            vocab.discard(vocab.idx(util::EOS).unwrap()),
+            vocab.discard(vocab.idx(util::EOS).unwrap().single_idx()),
             1e-5
         ));
 
@@ -610,7 +686,7 @@ mod tests {
         // 0.0001 / 5/18 + (0.0001 / 5/18).sqrt() = 0.019334
         assert!(util::close(
             0.019334,
-            vocab.discard(vocab.idx("a").unwrap()),
+            vocab.discard(vocab.idx("a").unwrap().single_idx()),
             1e-5
         ));
     }

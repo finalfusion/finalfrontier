@@ -15,7 +15,7 @@ use serde::Serialize;
 use toml::Value;
 
 use crate::vec_simd::{l2_normalize, scale, scaled_add};
-use crate::{CommonConfig, Vocab, WriteModelBinary};
+use crate::{CommonConfig, Idx, Vocab, WriteModelBinary};
 
 /// Training model.
 ///
@@ -56,7 +56,7 @@ where
         let distribution = Uniform::new_inclusive(-init_bound, init_bound);
 
         let input = Array2::random(
-            (trainer.n_input_types(), config.dims as usize),
+            (trainer.input_vocab().n_input_types(), config.dims as usize),
             distribution,
         )
         .into();
@@ -101,15 +101,21 @@ impl<T> TrainModel<T> {
     }
 
     /// Get the mean input embedding of the given indices.
-    pub(crate) fn mean_input_embedding(&self, indices: &[u64]) -> Array1<f32> {
-        Self::mean_embedding(self.input.view(), indices)
+    pub(crate) fn mean_input_embedding<I>(&self, idx: &I) -> Array1<f32>
+    where
+        I: Idx,
+    {
+        Self::mean_embedding(self.input.view(), idx)
     }
 
     /// Get the mean input embedding of the given indices.
-    fn mean_embedding(embeds: ArrayView2<f32>, indices: &[u64]) -> Array1<f32> {
+    fn mean_embedding<I>(embeds: ArrayView2<f32>, indices: &I) -> Array1<f32>
+    where
+        I: Idx,
+    {
         let mut embed = Array1::zeros((embeds.cols(),));
 
-        for &idx in indices.iter() {
+        for idx in indices.indices_iter() {
             scaled_add(
                 embed.view_mut(),
                 embeds.index_axis(Axis(0), idx as usize),
@@ -162,6 +168,7 @@ where
     W: Seek + Write,
     T: Trainer<InputVocab = V, Metadata = M>,
     V: Vocab + Into<VocabWrap>,
+    V::VocabType: ToString,
     M: Serialize,
 {
     fn write_model_binary(self, write: &mut W) -> Result<(), Error> {
@@ -171,13 +178,18 @@ where
 
         // Compute and write word embeddings.
         let mut norms = vec![0f32; trainer.input_vocab().len()];
-        for (i, norm) in norms
+        for (i, (norm, word)) in norms
             .iter_mut()
-            .enumerate()
+            .zip(trainer.input_vocab().types())
             .take(trainer.input_vocab().len())
+            .enumerate()
         {
-            let input = trainer.input_indices(i);
+            let input = trainer.input_vocab().idx(word.label()).unwrap();
             let mut embed = Self::mean_embedding(input_matrix.view(), &input);
+            //                match input {
+            //                Idx::Multi(v) => Self::mean_embedding(input_matrix.view(), &v),
+            //                Idx::Single(idx) => input_matrix.row(idx).to_owned(),
+            //            };
             *norm = l2_normalize(embed.view_mut());
             input_matrix.index_axis_mut(Axis(0), i).assign(&embed);
         }
@@ -194,9 +206,6 @@ where
 pub trait Trainer {
     type InputVocab: Vocab;
     type Metadata;
-
-    /// Given an input index get all associated indices.
-    fn input_indices(&self, idx: usize) -> Vec<u64>;
 
     /// Get the trainer's input vocabulary.
     fn input_vocab(&self) -> &Self::InputVocab;
@@ -226,12 +235,13 @@ pub trait Trainer {
 /// TrainIterFrom.
 ///
 /// This trait defines how some input `&S` is transformed into an iterator of training examples.
-pub trait TrainIterFrom<S>
+pub trait TrainIterFrom<S, I>
 where
     S: ?Sized,
+    I: Idx,
 {
-    type Iter: Iterator<Item = (usize, Self::Contexts)>;
-    type Contexts: Sized + IntoIterator<Item = usize>;
+    type Iter: Iterator<Item = (I, Self::Contexts)>;
+    type Contexts: IntoIterator<Item = usize>;
 
     fn train_iter_from(&mut self, sequence: &S) -> Self::Iter;
 }
@@ -360,7 +370,7 @@ mod tests {
 
         // Mean input embedding.
         assert!(all_close(
-            model.mean_input_embedding(&[0, 1]).as_slice().unwrap(),
+            model.mean_input_embedding(&vec![0, 1]).as_slice().unwrap(),
             &[2.5, 3.5, 4.5],
             1e-5
         ));

@@ -5,7 +5,7 @@ use crate::train_model::{NegativeSamples, TrainIterFrom, Trainer};
 use crate::vec_simd::scaled_add;
 use hogwild::Hogwild;
 
-use crate::TrainModel;
+use crate::{Idx, TrainModel};
 
 /// Stochastic gradient descent
 ///
@@ -61,21 +61,21 @@ where
     ///
     /// This applies a gradient descent step on the sentence, with the given
     /// learning rate.
-    pub fn update_sentence<S>(&mut self, sentence: &S, lr: f32)
+    pub fn update_sentence<S, I>(&mut self, sentence: &S, lr: f32)
     where
         S: ?Sized,
-        T: TrainIterFrom<S> + Trainer + NegativeSamples,
+        T: TrainIterFrom<S, I> + Trainer + NegativeSamples,
+        I: Idx,
     {
         for (focus, contexts) in self.model.trainer().train_iter_from(sentence) {
             // Update parameters for the token focus token i and the
             // context token j.
-            let input = self.model.trainer().input_indices(focus);
-            let input_embed = self.model.mean_input_embedding(&input);
+            let input_embed = self.model.mean_input_embedding(&focus);
 
             for context in contexts {
                 *self.loss += self.sgd_impl.sgd_step(
                     &mut self.model,
-                    &input,
+                    &focus,
                     input_embed.view(),
                     context,
                     lr,
@@ -124,16 +124,17 @@ impl NegativeSamplingSGD {
     /// subwords).
     ///
     /// The function returns the sum of losses.
-    pub fn sgd_step<T>(
+    pub fn sgd_step<T, I>(
         &mut self,
         model: &mut TrainModel<T>,
-        input: &[u64],
+        input: &I,
         input_embed: ArrayView1<f32>,
         output: usize,
         lr: f32,
     ) -> f32
     where
         T: NegativeSamples,
+        I: Idx,
     {
         let mut loss = 0.0;
         let mut input_delta = Array1::zeros(input_embed.shape()[0]);
@@ -152,7 +153,7 @@ impl NegativeSamplingSGD {
         loss += self.negative_samples(model, input_embed, input_delta.view_mut(), output, lr);
 
         // Update the input embeddings with the accumulated gradient.
-        for &idx in input {
+        for idx in input.indices_iter() {
             let input_embed = model.input_embedding_mut(idx as usize);
             scaled_add(input_embed, input_delta.view(), 1.0);
         }

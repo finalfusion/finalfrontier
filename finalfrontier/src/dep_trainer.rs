@@ -9,8 +9,8 @@ use crate::sampling::ZipfRangeGenerator;
 use crate::train_model::{NegativeSamples, TrainIterFrom};
 use crate::util::ReseedOnCloneRng;
 use crate::{
-    CommonConfig, DepembedsConfig, Dependency, DependencyIterator, SimpleVocab, SimpleVocabConfig,
-    SubwordVocab, SubwordVocabConfig, Trainer, Vocab,
+    CommonConfig, DepembedsConfig, Dependency, DependencyIterator, Idx, SimpleVocab,
+    SimpleVocabConfig, SubwordVocab, SubwordVocabConfig, Trainer, Vocab,
 };
 
 /// Dependency embeddings Trainer.
@@ -77,20 +77,21 @@ where
     }
 }
 
-impl<R> TrainIterFrom<Sentence> for DepembedsTrainer<R>
+impl<R> TrainIterFrom<Sentence, Vec<u64>> for DepembedsTrainer<R>
 where
     R: Rng,
 {
-    type Iter = Box<Iterator<Item = (usize, Vec<usize>)>>;
+    type Iter = Box<Iterator<Item = (Vec<u64>, Vec<usize>)>>;
     type Contexts = Vec<usize>;
 
     fn train_iter_from(&mut self, sentence: &Sentence) -> Self::Iter {
-        let invalid_idx = self.input_vocab.len();
-        let mut tokens = vec![invalid_idx; sentence.len() - 1];
+        let mut tokens = vec![None; sentence.len() - 1];
         for (idx, token) in sentence.iter().filter_map(|node| node.token()).enumerate() {
             if let Some(vocab_idx) = self.input_vocab.idx(token.form()) {
-                if self.rng.gen_range(0f32, 1f32) < self.input_vocab.discard(vocab_idx) {
-                    tokens[idx] = vocab_idx
+                if self.rng.gen_range(0f32, 1f32)
+                    < self.input_vocab.discard(vocab_idx.single_idx() as usize)
+                {
+                    tokens[idx] = Some(vocab_idx)
                 }
             }
         }
@@ -98,11 +99,11 @@ where
         let mut contexts = vec![Vec::new(); sentence.len() - 1];
         let graph = sentence.dep_graph();
         for (focus, dep) in DependencyIterator::new_from_config(&graph, self.dep_config)
-            .filter(|(focus, _dep)| tokens[*focus] != invalid_idx)
+            .filter(|(focus, _dep)| tokens[*focus] != None)
         {
             if let Some(dep_id) = self.output_vocab.idx(&dep) {
-                if self.rng.gen_range(0f32, 1f32) < self.output_vocab.discard(dep_id) {
-                    contexts[focus].push(dep_id)
+                if self.rng.gen_range(0f32, 1f32) < self.output_vocab.discard(dep_id.single_idx()) {
+                    contexts[focus].push(dep_id.single_idx())
                 }
             }
         }
@@ -110,7 +111,8 @@ where
             tokens
                 .into_iter()
                 .zip(contexts.into_iter())
-                .filter(move |(focus, _)| *focus != invalid_idx),
+                .filter(|(focus, _)| focus.is_some())
+                .map(|(focus, ctx)| (focus.unwrap(), ctx)),
         )
     }
 }
@@ -121,12 +123,6 @@ where
 {
     type InputVocab = SubwordVocab;
     type Metadata = DepembedsMetadata<SubwordVocabConfig, SimpleVocabConfig>;
-
-    fn input_indices(&self, idx: usize) -> Vec<u64> {
-        let mut v = self.input_vocab.subword_indices_idx(idx).unwrap().to_vec();
-        v.push(idx as u64);
-        v
-    }
 
     fn input_vocab(&self) -> &SubwordVocab {
         &self.input_vocab
