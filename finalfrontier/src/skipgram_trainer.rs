@@ -41,6 +41,7 @@ where
         let band_size = match skipgram_config.model {
             ModelType::SkipGram => 1,
             ModelType::StructuredSkipGram => skipgram_config.context_size * 2,
+            ModelType::DirectionalSkipgram => 2,
         };
 
         let range_gen = BandedRangeGenerator::new(
@@ -132,6 +133,7 @@ where
                 self.vocab.len() * 2 * self.skipgram_config.context_size as usize
             }
             ModelType::SkipGram => self.vocab.len(),
+            ModelType::DirectionalSkipgram => self.vocab.len() * 2,
         }
     }
 
@@ -186,6 +188,11 @@ where
                 (token * self.ctx_size * 2) + offset
             }
             ModelType::SkipGram => token,
+            ModelType::DirectionalSkipgram => {
+                let offset = if offset_idx < focus_idx { 0 } else { 1 };
+
+                (token * 2) + offset
+            }
         }
     }
 }

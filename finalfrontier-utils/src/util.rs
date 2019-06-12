@@ -72,7 +72,7 @@ impl SkipGramApp {
                 Arg::with_name(MODEL)
                     .long(MODEL)
                     .value_name("MODEL")
-                    .help("Model: skipgram or structgram")
+                    .help("Model: skipgram, structgram or dirgram")
                     .takes_value(true),
             )
             .get_matches();
