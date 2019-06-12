@@ -9,6 +9,9 @@ pub enum ModelType {
 
     // The structured skip-gram model (Ling et al., 2015).
     StructuredSkipGram,
+
+    // The directional skip-gram model (Song et al., 2018).
+    DirectionalSkipgram,
 }
 
 impl ModelType {
@@ -16,6 +19,7 @@ impl ModelType {
         match model {
             0 => Ok(ModelType::SkipGram),
             1 => Ok(ModelType::StructuredSkipGram),
+            2 => Ok(ModelType::DirectionalSkipgram),
             _ => Err(err_msg(format!("Unknown model type: {}", model))),
         }
     }
@@ -24,6 +28,7 @@ impl ModelType {
         match model {
             "skipgram" => Ok(ModelType::SkipGram),
             "structgram" => Ok(ModelType::StructuredSkipGram),
+            "dirgram" => Ok(ModelType::DirectionalSkipgram),
             _ => Err(err_msg(format!("Unknown model type: {}", model))),
         }
     }
