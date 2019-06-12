@@ -65,15 +65,18 @@ impl SkipGramApp {
                 Arg::with_name(CONTEXT)
                     .long("context")
                     .value_name("CONTEXT_SIZE")
-                    .help("Context size (default: 5)")
-                    .takes_value(true),
+                    .help("Context size")
+                    .takes_value(true)
+                    .default_value("10"),
             )
             .arg(
                 Arg::with_name(MODEL)
                     .long(MODEL)
                     .value_name("MODEL")
-                    .help("Model: skipgram, structgram or dirgram")
-                    .takes_value(true),
+                    .help("Model")
+                    .takes_value(true)
+                    .possible_values(&["dirgram", "skipgram", "structgram"])
+                    .default_value("skipgram"),
             )
             .get_matches();
         let corpus = matches.value_of(CORPUS).unwrap().into();
@@ -126,11 +129,11 @@ impl SkipGramApp {
         let context_size = matches
             .value_of(CONTEXT)
             .map(|v| v.parse().or_exit("Cannot parse context size", 1))
-            .unwrap_or(5);
+            .unwrap();
         let model = matches
             .value_of(MODEL)
             .map(|v| ModelType::try_from_str(v).or_exit("Cannot parse model type", 1))
-            .unwrap_or(ModelType::SkipGram);
+            .unwrap();
 
         SkipGramConfig {
             context_size,
@@ -171,11 +174,11 @@ impl DepembedsApp {
         let discard_threshold = matches
             .value_of(CONTEXT_DISCARD)
             .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
-            .unwrap_or(1e-4);
+            .unwrap();
         let min_count = matches
             .value_of(CONTEXT_MINCOUNT)
             .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
-            .unwrap_or(5);
+            .unwrap();
 
         let output_vocab_config = SimpleVocabConfig {
             min_count,
@@ -233,22 +236,25 @@ impl DepembedsApp {
             Arg::with_name(CONTEXT_DISCARD)
                 .long("context_discard")
                 .value_name("CONTEXT_THRESHOLD")
-                .help("Context discard threshold (default: 1e-4)")
-                .takes_value(true),
+                .help("Context discard threshold")
+                .takes_value(true)
+                .default_value("1e-4"),
         )
         .arg(
             Arg::with_name(CONTEXT_MINCOUNT)
                 .long("context_mincount")
                 .value_name("CONTEXT_FREQ")
-                .help("Context mincount (default: 5)")
-                .takes_value(true),
+                .help("Context mincount")
+                .takes_value(true)
+                .default_value("5"),
         )
         .arg(
             Arg::with_name(DEPENDENCY_DEPTH)
                 .long("dependency_depth")
                 .value_name("DEPENDENCY_DEPTH")
-                .help("Dependency depth (default: 2)")
-                .takes_value(true),
+                .help("Dependency depth")
+                .takes_value(true)
+                .default_value("1"),
         )
         .arg(
             Arg::with_name(UNTYPED_DEPS)
@@ -276,7 +282,7 @@ impl DepembedsApp {
         let depth = matches
             .value_of(DEPENDENCY_DEPTH)
             .map(|v| v.parse().or_exit("Cannot parse dependency depth", 1))
-            .unwrap_or(1);
+            .unwrap();
         let untyped = matches.is_present(UNTYPED_DEPS);
         let normalize = matches.is_present(NORMALIZE_CONTEXT);
         let projectivize = matches.is_present(PROJECTIVIZE);
@@ -298,64 +304,73 @@ fn build_with_common_opts<'a, 'b>(name: &str) -> App<'a, 'b> {
             Arg::with_name(BUCKETS)
                 .long("buckets")
                 .value_name("EXP")
-                .help("Number of buckets: 2^EXP (default: 21)")
-                .takes_value(true),
+                .help("Number of buckets: 2^EXP")
+                .takes_value(true)
+                .default_value("21"),
         )
         .arg(
             Arg::with_name(DIMS)
                 .long("dims")
                 .value_name("DIMENSIONS")
-                .help("Embedding dimensionality (default: 100)")
-                .takes_value(true),
+                .help("Embedding dimensionality")
+                .takes_value(true)
+                .default_value("300"),
         )
         .arg(
             Arg::with_name(DISCARD)
                 .long("discard")
                 .value_name("THRESHOLD")
-                .help("Discard threshold (default: 1e-4)")
-                .takes_value(true),
+                .help("Discard threshold")
+                .takes_value(true)
+                .default_value("1e-4"),
         )
         .arg(
             Arg::with_name(EPOCHS)
                 .long("epochs")
                 .value_name("N")
-                .help("Number of epochs (default: 5)")
-                .takes_value(true),
+                .help("Number of epochs")
+                .takes_value(true)
+                .default_value("15"),
         )
         .arg(
             Arg::with_name(LR)
                 .long("lr")
                 .value_name("LEARNING_RATE")
-                .help("Initial learning rate (default: 0.05)")
-                .takes_value(true),
+                .help("Initial learning rate")
+                .takes_value(true)
+                .default_value("0.05"),
         )
         .arg(
             Arg::with_name(MINCOUNT)
                 .long("mincount")
                 .value_name("FREQ")
-                .help("Minimum token frequency (default: 5)")
-                .takes_value(true),
+                .help("Minimum token frequency")
+                .takes_value(true)
+                .default_value("5"),
         )
         .arg(
             Arg::with_name(MINN)
                 .long("minn")
                 .value_name("LEN")
-                .help("Minimum ngram length (default: 3)")
-                .takes_value(true),
+                .help("Minimum ngram length")
+                .takes_value(true)
+                .default_value("3"),
         )
         .arg(
             Arg::with_name(MAXN)
                 .long("maxn")
                 .value_name("LEN")
-                .help("Maximum ngram length (default: 6)")
-                .takes_value(true),
+                .help("Maximum ngram length")
+                .takes_value(true)
+                .default_value("6"),
         )
         .arg(
             Arg::with_name(NS)
                 .long("ns")
                 .value_name("FREQ")
-                .help("Negative samples per word (default: 5)")
-                .takes_value(true),
+                .help("Negative samples per word")
+                .takes_value(true)
+                .default_value("5"),
         )
         .arg(
             Arg::with_name(THREADS)
@@ -368,8 +383,9 @@ fn build_with_common_opts<'a, 'b>(name: &str) -> App<'a, 'b> {
             Arg::with_name(ZIPF_EXPONENT)
                 .long("zipf")
                 .value_name("EXP")
-                .help("Exponent Zipf distribution for negative sampling (default: 0.5)")
-                .takes_value(true),
+                .help("Exponent Zipf distribution for negative sampling")
+                .takes_value(true)
+                .default_value("0.5"),
         )
         .arg(
             Arg::with_name(CORPUS)
@@ -390,29 +406,29 @@ fn common_config_from_matches(matches: &ArgMatches) -> CommonConfig {
     let dims = matches
         .value_of(DIMS)
         .map(|v| v.parse().or_exit("Cannot parse dimensionality", 1))
-        .unwrap_or(100);
+        .unwrap();
     let epochs = matches
         .value_of(EPOCHS)
         .map(|v| v.parse().or_exit("Cannot parse number of epochs", 1))
-        .unwrap_or(5);
+        .unwrap();
     let lr = matches
         .value_of(LR)
         .map(|v| v.parse().or_exit("Cannot parse learning rate", 1))
-        .unwrap_or(0.05);
+        .unwrap();
     let negative_samples = matches
         .value_of(NS)
         .map(|v| {
             v.parse()
                 .or_exit("Cannot parse number of negative samples", 1)
         })
-        .unwrap_or(5);
+        .unwrap();
     let zipf_exponent = matches
         .value_of(ZIPF_EXPONENT)
         .map(|v| {
             v.parse()
                 .or_exit("Cannot parse exponent zipf distribution", 1)
         })
-        .unwrap_or(0.5);
+        .unwrap();
 
     CommonConfig {
         loss: LossType::LogisticNegativeSampling,
@@ -429,23 +445,23 @@ fn subword_config_from_matches(matches: &ArgMatches) -> SubwordVocabConfig {
     let buckets_exp = matches
         .value_of(BUCKETS)
         .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
-        .unwrap_or(21);
+        .unwrap();
     let discard_threshold = matches
         .value_of(DISCARD)
         .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
-        .unwrap_or(1e-4);
+        .unwrap();
     let min_count = matches
         .value_of(MINCOUNT)
         .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
-        .unwrap_or(5);
+        .unwrap();
     let min_n = matches
         .value_of(MINN)
         .map(|v| v.parse().or_exit("Cannot parse minimum n-gram length", 1))
-        .unwrap_or(3);
+        .unwrap();
     let max_n = matches
         .value_of(MAXN)
         .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
-        .unwrap_or(6);
+        .unwrap();
 
     SubwordVocabConfig {
         min_n,
