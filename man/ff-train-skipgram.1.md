@@ -35,12 +35,12 @@ OPTIONS
 `--context` *CONTEXT_SIZE*
 
 :   Words within the *CONTEXT_SIZE* of a focus word will be used to learn
-    the representation of the focus word. The default context size is *5*.
+    the representation of the focus word. The default context size is *10*.
 
 `--dims` *DIMENSIONS*
 
 :   The dimensionality of the trained word embeddings. The default
-    dimensionality is 100.
+    dimensionality is 300.
 
 `--discard` *THRESHOLD*
 
@@ -51,7 +51,7 @@ OPTIONS
 
 :   The number of training epochs. The number of necessary training epochs
     typically decreases with the corpus size. The default number of epochs
-    is *5*.
+    is *15*.
 
 `--lr` *LEARNING_RATE*
 
@@ -110,10 +110,10 @@ Train embeddings on *dewiki.txt* using the skip-gram model:
 
     ff-train-skipgram dewiki.txt dewiki-skipgram.bin
 
-Train embeddings with dimensionality 300 on *dewiki.txt* using the
-structured skip-gram model with a context window of 10 tokens:
+Train embeddings with dimensionality 200 on *dewiki.txt* using the
+structured skip-gram model with a context window of 5 tokens:
 
-    ff-train-skipgram --model structgram --context 10 --dims 300 \
+    ff-train-skipgram --model structgram --context 5 --dims 200 \
       dewiki.txt dewiki-structgram.bin
 
 SEE ALSO

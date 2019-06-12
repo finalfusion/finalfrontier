@@ -45,7 +45,7 @@ default minimum count is 5.
 `--dims` *DIMS*
 
 :   The dimensionality of the trained word embeddings. The default
-dimensionality is 100.
+dimensionality is 300.
 
 `--dependency_depth` *DEPTH*
 
@@ -61,7 +61,7 @@ discarded from training. The default discard threshold is *1e-4*.
 `--epochs` *N*
 
 :   The number of training epochs. The number of necessary training epochs
-typically decreases with the corpus size. The default number of epochs is *5*.
+typically decreases with the corpus size. The default number of epochs is *15*.
 
 `--lr` *LEARNING_RATE*
 
@@ -123,9 +123,9 @@ parameters:
 
     ff-train-deps dewiki.conll dewiki-deps.bin
 
-Train embeddings with dimensionality 300 on *dewiki.conll* using the dependency
+Train embeddings with dimensionality 200 on *dewiki.conll* using the dependency
 model from contexts with depth up to 2:
 
-    ff-train-deps --depth 2 --normalize --dims 300 \
+    ff-train-deps --depth 2 --normalize --dims 200 \
       dewiki.conll dewiki-deps.bin
 
