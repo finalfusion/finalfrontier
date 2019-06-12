@@ -12,6 +12,7 @@ word embeddings. finalfrontier currently has the following features:
   * Models:
     - skip-gram (Mikolov et al., 2013)
     - structured skip-gram (Ling et al., 2015)
+    - directional skip-gram (Song et al., 2018)
     - dependency (Levy and Goldberg, 2014)
   * Noise contrastive estimation (Gutmann and Hyvärinen, 2012)
   * Subword representations (Bojanowski et al., 2016)
