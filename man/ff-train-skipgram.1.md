@@ -75,8 +75,9 @@ OPTIONS
 
 `--model` *MODEL*
 
-:   The model to use for training word embeddings. The choices here are
-    *skipgram* for the skip-gram model (Mikolov et al., 2013) and
+:   The model to use for training word embeddings. The choices here are:
+    *dirgram* for the directional skip-gram model (Song et al., 2018),
+    *skipgram* for the skip-gram model (Mikolov et al., 2013), and
     *structgram* for the stuctured skip-gram model (Ling et al. 2015).
     
     The structured skip-gram model takes the position of a context word
