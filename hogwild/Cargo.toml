@@ -1,11 +1,11 @@
 [package]
 name = "hogwild"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2018"
 authors = ["Daniël de Kok <me@danieldk.eu>"]
 description = "Data types for hogwild SGD"
 documentation = "https://docs.rs/hogwild/"
-homepage = "https://github.com/finalfusion/finalfrontier"
+homepage = "https://finalfusion.github.io/finalfrontier"
 repository = "https://github.com/finalfusion/finalfrontier.git"
 license = "Apache-2.0"
 
