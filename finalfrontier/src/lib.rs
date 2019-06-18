@@ -10,6 +10,8 @@ pub use crate::deps::{DepIter, Dependency, DependencyIterator};
 pub(crate) mod dep_trainer;
 pub use crate::dep_trainer::DepembedsTrainer;
 
+pub(crate) mod idx;
+
 mod io;
 pub use crate::io::{SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec};
 

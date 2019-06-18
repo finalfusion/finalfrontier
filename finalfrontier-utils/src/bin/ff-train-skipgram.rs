@@ -11,6 +11,7 @@ use finalfrontier::{
 use finalfrontier_utils::{show_progress, thread_data_text, FileProgress, SkipGramApp};
 use rand::{FromEntropy, Rng};
 use rand_xorshift::XorShiftRng;
+use serde::Serialize;
 use stdinout::OrExit;
 
 const PROGRESS_UPDATE_INTERVAL: u64 = 200;
@@ -65,9 +66,9 @@ fn main() {
         .or_exit("Cannot write model", 1);
 }
 
-fn do_work<P, R>(
+fn do_work<P, R, V>(
     corpus_path: P,
-    mut sgd: SGD<SkipgramTrainer<R>>,
+    mut sgd: SGD<SkipgramTrainer<R, V>>,
     thread: usize,
     n_threads: usize,
     epochs: u32,
@@ -75,6 +76,9 @@ fn do_work<P, R>(
 ) where
     P: Into<PathBuf>,
     R: Clone + Rng,
+    V: Vocab<VocabType = String>,
+    V::Config: Serialize,
+    for<'a> &'a V::IdxType: IntoIterator<Item = u64>,
 {
     let n_tokens = sgd.model().input_vocab().n_types();
 

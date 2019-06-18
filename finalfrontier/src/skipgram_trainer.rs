@@ -1,15 +1,18 @@
-use std::cmp;
+use std::borrow::Borrow;
+use std::hash::Hash;
 use std::iter::FusedIterator;
 use std::sync::Arc;
+use std::{cmp, mem};
 
 use failure::{err_msg, Error};
 use rand::{Rng, SeedableRng};
 use serde::Serialize;
 
+use crate::idx::WordIdx;
 use crate::sampling::{BandedRangeGenerator, ZipfRangeGenerator};
 use crate::train_model::{NegativeSamples, TrainIterFrom, Trainer};
 use crate::util::ReseedOnCloneRng;
-use crate::{CommonConfig, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabConfig, Vocab};
+use crate::{CommonConfig, ModelType, SkipGramConfig, Vocab};
 
 /// Skipgram Trainer
 ///
@@ -17,21 +20,22 @@ use crate::{CommonConfig, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabC
 /// sentence into an iterator of focus and context tuples. The struct is cheap to clone because
 /// the vocabulary is shared between clones.
 #[derive(Clone)]
-pub struct SkipgramTrainer<R> {
-    vocab: Arc<SubwordVocab>,
+pub struct SkipgramTrainer<R, V> {
+    vocab: Arc<V>,
     rng: R,
     range_gen: BandedRangeGenerator<R, ZipfRangeGenerator<R>>,
     common_config: CommonConfig,
     skipgram_config: SkipGramConfig,
 }
 
-impl<R> SkipgramTrainer<ReseedOnCloneRng<R>>
+impl<R, V> SkipgramTrainer<ReseedOnCloneRng<R>, V>
 where
     R: Rng + Clone + SeedableRng,
+    V: Vocab,
 {
     /// Constructs a new `SkipgramTrainer`.
     pub fn new(
-        vocab: SubwordVocab,
+        vocab: V,
         rng: R,
         common_config: CommonConfig,
         skipgram_config: SkipGramConfig,
@@ -63,19 +67,23 @@ where
     }
 }
 
-impl<S, R> TrainIterFrom<[S]> for SkipgramTrainer<R>
+impl<S, R, V, I> TrainIterFrom<[S]> for SkipgramTrainer<R, V>
 where
-    S: AsRef<str>,
+    S: Hash + Eq,
     R: Rng + Clone,
+    V: Vocab<IdxType = I>,
+    V::VocabType: Borrow<S>,
+    I: WordIdx,
 {
-    type Iter = SkipGramIter<R>;
+    type Iter = SkipGramIter<R, I>;
+    type Focus = I;
     type Contexts = Vec<usize>;
 
     fn train_iter_from(&mut self, sequence: &[S]) -> Self::Iter {
         let mut ids = Vec::new();
         for t in sequence {
-            if let Some(idx) = self.vocab.idx(t.as_ref()) {
-                if self.rng.gen_range(0f32, 1f32) < self.vocab.discard(idx) {
+            if let Some(idx) = self.vocab.idx(t) {
+                if self.rng.gen_range(0f32, 1f32) < self.vocab.discard(idx.word_idx() as usize) {
                     ids.push(idx);
                 }
             }
@@ -84,7 +92,7 @@ where
     }
 }
 
-impl<R> NegativeSamples for SkipgramTrainer<R>
+impl<R, V> NegativeSamples for SkipgramTrainer<R, V>
 where
     R: Rng,
 {
@@ -98,24 +106,20 @@ where
     }
 }
 
-impl<R> Trainer for SkipgramTrainer<R>
+impl<R, V> Trainer for SkipgramTrainer<R, V>
 where
     R: Rng + Clone,
+    V: Vocab,
+    V::Config: Serialize,
 {
-    type InputVocab = SubwordVocab;
-    type Metadata = SkipgramMetadata<SubwordVocabConfig>;
+    type InputVocab = V;
+    type Metadata = SkipgramMetadata<V::Config>;
 
-    fn input_indices(&self, idx: usize) -> Vec<u64> {
-        let mut v = self.vocab.subword_indices_idx(idx).unwrap().to_vec();
-        v.push(idx as u64);
-        v
-    }
-
-    fn input_vocab(&self) -> &SubwordVocab {
+    fn input_vocab(&self) -> &V {
         &self.vocab
     }
 
-    fn try_into_input_vocab(self) -> Result<SubwordVocab, Error> {
+    fn try_into_input_vocab(self) -> Result<V, Error> {
         match Arc::try_unwrap(self.vocab) {
             Ok(vocab) => Ok(vocab),
             Err(_) => Err(err_msg("Cannot unwrap input vocab.")),
@@ -123,8 +127,7 @@ where
     }
 
     fn n_input_types(&self) -> usize {
-        let n_buckets = 2usize.pow(self.input_vocab().config().buckets_exp);
-        n_buckets + self.input_vocab().len()
+        self.input_vocab().n_input_types()
     }
 
     fn n_output_types(&self) -> usize {
@@ -141,7 +144,7 @@ where
         &self.common_config
     }
 
-    fn to_metadata(&self) -> SkipgramMetadata<SubwordVocabConfig> {
+    fn to_metadata(&self) -> SkipgramMetadata<V::Config> {
         SkipgramMetadata {
             common_config: self.common_config,
             skipgram_config: self.skipgram_config,
@@ -151,22 +154,23 @@ where
 }
 
 /// Iterator over focus identifier and associated context identifiers in a sentence.
-pub struct SkipGramIter<R> {
-    ids: Vec<usize>,
+pub struct SkipGramIter<R, I> {
+    ids: Vec<I>,
     rng: R,
     i: usize,
     model_type: ModelType,
     ctx_size: usize,
 }
 
-impl<R> SkipGramIter<R>
+impl<R, I> SkipGramIter<R, I>
 where
     R: Rng + Clone,
+    I: WordIdx,
 {
     /// Constructs a new `SkipGramIter`.
     ///
     /// The `rng` is used to determine the window size for each focus token.
-    pub fn new(rng: R, ids: Vec<usize>, skip_config: SkipGramConfig) -> Self {
+    pub fn new(rng: R, ids: Vec<I>, skip_config: SkipGramConfig) -> Self {
         SkipGramIter {
             ids,
             rng,
@@ -197,11 +201,12 @@ where
     }
 }
 
-impl<R> Iterator for SkipGramIter<R>
+impl<R, I> Iterator for SkipGramIter<R, I>
 where
     R: Rng + Clone,
+    I: WordIdx,
 {
-    type Item = (usize, Vec<usize>);
+    type Item = (I, Vec<usize>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.i < self.ids.len() {
@@ -211,19 +216,29 @@ where
             let right = cmp::min(self.i + context_size + 1, self.ids.len());
             let contexts = (left..right)
                 .filter(|&idx| idx != self.i)
-                .map(|idx| self.output_(self.ids[idx], self.i, idx))
+                .map(|idx| self.output_(self.ids[idx].word_idx() as usize, self.i, idx))
                 .fold(Vec::with_capacity(right - left), |mut contexts, idx| {
                     contexts.push(idx);
                     contexts
                 });
+
+            // swap the representation possibly containing multiple indices with one that only
+            // contains the distinct word index since we need the word index for context lookups.
+            let mut word_idx = WordIdx::from_word_idx(self.ids[self.i].word_idx());
+            mem::swap(&mut self.ids[self.i], &mut word_idx);
             self.i += 1;
-            return Some((self.ids[self.i - 1], contexts));
+            return Some((word_idx, contexts));
         }
         None
     }
 }
 
-impl<R> FusedIterator for SkipGramIter<R> where R: Rng + Clone {}
+impl<R, I> FusedIterator for SkipGramIter<R, I>
+where
+    R: Rng + Clone,
+    I: WordIdx,
+{
+}
 
 /// Metadata for Skipgramlike training algorithms.
 #[derive(Clone, Copy, Debug, Serialize)]

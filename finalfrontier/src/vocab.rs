@@ -6,6 +6,7 @@ use finalfusion::vocab::{
     SimpleVocab as FiFuSimpleVocab, SubwordVocab as FiFuSubwordVocab, VocabWrap,
 };
 
+use crate::idx::{SingleIdx, WordIdx, WordWithSubwordsIdx};
 use crate::subword::SubwordIndices;
 use crate::{util, SimpleVocabConfig, SubwordVocabConfig};
 
@@ -99,7 +100,8 @@ impl SubwordVocab {
 
     /// Get the given word.
     pub fn word(&self, word: &str) -> Option<&Word> {
-        self.idx(word).map(|idx| &self.words[idx])
+        self.idx(word)
+            .map(|idx| &self.words[idx.word_idx() as usize])
     }
 
     /// Get the subword indices of a word.
@@ -135,7 +137,7 @@ impl SubwordVocab {
     pub fn indices(&self, word: &str) -> Vec<u64> {
         let mut indices = self.subword_indices(word).into_owned();
         if let Some(index) = self.idx(word) {
-            indices.push(index as u64);
+            indices.push(index.word_idx() as u64);
         }
 
         indices
@@ -181,7 +183,8 @@ where
         T: Borrow<Q>,
         Q: Hash + ?Sized + Eq,
     {
-        self.idx(context).map(|idx| &self.types[idx])
+        self.idx(context)
+            .map(|idx| &self.types[idx.word_idx() as usize])
     }
 }
 
@@ -216,7 +219,8 @@ impl From<SubwordVocab> for VocabWrap {
 
 /// Trait for lookup of indices.
 pub trait Vocab {
-    type VocabType;
+    type VocabType: Hash + Eq;
+    type IdxType: WordIdx;
     type Config;
 
     /// Return this vocabulary's config.
@@ -232,13 +236,16 @@ pub trait Vocab {
     }
 
     /// Get the index of the entry, will return None if the item is not present.
-    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    fn idx<Q>(&self, key: &Q) -> Option<Self::IdxType>
     where
         Self::VocabType: Borrow<Q>,
         Q: Hash + ?Sized + Eq;
 
     /// Get the discard probability of the entry with the given index.
     fn discard(&self, idx: usize) -> f32;
+
+    /// Get the number of possible input types.
+    fn n_input_types(&self) -> usize;
 
     /// Get all types in the vocabulary.
     fn types(&self) -> &[CountedType<Self::VocabType>];
@@ -253,22 +260,31 @@ pub trait Vocab {
 
 impl Vocab for SubwordVocab {
     type VocabType = String;
+    type IdxType = WordWithSubwordsIdx;
     type Config = SubwordVocabConfig;
 
     fn config(&self) -> SubwordVocabConfig {
         self.config
     }
 
-    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    fn idx<Q>(&self, key: &Q) -> Option<Self::IdxType>
     where
         Self::VocabType: Borrow<Q>,
         Q: Hash + ?Sized + Eq,
     {
-        self.index.get(key).cloned()
+        self.index.get(key).and_then(|idx| {
+            self.subword_indices_idx(*idx)
+                .map(|v| WordWithSubwordsIdx::new(*idx as u64, v))
+        })
     }
 
     fn discard(&self, idx: usize) -> f32 {
         self.discards[idx]
+    }
+
+    fn n_input_types(&self) -> usize {
+        let n_buckets = 2usize.pow(self.config().buckets_exp);
+        self.len() + n_buckets
     }
 
     fn types(&self) -> &[Word] {
@@ -285,22 +301,30 @@ where
     T: Hash + Eq,
 {
     type VocabType = T;
+    type IdxType = SingleIdx;
     type Config = SimpleVocabConfig;
 
     fn config(&self) -> SimpleVocabConfig {
         self.config
     }
 
-    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    fn idx<Q>(&self, key: &Q) -> Option<Self::IdxType>
     where
         Self::VocabType: Borrow<Q>,
         Q: Hash + ?Sized + Eq,
     {
-        self.index.get(key).cloned()
+        self.index
+            .get(key)
+            .cloned()
+            .map(|idx| SingleIdx::from_word_idx(idx as u64))
     }
 
     fn discard(&self, idx: usize) -> f32 {
         self.discards[idx]
+    }
+
+    fn n_input_types(&self) -> usize {
+        self.len()
     }
 
     fn types(&self) -> &[CountedType<Self::VocabType>] {
@@ -435,6 +459,7 @@ fn bracket(word: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{bracket, SimpleVocab, SubwordVocab, Vocab, VocabBuilder};
+    use crate::idx::WordIdx;
     use crate::subword::SubwordIndices;
     use crate::{util, SimpleVocabConfig, SubwordVocabConfig};
 
@@ -506,7 +531,7 @@ mod tests {
         assert_eq!(4, vocab.indices("to").len());
         assert!(util::close(
             0.019058,
-            vocab.discard(vocab.idx("to").unwrap()),
+            vocab.discard(vocab.idx("to").unwrap().word_idx() as usize),
             1e-5
         ));
 
@@ -521,7 +546,7 @@ mod tests {
         assert_eq!(4, vocab.indices("be").len());
         assert!(util::close(
             0.019058,
-            vocab.discard(vocab.idx("be").unwrap()),
+            vocab.discard(vocab.idx("be").unwrap().word_idx() as usize),
             1e-5
         ));
 
@@ -533,7 +558,7 @@ mod tests {
         assert_eq!(1, vocab.indices(util::EOS).len());
         assert!(util::close(
             0.027158,
-            vocab.discard(vocab.idx(util::EOS).unwrap()),
+            vocab.discard(vocab.idx(util::EOS).unwrap().word_idx() as usize),
             1e-5
         ));
 
@@ -610,7 +635,7 @@ mod tests {
         // 0.0001 / 5/18 + (0.0001 / 5/18).sqrt() = 0.019334
         assert!(util::close(
             0.019334,
-            vocab.discard(vocab.idx("a").unwrap()),
+            vocab.discard(vocab.idx("a").unwrap().word_idx() as usize),
             1e-5
         ));
     }
