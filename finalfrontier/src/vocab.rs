@@ -99,7 +99,8 @@ impl SubwordVocab {
 
     /// Get the given word.
     pub fn word(&self, word: &str) -> Option<&Word> {
-        self.idx(word).map(|idx| &self.words[idx])
+        self.idx(word)
+            .map(|idx| &self.words[idx.word_idx() as usize])
     }
 
     /// Get the subword indices of a word.
@@ -135,7 +136,7 @@ impl SubwordVocab {
     pub fn indices(&self, word: &str) -> Vec<u64> {
         let mut indices = self.subword_indices(word).into_owned();
         if let Some(index) = self.idx(word) {
-            indices.push(index as u64);
+            indices.push(index.word_idx() as u64);
         }
 
         indices
@@ -181,7 +182,8 @@ where
         T: Borrow<Q>,
         Q: Hash + ?Sized + Eq,
     {
-        self.idx(context).map(|idx| &self.types[idx])
+        self.idx(context)
+            .map(|idx| &self.types[idx.word_idx() as usize])
     }
 }
 
@@ -213,10 +215,76 @@ impl From<SubwordVocab> for VocabWrap {
         .into()
     }
 }
+/// Index representation.
+///
+/// This enum represents possible types of indices, e.g. in a vocabulary with subwords, the `Multi`
+/// variant includes all indices associated with a key.
+#[derive(Clone)]
+pub enum WordIdx {
+    Word(u64),
+    WordWithSubwords((u64, Vec<u64>)),
+}
+
+#[allow(clippy::len_without_is_empty)]
+impl WordIdx {
+    /// Return the unique word index for the WordIdx.
+    pub fn word_idx(&self) -> u64 {
+        match self {
+            WordIdx::Word(idx) => *idx,
+            WordIdx::WordWithSubwords((idx, _)) => *idx,
+        }
+    }
+
+    /// Return the number of indices.
+    pub fn len(&self) -> usize {
+        match self {
+            WordIdx::Word(_) => 1,
+            WordIdx::WordWithSubwords((_, v)) => 1 + v.len(),
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a WordIdx {
+    type Item = u64;
+    type IntoIter = IdxIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            WordIdx::Word(idx) => IdxIter {
+                word_idx: Some(*idx),
+                subwords: &[],
+            },
+            WordIdx::WordWithSubwords((idx, subwords)) => IdxIter {
+                word_idx: Some(*idx),
+                subwords: subwords.as_slice(),
+            },
+        }
+    }
+}
+
+/// Iterator over Indices.
+pub struct IdxIter<'a> {
+    word_idx: Option<u64>,
+    subwords: &'a [u64],
+}
+
+impl<'a> Iterator for IdxIter<'a> {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.subwords.is_empty() {
+            self.word_idx.take()
+        } else {
+            let idx = self.subwords[0];
+            self.subwords = &self.subwords[1..];
+            Some(idx)
+        }
+    }
+}
 
 /// Trait for lookup of indices.
 pub trait Vocab {
-    type VocabType;
+    type VocabType: Hash + Eq;
     type Config;
 
     /// Return this vocabulary's config.
@@ -232,13 +300,16 @@ pub trait Vocab {
     }
 
     /// Get the index of the entry, will return None if the item is not present.
-    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    fn idx<Q>(&self, key: &Q) -> Option<WordIdx>
     where
         Self::VocabType: Borrow<Q>,
         Q: Hash + ?Sized + Eq;
 
     /// Get the discard probability of the entry with the given index.
     fn discard(&self, idx: usize) -> f32;
+
+    /// Get the number of possible input types.
+    fn n_input_types(&self) -> usize;
 
     /// Get all types in the vocabulary.
     fn types(&self) -> &[CountedType<Self::VocabType>];
@@ -259,16 +330,24 @@ impl Vocab for SubwordVocab {
         self.config
     }
 
-    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    fn idx<Q>(&self, key: &Q) -> Option<WordIdx>
     where
         Self::VocabType: Borrow<Q>,
         Q: Hash + ?Sized + Eq,
     {
-        self.index.get(key).cloned()
+        self.index.get(key).and_then(|idx| {
+            self.subword_indices_idx(*idx)
+                .map(|v| WordIdx::WordWithSubwords((*idx as u64, v.to_vec())))
+        })
     }
 
     fn discard(&self, idx: usize) -> f32 {
         self.discards[idx]
+    }
+
+    fn n_input_types(&self) -> usize {
+        let n_buckets = 2usize.pow(self.config().buckets_exp);
+        self.len() + n_buckets
     }
 
     fn types(&self) -> &[Word] {
@@ -291,16 +370,23 @@ where
         self.config
     }
 
-    fn idx<Q>(&self, key: &Q) -> Option<usize>
+    fn idx<Q>(&self, key: &Q) -> Option<WordIdx>
     where
         Self::VocabType: Borrow<Q>,
         Q: Hash + ?Sized + Eq,
     {
-        self.index.get(key).cloned()
+        self.index
+            .get(key)
+            .cloned()
+            .map(|idx| WordIdx::Word(idx as u64))
     }
 
     fn discard(&self, idx: usize) -> f32 {
         self.discards[idx]
+    }
+
+    fn n_input_types(&self) -> usize {
+        self.len()
     }
 
     fn types(&self) -> &[CountedType<Self::VocabType>] {
@@ -506,7 +592,7 @@ mod tests {
         assert_eq!(4, vocab.indices("to").len());
         assert!(util::close(
             0.019058,
-            vocab.discard(vocab.idx("to").unwrap()),
+            vocab.discard(vocab.idx("to").unwrap().word_idx() as usize),
             1e-5
         ));
 
@@ -521,7 +607,7 @@ mod tests {
         assert_eq!(4, vocab.indices("be").len());
         assert!(util::close(
             0.019058,
-            vocab.discard(vocab.idx("be").unwrap()),
+            vocab.discard(vocab.idx("be").unwrap().word_idx() as usize),
             1e-5
         ));
 
@@ -533,7 +619,7 @@ mod tests {
         assert_eq!(1, vocab.indices(util::EOS).len());
         assert!(util::close(
             0.027158,
-            vocab.discard(vocab.idx(util::EOS).unwrap()),
+            vocab.discard(vocab.idx(util::EOS).unwrap().word_idx() as usize),
             1e-5
         ));
 
@@ -610,7 +696,7 @@ mod tests {
         // 0.0001 / 5/18 + (0.0001 / 5/18).sqrt() = 0.019334
         assert!(util::close(
             0.019334,
-            vocab.discard(vocab.idx("a").unwrap()),
+            vocab.discard(vocab.idx("a").unwrap().word_idx() as usize),
             1e-5
         ));
     }
