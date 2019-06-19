@@ -4,7 +4,17 @@ use std::{option, slice};
 /// A single lookup index.
 #[derive(Copy, Clone)]
 pub struct SingleIdx {
-    word_idx: u64,
+    idx: u64,
+}
+
+impl SingleIdx {
+    pub(crate) fn new(idx: u64) -> Self {
+        SingleIdx { idx }
+    }
+
+    pub(crate) fn idx(self) -> u64 {
+        self.idx
+    }
 }
 
 /// A lookup index with associated subword indices.
@@ -39,11 +49,11 @@ pub trait WordIdx: Clone {
 
 impl WordIdx for SingleIdx {
     fn word_idx(&self) -> u64 {
-        self.word_idx
+        self.idx
     }
 
     fn from_word_idx(word_idx: u64) -> Self {
-        SingleIdx { word_idx }
+        SingleIdx::new(word_idx)
     }
 
     fn len(&self) -> usize {
@@ -56,7 +66,7 @@ impl<'a> IntoIterator for &'a SingleIdx {
     type IntoIter = option::IntoIter<u64>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Some(self.word_idx).into_iter()
+        Some(self.idx).into_iter()
     }
 }
 

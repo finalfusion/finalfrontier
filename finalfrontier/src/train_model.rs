@@ -242,7 +242,7 @@ pub trait Trainer {
 /// TrainIterFrom.
 ///
 /// This trait defines how some input `&S` is transformed into an iterator of training examples.
-pub trait TrainIterFrom<S>
+pub trait TrainIterFrom<'a, S>
 where
     S: ?Sized,
 {

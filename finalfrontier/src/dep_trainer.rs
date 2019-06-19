@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::sync::Arc;
 
 use conllx::graph::Sentence;
@@ -5,13 +6,13 @@ use failure::{err_msg, Error};
 use rand::{Rng, SeedableRng};
 use serde::Serialize;
 
-use crate::idx::{WordIdx, WordWithSubwordsIdx};
+use crate::idx::WordIdx;
 use crate::sampling::ZipfRangeGenerator;
 use crate::train_model::{NegativeSamples, TrainIterFrom};
 use crate::util::ReseedOnCloneRng;
 use crate::{
     CommonConfig, DepembedsConfig, Dependency, DependencyIterator, SimpleVocab, SimpleVocabConfig,
-    SubwordVocab, SubwordVocabConfig, Trainer, Vocab,
+    Trainer, Vocab,
 };
 
 /// Dependency embeddings Trainer.
@@ -20,28 +21,28 @@ use crate::{
 /// `conllx::Sentence` into an iterator of focus and context tuples. The struct is cheap to clone
 /// because the vocabulary is shared between clones.
 #[derive(Clone)]
-pub struct DepembedsTrainer<R> {
+pub struct DepembedsTrainer<R, V> {
     dep_config: DepembedsConfig,
     common_config: CommonConfig,
-    input_vocab: Arc<SubwordVocab>,
+    input_vocab: Arc<V>,
     output_vocab: Arc<SimpleVocab<Dependency>>,
     range_gen: ZipfRangeGenerator<R>,
     rng: R,
 }
 
-impl<R> DepembedsTrainer<R> {
+impl<R, V> DepembedsTrainer<R, V> {
     pub fn dep_config(&self) -> DepembedsConfig {
         self.dep_config
     }
 }
 
-impl<R> DepembedsTrainer<ReseedOnCloneRng<R>>
+impl<R, V> DepembedsTrainer<ReseedOnCloneRng<R>, V>
 where
     R: Rng + Clone + SeedableRng,
 {
     /// Constructs a new `DepTrainer`.
     pub fn new(
-        input_vocab: SubwordVocab,
+        input_vocab: V,
         output_vocab: SimpleVocab<Dependency>,
         common_config: CommonConfig,
         dep_config: DepembedsConfig,
@@ -64,7 +65,7 @@ where
     }
 }
 
-impl<R> NegativeSamples for DepembedsTrainer<R>
+impl<R, V> NegativeSamples for DepembedsTrainer<R, V>
 where
     R: Rng,
 {
@@ -78,12 +79,15 @@ where
     }
 }
 
-impl<R> TrainIterFrom<Sentence> for DepembedsTrainer<R>
+impl<'a, R, V> TrainIterFrom<'a, Sentence> for DepembedsTrainer<R, V>
 where
     R: Rng,
+    V: Vocab,
+    V::VocabType: Borrow<str>,
+    V::IdxType: WordIdx + 'a,
 {
-    type Iter = Box<Iterator<Item = (Self::Focus, Vec<usize>)>>;
-    type Focus = WordWithSubwordsIdx;
+    type Iter = Box<Iterator<Item = (Self::Focus, Vec<usize>)> + 'a>;
+    type Focus = V::IdxType;
     type Contexts = Vec<usize>;
 
     fn train_iter_from(&mut self, sentence: &Sentence) -> Self::Iter {
@@ -105,10 +109,9 @@ where
             .filter(|(focus, _dep)| tokens[*focus].word_idx() != invalid_idx)
         {
             if let Some(dep_id) = self.output_vocab.idx(&dep) {
-                if self.rng.gen_range(0f32, 1f32)
-                    < self.output_vocab.discard(dep_id.word_idx() as usize)
+                if self.rng.gen_range(0f32, 1f32) < self.output_vocab.discard(dep_id.idx() as usize)
                 {
-                    contexts[focus].push(dep_id.word_idx() as usize)
+                    contexts[focus].push(dep_id.idx() as usize)
                 }
             }
         }
@@ -121,14 +124,16 @@ where
     }
 }
 
-impl<R> Trainer for DepembedsTrainer<R>
+impl<R, V> Trainer for DepembedsTrainer<R, V>
 where
     R: Rng,
+    V: Vocab,
+    V::Config: Serialize,
 {
-    type InputVocab = SubwordVocab;
-    type Metadata = DepembedsMetadata<SubwordVocabConfig, SimpleVocabConfig>;
+    type InputVocab = V;
+    type Metadata = DepembedsMetadata<V::Config, SimpleVocabConfig>;
 
-    fn input_vocab(&self) -> &SubwordVocab {
+    fn input_vocab(&self) -> &Self::InputVocab {
         &self.input_vocab
     }
 
@@ -140,8 +145,7 @@ where
     }
 
     fn n_input_types(&self) -> usize {
-        let n_buckets = 2usize.pow(self.input_vocab().config().buckets_exp);
-        n_buckets + self.input_vocab().len()
+        self.input_vocab.n_input_types()
     }
 
     fn n_output_types(&self) -> usize {
