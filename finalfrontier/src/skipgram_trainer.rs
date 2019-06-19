@@ -67,7 +67,7 @@ where
     }
 }
 
-impl<S, R, V, I> TrainIterFrom<[S]> for SkipgramTrainer<R, V>
+impl<'a, S, R, V, I> TrainIterFrom<'a, [S]> for SkipgramTrainer<R, V>
 where
     S: Hash + Eq,
     R: Rng + Clone,

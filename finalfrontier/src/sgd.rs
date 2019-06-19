@@ -61,10 +61,10 @@ where
     ///
     /// This applies a gradient descent step on the sentence, with the given
     /// learning rate.
-    pub fn update_sentence<S>(&mut self, sentence: &S, lr: f32)
+    pub fn update_sentence<'b, S>(&mut self, sentence: &S, lr: f32)
     where
         S: ?Sized,
-        T: TrainIterFrom<S> + Trainer + NegativeSamples,
+        T: TrainIterFrom<'b, S> + Trainer + NegativeSamples,
         for<'a> &'a T::Focus: IntoIterator<Item = u64>,
         T::Focus: WordIdx,
     {
