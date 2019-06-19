@@ -5,4 +5,4 @@ mod progress;
 pub use crate::progress::FileProgress;
 
 mod util;
-pub use crate::util::{show_progress, DepembedsApp, SkipGramApp};
+pub use crate::util::{show_progress, DepembedsApp, SkipGramApp, VocabConfig};

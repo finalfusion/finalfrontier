@@ -5,10 +5,13 @@ use std::thread;
 use std::time::Duration;
 
 use finalfrontier::{
-    SentenceIterator, SkipgramTrainer, SubwordVocab, SubwordVocabConfig, Vocab, VocabBuilder,
+    SentenceIterator, SimpleVocab, SkipgramTrainer, SubwordVocab, Vocab, VocabBuilder,
     WriteModelBinary, SGD,
 };
-use finalfrontier_utils::{show_progress, thread_data_text, FileProgress, SkipGramApp};
+use finalfrontier_utils::{
+    show_progress, thread_data_text, FileProgress, SkipGramApp, VocabConfig,
+};
+use finalfusion::vocab::VocabWrap;
 use rand::{FromEntropy, Rng};
 use rand_xorshift::XorShiftRng;
 use serde::Serialize;
@@ -18,10 +21,27 @@ const PROGRESS_UPDATE_INTERVAL: u64 = 200;
 
 fn main() {
     let app = SkipGramApp::new();
-    let corpus = app.corpus();
-    let n_threads = app.n_threads();
+    match app.vocab_config() {
+        VocabConfig::SubwordVocab(config) => {
+            let vocab: SubwordVocab = build_vocab(config, app.corpus());
+            train(vocab, app);
+        }
+        VocabConfig::SimpleVocab(config) => {
+            let vocab: SimpleVocab<String> = build_vocab(config, app.corpus());
+            train(vocab, app);
+        }
+    }
+}
+
+fn train<V>(vocab: V, app: SkipGramApp)
+where
+    V: Vocab<VocabType = String> + Into<VocabWrap> + Clone + Send + Sync + 'static,
+    V::Config: Serialize,
+    for<'a> &'a V::IdxType: IntoIterator<Item = u64>,
+{
     let common_config = app.common_config();
-    let vocab = build_vocab(app.vocab_config(), corpus);
+    let n_threads = app.n_threads();
+    let corpus = app.corpus();
     let mut output_writer = BufWriter::new(
         File::create(app.output()).or_exit("Cannot open output file for writing.", 1),
     );
@@ -105,16 +125,18 @@ fn do_work<P, R, V>(
     }
 }
 
-fn build_vocab<P>(config: SubwordVocabConfig, corpus_path: P) -> SubwordVocab
+fn build_vocab<P, V, C>(config: C, corpus_path: P) -> V
 where
     P: AsRef<Path>,
+    V: Vocab<VocabType = String> + From<VocabBuilder<C, String>>,
+    VocabBuilder<C, String>: Into<V>,
 {
     let f = File::open(corpus_path).or_exit("Cannot open corpus for reading", 1);
     let file_progress = FileProgress::new(f).or_exit("Cannot create progress bar", 1);
 
     let sentences = SentenceIterator::new(BufReader::new(file_progress));
 
-    let mut builder: VocabBuilder<SubwordVocabConfig, String> = VocabBuilder::new(config);
+    let mut builder = VocabBuilder::new(config);
     for sentence in sentences {
         let sentence = sentence.or_exit("Cannot read sentence", 1);
 
