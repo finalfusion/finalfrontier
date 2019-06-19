@@ -89,6 +89,11 @@ OPTIONS
 
     The default model is *skipgram*.
 
+`--no_subwords`
+
+:   Train embeddings without subword information. This option overrides
+arguments for `buckets`, `minn` and `maxn`.
+
 `--ns` *FREQ*
 
 :   The number of negatives to sample per positive example. Default: 5

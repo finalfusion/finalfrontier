@@ -29,6 +29,7 @@ static MINCOUNT: &str = "mincount";
 static MINN: &str = "minn";
 static MAXN: &str = "maxn";
 static MODEL: &str = "model";
+static NO_SUBWORDS: &str = "no_subwords";
 static UNTYPED_DEPS: &str = "untyped";
 static NORMALIZE_CONTEXT: &str = "normalize";
 static NS: &str = "ns";
@@ -48,7 +49,7 @@ pub struct SkipGramApp {
     n_threads: usize,
     common_config: CommonConfig,
     skipgram_config: SkipGramConfig,
-    vocab_config: SubwordVocabConfig,
+    vocab_config: VocabConfig,
 }
 
 impl Default for SkipGramApp {
@@ -91,7 +92,7 @@ impl SkipGramApp {
             n_threads,
             common_config: common_config_from_matches(&matches),
             skipgram_config: Self::skipgram_config_from_matches(&matches),
-            vocab_config: subword_config_from_matches(&matches),
+            vocab_config: vocab_config_from_matches(&matches),
         }
     }
 
@@ -121,7 +122,7 @@ impl SkipGramApp {
     }
 
     /// Get the vocab config.
-    pub fn vocab_config(&self) -> SubwordVocabConfig {
+    pub fn vocab_config(&self) -> VocabConfig {
         self.vocab_config
     }
 
@@ -149,7 +150,7 @@ pub struct DepembedsApp {
     n_threads: usize,
     common_config: CommonConfig,
     depembeds_config: DepembedsConfig,
-    input_vocab_config: SubwordVocabConfig,
+    input_vocab_config: VocabConfig,
     output_vocab_config: SimpleVocabConfig,
 }
 
@@ -191,7 +192,7 @@ impl DepembedsApp {
             n_threads,
             common_config: common_config_from_matches(&matches),
             depembeds_config: Self::depembeds_config_from_matches(&matches),
-            input_vocab_config: subword_config_from_matches(&matches),
+            input_vocab_config: vocab_config_from_matches(&matches),
             output_vocab_config,
         }
     }
@@ -222,7 +223,7 @@ impl DepembedsApp {
     }
 
     /// Get the input vocab config.
-    pub fn input_vocab_config(&self) -> SubwordVocabConfig {
+    pub fn input_vocab_config(&self) -> VocabConfig {
         self.input_vocab_config
     }
 
@@ -365,6 +366,11 @@ fn build_with_common_opts<'a, 'b>(name: &str) -> App<'a, 'b> {
                 .default_value("6"),
         )
         .arg(
+            Arg::with_name(NO_SUBWORDS)
+                .long("no_subwords")
+                .help("Train embeddings without subword information."),
+        )
+        .arg(
             Arg::with_name(NS)
                 .long("ns")
                 .value_name("FREQ")
@@ -440,12 +446,14 @@ fn common_config_from_matches(matches: &ArgMatches) -> CommonConfig {
     }
 }
 
+#[derive(Copy, Clone)]
+pub enum VocabConfig {
+    SubwordVocab(SubwordVocabConfig),
+    SimpleVocab(SimpleVocabConfig),
+}
+
 /// Construct `SubwordVocabConfig` from `matches`.
-fn subword_config_from_matches(matches: &ArgMatches) -> SubwordVocabConfig {
-    let buckets_exp = matches
-        .value_of(BUCKETS)
-        .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
-        .unwrap();
+fn vocab_config_from_matches(matches: &ArgMatches) -> VocabConfig {
     let discard_threshold = matches
         .value_of(DISCARD)
         .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
@@ -454,21 +462,31 @@ fn subword_config_from_matches(matches: &ArgMatches) -> SubwordVocabConfig {
         .value_of(MINCOUNT)
         .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
         .unwrap();
-    let min_n = matches
-        .value_of(MINN)
-        .map(|v| v.parse().or_exit("Cannot parse minimum n-gram length", 1))
-        .unwrap();
-    let max_n = matches
-        .value_of(MAXN)
-        .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
-        .unwrap();
-
-    SubwordVocabConfig {
-        min_n,
-        max_n,
-        buckets_exp,
-        min_count,
-        discard_threshold,
+    if matches.is_present(NO_SUBWORDS) {
+        VocabConfig::SimpleVocab(SimpleVocabConfig {
+            min_count,
+            discard_threshold,
+        })
+    } else {
+        let buckets_exp = matches
+            .value_of(BUCKETS)
+            .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
+            .unwrap();
+        let min_n = matches
+            .value_of(MINN)
+            .map(|v| v.parse().or_exit("Cannot parse minimum n-gram length", 1))
+            .unwrap();
+        let max_n = matches
+            .value_of(MAXN)
+            .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
+            .unwrap();
+        VocabConfig::SubwordVocab(SubwordVocabConfig {
+            min_n,
+            max_n,
+            buckets_exp,
+            min_count,
+            discard_threshold,
+        })
     }
 }
 

@@ -87,6 +87,11 @@ minimum count is 5.
 
 :   Normalize the attached form in the dependency contexts.
 
+`--no_subwords`
+
+:   Train embeddings without subword information. This option overrides
+arguments for `buckets`, `minn` and `maxn`.
+
 `--ns` *FREQ*
 
 :   The number of negatives to sample per positive example. Default: 5

@@ -9,10 +9,12 @@ use conllx::io::{ReadSentence, Reader};
 use conllx::proj::{HeadProjectivizer, Projectivize};
 use finalfrontier::{
     DepembedsConfig, DepembedsTrainer, Dependency, DependencyIterator, SimpleVocab,
-    SimpleVocabConfig, SubwordVocab, SubwordVocabConfig, Vocab, VocabBuilder, WriteModelBinary,
-    SGD,
+    SimpleVocabConfig, SubwordVocab, Vocab, VocabBuilder, WriteModelBinary, SGD,
 };
-use finalfrontier_utils::{show_progress, thread_data_conllx, DepembedsApp, FileProgress};
+use finalfrontier_utils::{
+    show_progress, thread_data_conllx, DepembedsApp, FileProgress, VocabConfig,
+};
+use finalfusion::vocab::VocabWrap;
 use rand::{FromEntropy, Rng};
 use rand_xorshift::XorShiftRng;
 use serde::Serialize;
@@ -22,15 +24,37 @@ const PROGRESS_UPDATE_INTERVAL: u64 = 200;
 
 fn main() {
     let app = DepembedsApp::new();
+    match app.input_vocab_config() {
+        VocabConfig::SimpleVocab(config) => {
+            let (input_vocab, output_vocab) = build_vocab::<_, SimpleVocab<String>, _>(
+                config,
+                app.output_vocab_config(),
+                app.depembeds_config(),
+                app.corpus(),
+            );
+            train(input_vocab, output_vocab, app);
+        }
+        VocabConfig::SubwordVocab(config) => {
+            let (input_vocab, output_vocab) = build_vocab::<_, SubwordVocab, _>(
+                config,
+                app.output_vocab_config(),
+                app.depembeds_config(),
+                app.corpus(),
+            );
+            train(input_vocab, output_vocab, app);
+        }
+    }
+}
+
+fn train<V>(input_vocab: V, output_vocab: SimpleVocab<Dependency>, app: DepembedsApp)
+where
+    V: Vocab<VocabType = String> + Into<VocabWrap> + Clone + Send + Sync + 'static,
+    V::Config: Serialize,
+    for<'a> &'a V::IdxType: IntoIterator<Item = u64>,
+{
     let corpus = app.corpus();
     let common_config = app.common_config();
     let n_threads = app.n_threads();
-    let (input_vocab, output_vocab) = build_vocab(
-        app.input_vocab_config(),
-        app.output_vocab_config(),
-        app.depembeds_config(),
-        corpus,
-    );
 
     let mut output_writer = BufWriter::new(
         File::create(app.output()).or_exit("Cannot open output file for writing.", 1),
@@ -121,18 +145,20 @@ fn do_work<P, R, V>(
     }
 }
 
-fn build_vocab<P>(
-    input_config: SubwordVocabConfig,
+fn build_vocab<P, V, C>(
+    input_config: C,
     output_config: SimpleVocabConfig,
     dep_config: DepembedsConfig,
     corpus_path: P,
-) -> (SubwordVocab, SimpleVocab<Dependency>)
+) -> (V, SimpleVocab<Dependency>)
 where
     P: AsRef<Path>,
+    V: Vocab<VocabType = String> + From<VocabBuilder<C, String>>,
+    VocabBuilder<C, String>: Into<V>,
 {
     let f = File::open(corpus_path).or_exit("Cannot open corpus for reading", 1);
     let file_progress = FileProgress::new(f).or_exit("Cannot create progress bar", 1);
-    let mut input_builder: VocabBuilder<_, String> = VocabBuilder::new(input_config);
+    let mut input_builder = VocabBuilder::new(input_config);
     let mut output_builder: VocabBuilder<_, Dependency> = VocabBuilder::new(output_config);
 
     let projectivizer = if dep_config.projectivize {
