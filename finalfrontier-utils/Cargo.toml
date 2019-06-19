@@ -7,7 +7,7 @@ description = "Train and use word embeddings with subword representations"
 documentation = "https://finalfusion.github.io/finalfrontier"
 homepage = "https://finalfusion.github.io/finalfrontier"
 repository = "https://github.com/finalfusion/finalfrontier.git"
-license = "Apache-2.0"
+license = "BlueOak-1.0.0"
 
 [dependencies]
 clap = "2"

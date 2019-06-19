@@ -7,7 +7,7 @@ description = "Data types for hogwild SGD"
 documentation = "https://docs.rs/hogwild/"
 homepage = "https://finalfusion.github.io/finalfrontier"
 repository = "https://github.com/finalfusion/finalfrontier.git"
-license = "Apache-2.0"
+license = "BlueOak-1.0.0"
 
 [dependencies]
 ndarray = "0.12"
