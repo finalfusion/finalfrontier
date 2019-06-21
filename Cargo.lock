@@ -212,7 +212,7 @@ dependencies = [
 
 [[package]]
 name = "finalfrontier"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "cfg-if 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "conllx 0.11.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -234,12 +234,12 @@ dependencies = [
 
 [[package]]
 name = "finalfrontier-utils"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "conllx 0.11.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "finalfrontier 0.6.0",
+ "finalfrontier 0.6.1",
  "indicatif 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "memmap 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
