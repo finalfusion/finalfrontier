@@ -499,7 +499,7 @@ where
 
     let pb = ProgressBar::new(u64::from(config.epochs) * n_tokens as u64);
     pb.set_style(
-        ProgressStyle::default_bar().template("{bar:40} {percent}% {msg} ETA: {eta_precise}"),
+        ProgressStyle::default_bar().template("{bar:30} {percent}% {msg} ETA: {eta_precise}"),
     );
 
     while sgd.n_tokens_processed() < n_tokens * config.epochs as usize {

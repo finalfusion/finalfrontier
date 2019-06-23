@@ -18,7 +18,7 @@ impl FileProgress {
         let progress = ProgressBar::new(metadata.len());
         progress.set_style(
             ProgressStyle::default_bar()
-                .template("{bar:40} {bytes}/{total_bytes} ETA: {eta_precise}"),
+                .template("{bar:30} {bytes}/{total_bytes} ETA: {eta_precise}"),
         );
 
         Ok(FileProgress {
