@@ -7,7 +7,7 @@ use stdinout::OrExit;
 
 use finalfrontier::{
     CommonConfig, DepembedsConfig, LossType, ModelType, SimpleVocabConfig, SkipGramConfig,
-    SubwordVocabConfig, Trainer, Vocab, SGD,
+    SubwordVocabConfig, Trainer, Vocab, VocabCutoff, SGD,
 };
 
 static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
@@ -26,6 +26,7 @@ static DISCARD: &str = "discard";
 static EPOCHS: &str = "epochs";
 static LR: &str = "lr";
 static MINCOUNT: &str = "mincount";
+static VOCAB_SIZE: &str = "vocab_size";
 static MINN: &str = "minn";
 static MAXN: &str = "maxn";
 static MODEL: &str = "model";
@@ -182,7 +183,7 @@ impl DepembedsApp {
             .unwrap();
 
         let output_vocab_config = SimpleVocabConfig {
-            min_count,
+            vocab_cutoff: VocabCutoff::MinCount(min_count),
             discard_threshold,
         };
 
@@ -350,6 +351,13 @@ fn build_with_common_opts<'a, 'b>(name: &str) -> App<'a, 'b> {
                 .default_value("5"),
         )
         .arg(
+            Arg::with_name(VOCAB_SIZE)
+                .long("vocab_size")
+                .value_name("VOCABULARY_SIZE")
+                .help("Maximum vocabulary size")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name(MINN)
                 .long("minn")
                 .value_name("LEN")
@@ -452,19 +460,31 @@ pub enum VocabConfig {
     SimpleVocab(SimpleVocabConfig),
 }
 
-/// Construct `SubwordVocabConfig` from `matches`.
+/// Construct `SubwordVocabConfig` or `SimpleVocabConfig` from `matches`.
 fn vocab_config_from_matches(matches: &ArgMatches) -> VocabConfig {
     let discard_threshold = matches
         .value_of(DISCARD)
         .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
         .unwrap();
-    let min_count = matches
-        .value_of(MINCOUNT)
-        .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
-        .unwrap();
+    let vocab_cutoff;
+    if matches.is_present(VOCAB_SIZE) {
+        vocab_cutoff = VocabCutoff::TargetVocabSize(
+            matches
+                .value_of(VOCAB_SIZE)
+                .map(|v| v.parse().or_exit("Cannot parse vocab size", 1))
+                .unwrap(),
+        );
+    } else {
+        vocab_cutoff = VocabCutoff::MinCount(
+            matches
+                .value_of(MINCOUNT)
+                .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
+                .unwrap(),
+        );
+    }
     if matches.is_present(NO_SUBWORDS) {
         VocabConfig::SimpleVocab(SimpleVocabConfig {
-            min_count,
+            vocab_cutoff,
             discard_threshold,
         })
     } else {
@@ -484,7 +504,7 @@ fn vocab_config_from_matches(matches: &ArgMatches) -> VocabConfig {
             min_n,
             max_n,
             buckets_exp,
-            min_count,
+            vocab_cutoff,
             discard_threshold,
         })
     }

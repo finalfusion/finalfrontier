@@ -1,7 +1,7 @@
 mod config;
 pub use crate::config::{
     CommonConfig, DepembedsConfig, LossType, ModelType, SimpleVocabConfig, SkipGramConfig,
-    SubwordVocabConfig,
+    SubwordVocabConfig, VocabCutoff,
 };
 
 mod deps;

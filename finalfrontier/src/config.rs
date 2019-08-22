@@ -97,6 +97,21 @@ pub struct DepembedsConfig {
     pub untyped: bool,
 }
 
+/// Options for sizing the vocabulary.
+#[derive(Copy, Clone, Debug, Serialize)]
+pub enum VocabCutoff {
+    /// Minimum token count
+    ///
+    /// Discard tokens that occur less than the given count.
+    MinCount(usize),
+
+    /// Maximum target vocabulary size
+    ///
+    /// Cut off the vocabulary at the given size, retaining the n most frequent tokens. Tokens with
+    /// the same count as the token at the cut-off point will also be discarded.
+    TargetVocabSize(usize),
+}
+
 /// Hyperparameters for subword-vocabs.
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename = "SubwordVocab")]
@@ -114,11 +129,10 @@ pub struct SubwordVocabConfig {
     /// buckets.
     pub buckets_exp: u32,
 
-    /// Minimum token count.
+    /// Vocabulary cutoff options.
     ///
-    /// No word-specific embeddings will be trained for tokens occurring less
-    /// than this count.
-    pub min_count: u32,
+    /// Vocabulary size cut-off.
+    pub vocab_cutoff: VocabCutoff,
 
     /// Discard threshold.
     ///
@@ -133,11 +147,10 @@ pub struct SubwordVocabConfig {
 #[serde(rename = "SimpleVocab")]
 #[serde(tag = "type")]
 pub struct SimpleVocabConfig {
-    /// Minimum token count.
+    /// Vocabulary size cut-off.
     ///
-    /// No word-specific embeddings will be trained for tokens occurring less
-    /// than this count.
-    pub min_count: u32,
+    /// Ways of sizing vocabularies.
+    pub vocab_cutoff: VocabCutoff,
 
     /// Discard threshold.
     ///
