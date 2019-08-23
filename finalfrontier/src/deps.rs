@@ -122,7 +122,7 @@ impl<'a> DependencyIterator<'a> {
     pub fn new_from_config(
         graph: &'a DepGraph<'a>,
         config: DepembedsConfig,
-    ) -> Box<Iterator<Item = (usize, Dependency)> + 'a> {
+    ) -> Box<dyn Iterator<Item = (usize, Dependency)> + 'a> {
         let iter = DependencyIterator::new(graph, config.depth as usize);
 
         match (config.normalize, config.untyped, config.use_root) {
