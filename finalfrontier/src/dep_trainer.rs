@@ -86,7 +86,7 @@ where
     V::VocabType: Borrow<str>,
     V::IdxType: WordIdx + 'a,
 {
-    type Iter = Box<Iterator<Item = (Self::Focus, Vec<usize>)> + 'a>;
+    type Iter = Box<dyn Iterator<Item = (Self::Focus, Vec<usize>)> + 'a>;
     type Focus = V::IdxType;
     type Contexts = Vec<usize>;
 
