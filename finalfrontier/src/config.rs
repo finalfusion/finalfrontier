@@ -97,6 +97,37 @@ pub struct DepembedsConfig {
     pub untyped: bool,
 }
 
+/// Hyperparameters for NGram vocabs.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename = "NGramVocab")]
+#[serde(tag = "type")]
+pub struct NGramVocabConfig {
+    /// Minimum n-gram length for subword units (inclusive).
+    pub min_n: u32,
+
+    /// Maximum n-gram length for subword units (inclusive).
+    pub max_n: u32,
+
+    /// Minimum token count.
+    ///
+    /// No word-specific embeddings will be trained for tokens occurring less
+    /// than this count.
+    pub min_token_count: u32,
+
+    /// Minimum NGram count.
+    ///
+    /// Ngrams occurring less than `min_count` times in in-vocabulary tokens
+    /// will be ignored.
+    pub min_ngram_count: u32,
+
+    /// Discard threshold.
+    ///
+    /// The discard threshold is used to compute the discard probability of
+    /// a token. E.g. with a threshold of 0.00001 tokens with approximately
+    /// that probability will never be discarded.
+    pub discard_threshold: f32,
+}
+
 /// Hyperparameters for subword-vocabs.
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename = "SubwordVocab")]
