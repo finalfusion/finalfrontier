@@ -242,10 +242,7 @@ where
 
 /// Metadata for Skipgramlike training algorithms.
 #[derive(Clone, Copy, Debug, Serialize)]
-pub struct SkipgramMetadata<V>
-where
-    V: Serialize,
-{
+pub struct SkipgramMetadata<V> {
     common_config: CommonConfig,
     #[serde(rename = "model_config")]
     skipgram_config: SkipGramConfig,
