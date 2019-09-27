@@ -168,11 +168,7 @@ where
 
 /// Metadata for dependency embeddings.
 #[derive(Clone, Copy, Debug, Serialize)]
-pub struct DepembedsMetadata<IC, OC>
-where
-    IC: Serialize,
-    OC: Serialize,
-{
+pub struct DepembedsMetadata<IC, OC> {
     common_config: CommonConfig,
     #[serde(rename = "model_config")]
     dep_config: DepembedsConfig,

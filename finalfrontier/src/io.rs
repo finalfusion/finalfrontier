@@ -146,5 +146,4 @@ mod tests {
         let mut iter = SentenceIterator::new(c);
         assert!(iter.next().is_none());
     }
-
 }
