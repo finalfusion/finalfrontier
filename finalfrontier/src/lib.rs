@@ -22,8 +22,6 @@ pub(crate) mod sampling;
 mod sgd;
 pub use crate::sgd::SGD;
 
-pub(crate) mod subword;
-
 mod train_model;
 pub use crate::train_model::{TrainModel, Trainer};
 

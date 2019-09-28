@@ -14,7 +14,7 @@ use finalfrontier::{
 use finalfrontier_utils::{
     show_progress, thread_data_conllx, DepembedsApp, FileProgress, VocabConfig,
 };
-use finalfusion::vocab::VocabWrap;
+use finalfusion::prelude::VocabWrap;
 use rand::{FromEntropy, Rng};
 use rand_xorshift::XorShiftRng;
 use serde::Serialize;
@@ -35,7 +35,7 @@ fn main() {
             train(input_vocab, output_vocab, app);
         }
         VocabConfig::SubwordVocab(config) => {
-            let (input_vocab, output_vocab) = build_vocab::<_, SubwordVocab, _>(
+            let (input_vocab, output_vocab) = build_vocab::<_, SubwordVocab<_>, _>(
                 config,
                 app.output_vocab_config(),
                 app.depembeds_config(),

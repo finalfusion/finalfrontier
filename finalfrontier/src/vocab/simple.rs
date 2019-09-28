@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use finalfusion::vocab::{SimpleVocab as FiFuSimpleVocab, VocabWrap};
+use finalfusion::prelude::{SimpleVocab as FiFuSimpleVocab, VocabWrap};
 
 use crate::idx::{SingleIdx, WordIdx};
 use crate::vocab::{create_discards, create_indices};

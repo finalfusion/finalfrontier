@@ -11,7 +11,7 @@ use finalfrontier::{
 use finalfrontier_utils::{
     show_progress, thread_data_text, FileProgress, SkipGramApp, VocabConfig,
 };
-use finalfusion::vocab::VocabWrap;
+use finalfusion::prelude::VocabWrap;
 use rand::{FromEntropy, Rng};
 use rand_xorshift::XorShiftRng;
 use serde::Serialize;
@@ -23,7 +23,7 @@ fn main() {
     let app = SkipGramApp::new();
     match app.vocab_config() {
         VocabConfig::SubwordVocab(config) => {
-            let vocab: SubwordVocab = build_vocab(config, app.corpus());
+            let vocab: SubwordVocab<_> = build_vocab(config, app.corpus());
             train(vocab, app);
         }
         VocabConfig::SimpleVocab(config) => {

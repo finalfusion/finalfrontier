@@ -13,7 +13,7 @@ license = "BlueOak-1.0.0"
 cfg-if = "0.1"
 conllx = "0.11"
 failure = "0.1"
-finalfusion = "0.7.1"
+finalfusion = "0.10"
 fnv = "1"
 hogwild = { path = "../hogwild", version = "0.6.0" }
 ndarray = "0.12"
