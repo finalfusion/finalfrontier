@@ -2,11 +2,8 @@ use std::io::{Seek, Write};
 use std::sync::Arc;
 
 use failure::{err_msg, Error};
-use finalfusion::vocab::VocabWrap;
-use finalfusion::{
-    embeddings::Embeddings, io::WriteEmbeddings, metadata::Metadata, norms::NdNorms,
-    storage::NdArray,
-};
+use finalfusion::chunks::norms::NdNorms;
+use finalfusion::prelude::{Embeddings, Metadata, NdArray, VocabWrap, WriteEmbeddings};
 use hogwild::HogwildArray2;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
@@ -205,7 +202,9 @@ where
         let storage = NdArray(input_matrix);
         let norms = NdNorms(Array1::from_vec(norms));
 
-        Embeddings::new(Some(metadata), vocab, storage, norms).write_embeddings(write)
+        Embeddings::new(Some(metadata), vocab, storage, norms)
+            .write_embeddings(write)
+            .map_err(|err| err.into())
     }
 }
 
@@ -308,7 +307,7 @@ mod tests {
         // We just need some bogus vocabulary
         let mut builder: VocabBuilder<SubwordVocabConfig, String> = VocabBuilder::new(vocab_config);
         builder.count("bla".to_string());
-        let vocab: SubwordVocab = builder.into();
+        let vocab: SubwordVocab<_> = builder.into();
 
         let input = Array2::from_shape_vec((2, 3), vec![1., 2., 3., 4., 5., 6.])
             .unwrap()

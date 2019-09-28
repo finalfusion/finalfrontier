@@ -2,36 +2,43 @@ use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use finalfusion::vocab::{SubwordVocab as FiFuSubwordVocab, VocabWrap};
+use finalfusion::prelude::{SubwordVocab as FiFuSubwordVocab, VocabWrap};
+use finalfusion::subword::{BucketIndexer, FinalfusionHashIndexer, Indexer, SubwordIndices};
 
 use crate::idx::{WordIdx, WordWithSubwordsIdx};
-use crate::subword::SubwordIndices;
 use crate::vocab::{bracket, create_discards, create_indices};
 use crate::{util, SubwordVocabConfig, Vocab, VocabBuilder, Word};
 
 /// A corpus vocabulary with subword lookup.
 #[derive(Clone)]
-pub struct SubwordVocab {
+pub struct SubwordVocab<I> {
     config: SubwordVocabConfig,
     words: Vec<Word>,
+    indexer: I,
     subwords: Vec<Vec<u64>>,
     discards: Vec<f32>,
     index: HashMap<String, usize>,
     n_tokens: usize,
 }
 
-impl SubwordVocab {
+impl<I> SubwordVocab<I>
+where
+    I: Indexer,
+{
     /// Construct a new vocabulary.
-    ///
-    /// Normally a `VocabBuilder` should be used. This constructor is used
-    /// for deserialization.
-    pub(crate) fn new(config: SubwordVocabConfig, words: Vec<Word>, n_tokens: usize) -> Self {
+    pub fn new(config: SubwordVocabConfig, words: Vec<Word>, n_tokens: usize, indexer: I) -> Self {
         let index = create_indices(&words);
-        let subwords = Self::create_subword_indices(&config, &words);
+        let subwords = Self::create_subword_indices(
+            config.min_n as usize,
+            config.max_n as usize,
+            &indexer,
+            &words,
+        );
         let discards = create_discards(config.discard_threshold, &words, n_tokens);
         SubwordVocab {
             config,
             discards,
+            indexer,
             words,
             subwords,
             index,
@@ -39,7 +46,12 @@ impl SubwordVocab {
         }
     }
 
-    fn create_subword_indices(config: &SubwordVocabConfig, words: &[Word]) -> Vec<Vec<u64>> {
+    fn create_subword_indices(
+        min_n: usize,
+        max_n: usize,
+        indexer: &I,
+        words: &[Word],
+    ) -> Vec<Vec<u64>> {
         let mut subword_indices = Vec::new();
 
         for word in words {
@@ -51,11 +63,7 @@ impl SubwordVocab {
             subword_indices.push(
                 bracket(word.word())
                     .as_str()
-                    .subword_indices(
-                        config.min_n as usize,
-                        config.max_n as usize,
-                        config.buckets_exp as usize,
-                    )
+                    .subword_indices(min_n, max_n, indexer)
                     .into_iter()
                     .map(|idx| idx + words.len() as u64)
                     .collect(),
@@ -87,17 +95,13 @@ impl SubwordVocab {
                     .subword_indices(
                         self.config.min_n as usize,
                         self.config.max_n as usize,
-                        self.config.buckets_exp as usize,
+                        &self.indexer,
                     )
                     .into_iter()
                     .map(|idx| idx + self.words.len() as u64)
                     .collect(),
             )
         }
-    }
-
-    pub(crate) fn subword_indices_idx(&self, idx: usize) -> Option<&[u64]> {
-        self.subwords.get(idx).map(|v| v.as_slice())
     }
 
     /// Get all indices of a word, both regular and subword.
@@ -113,7 +117,16 @@ impl SubwordVocab {
     }
 }
 
-impl Vocab for SubwordVocab {
+impl<I> SubwordVocab<I> {
+    pub(crate) fn subword_indices_idx(&self, idx: usize) -> Option<&[u64]> {
+        self.subwords.get(idx).map(|v| v.as_slice())
+    }
+}
+
+impl<I> Vocab for SubwordVocab<I>
+where
+    I: Indexer,
+{
     type VocabType = String;
     type IdxType = WordWithSubwordsIdx;
     type Config = SubwordVocabConfig;
@@ -138,8 +151,7 @@ impl Vocab for SubwordVocab {
     }
 
     fn n_input_types(&self) -> usize {
-        let n_buckets = 2usize.pow(self.config().buckets_exp);
-        self.len() + n_buckets
+        self.len() + self.indexer.upper_bound() as usize
     }
 
     fn types(&self) -> &[Word] {
@@ -152,7 +164,7 @@ impl Vocab for SubwordVocab {
 }
 
 /// Constructs a `SubwordVocab` from a `VocabBuilder<T>` where `T: Into<String>`.
-impl<T> From<VocabBuilder<SubwordVocabConfig, T>> for SubwordVocab
+impl<T> From<VocabBuilder<SubwordVocabConfig, T>> for SubwordVocab<FinalfusionHashIndexer>
 where
     T: Hash + Eq + Into<String>,
 {
@@ -167,23 +179,24 @@ where
             .map(|(word, count)| Word::new(word, count))
             .collect();
         words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
-        SubwordVocab::new(config, words, builder.n_items)
+        SubwordVocab::new(
+            config,
+            words,
+            builder.n_items,
+            FinalfusionHashIndexer::new(config.buckets_exp as usize),
+        )
     }
 }
 
-impl From<SubwordVocab> for VocabWrap {
-    fn from(vocab: SubwordVocab) -> VocabWrap {
-        FiFuSubwordVocab::new(
-            vocab
-                .words
-                .iter()
-                .map(|l| l.label().to_owned())
-                .collect::<Vec<_>>(),
-            vocab.config.min_n,
-            vocab.config.max_n,
-            vocab.config.buckets_exp,
-        )
-        .into()
+impl From<SubwordVocab<FinalfusionHashIndexer>> for VocabWrap {
+    fn from(vocab: SubwordVocab<FinalfusionHashIndexer>) -> Self {
+        let config = vocab.config();
+        let words = vocab
+            .words
+            .into_iter()
+            .map(|word| word.label)
+            .collect::<Vec<_>>();
+        FiFuSubwordVocab::new(words, config.min_n, config.max_n, vocab.indexer).into()
     }
 }
 
@@ -191,8 +204,8 @@ impl From<SubwordVocab> for VocabWrap {
 mod tests {
     use super::{bracket, SubwordVocab, Vocab, VocabBuilder};
     use crate::idx::WordIdx;
-    use crate::subword::SubwordIndices;
     use crate::{util, SubwordVocabConfig};
+    use finalfusion::subword::SubwordIndices;
 
     const TEST_SUBWORDCONFIG: SubwordVocabConfig = SubwordVocabConfig {
         buckets_exp: 21,
@@ -216,7 +229,7 @@ mod tests {
         builder.count("be");
         builder.count("</s>");
 
-        let vocab: SubwordVocab = builder.into();
+        let vocab: SubwordVocab<_> = builder.into();
         let words = vocab.types();
 
         for idx in 1..words.len() {
@@ -239,7 +252,7 @@ mod tests {
         builder.count("be");
         builder.count("</s>");
 
-        let vocab: SubwordVocab = builder.into();
+        let vocab: SubwordVocab<_> = builder.into();
 
         // 'or' and 'not' should be filtered due to the minimum count.
         assert_eq!(vocab.len(), 3);
@@ -300,7 +313,7 @@ mod tests {
                 .subword_indices(
                     TEST_SUBWORDCONFIG.min_n as usize,
                     TEST_SUBWORDCONFIG.max_n as usize,
-                    TEST_SUBWORDCONFIG.buckets_exp as usize
+                    &vocab.indexer
                 )
                 .into_iter()
                 .map(|idx| idx + 3)
