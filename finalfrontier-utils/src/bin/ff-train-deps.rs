@@ -35,7 +35,7 @@ fn main() {
             train(input_vocab, output_vocab, app);
         }
         VocabConfig::SubwordVocab(config) => {
-            let (input_vocab, output_vocab) = build_vocab::<_, SubwordVocab<_>, _>(
+            let (input_vocab, output_vocab) = build_vocab::<_, SubwordVocab<_, _>, _>(
                 config,
                 app.output_vocab_config(),
                 app.depembeds_config(),

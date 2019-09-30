@@ -6,8 +6,8 @@ use indicatif::{ProgressBar, ProgressStyle};
 use stdinout::OrExit;
 
 use finalfrontier::{
-    CommonConfig, DepembedsConfig, LossType, ModelType, SimpleVocabConfig, SkipGramConfig,
-    SubwordVocabConfig, Trainer, Vocab, SGD,
+    BucketConfig, CommonConfig, DepembedsConfig, LossType, ModelType, SimpleVocabConfig,
+    SkipGramConfig, SubwordVocabConfig, Trainer, Vocab, SGD,
 };
 
 static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
@@ -448,7 +448,7 @@ fn common_config_from_matches(matches: &ArgMatches) -> CommonConfig {
 
 #[derive(Copy, Clone)]
 pub enum VocabConfig {
-    SubwordVocab(SubwordVocabConfig),
+    SubwordVocab(SubwordVocabConfig<BucketConfig>),
     SimpleVocab(SimpleVocabConfig),
 }
 
@@ -481,11 +481,11 @@ fn vocab_config_from_matches(matches: &ArgMatches) -> VocabConfig {
             .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
             .unwrap();
         VocabConfig::SubwordVocab(SubwordVocabConfig {
-            min_n,
-            max_n,
-            buckets_exp,
-            min_count,
             discard_threshold,
+            min_count,
+            max_n,
+            min_n,
+            indexer: BucketConfig { buckets_exp },
         })
     }
 }
