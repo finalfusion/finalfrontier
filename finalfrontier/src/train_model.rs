@@ -262,17 +262,18 @@ pub trait NegativeSamples {
 
 #[cfg(test)]
 mod tests {
+    use finalfusion::subword::FinalfusionHashIndexer;
     use ndarray::Array2;
     use rand::FromEntropy;
     use rand_xorshift::XorShiftRng;
 
     use super::TrainModel;
+    use crate::config::SubwordVocabConfig;
     use crate::idx::WordWithSubwordsIdx;
     use crate::skipgram_trainer::SkipgramTrainer;
     use crate::util::all_close;
     use crate::{
-        CommonConfig, LossType, ModelType, SkipGramConfig, SubwordVocab, SubwordVocabConfig,
-        VocabBuilder,
+        BucketConfig, CommonConfig, LossType, ModelType, SkipGramConfig, SubwordVocab, VocabBuilder,
     };
 
     const TEST_COMMON_CONFIG: CommonConfig = CommonConfig {
@@ -289,12 +290,12 @@ mod tests {
         model: ModelType::SkipGram,
     };
 
-    const VOCAB_CONF: SubwordVocabConfig = SubwordVocabConfig {
-        buckets_exp: 21,
+    const VOCAB_CONF: SubwordVocabConfig<BucketConfig> = SubwordVocabConfig {
         discard_threshold: 1e-4,
         min_count: 2,
         max_n: 6,
         min_n: 3,
+        indexer: BucketConfig { buckets_exp: 21 },
     };
 
     #[test]
@@ -305,9 +306,9 @@ mod tests {
         let common_config = TEST_COMMON_CONFIG.clone();
         let skipgram_config = TEST_SKIP_CONFIG.clone();
         // We just need some bogus vocabulary
-        let mut builder: VocabBuilder<SubwordVocabConfig, String> = VocabBuilder::new(vocab_config);
+        let mut builder: VocabBuilder<_, String> = VocabBuilder::new(vocab_config);
         builder.count("bla".to_string());
-        let vocab: SubwordVocab<_> = builder.into();
+        let vocab: SubwordVocab<_, FinalfusionHashIndexer> = builder.into();
 
         let input = Array2::from_shape_vec((2, 3), vec![1., 2., 3., 4., 5., 6.])
             .unwrap()

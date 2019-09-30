@@ -23,7 +23,7 @@ fn main() {
     let app = SkipGramApp::new();
     match app.vocab_config() {
         VocabConfig::SubwordVocab(config) => {
-            let vocab: SubwordVocab<_> = build_vocab(config, app.corpus());
+            let vocab: SubwordVocab<_, _> = build_vocab(config, app.corpus());
             train(vocab, app);
         }
         VocabConfig::SimpleVocab(config) => {

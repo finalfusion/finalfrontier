@@ -97,54 +97,11 @@ pub struct DepembedsConfig {
     pub untyped: bool,
 }
 
-/// Hyperparameters for NGram vocabs.
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename = "NGramVocab")]
-#[serde(tag = "type")]
-pub struct NGramVocabConfig {
-    /// Minimum n-gram length for subword units (inclusive).
-    pub min_n: u32,
-
-    /// Maximum n-gram length for subword units (inclusive).
-    pub max_n: u32,
-
-    /// Minimum token count.
-    ///
-    /// No word-specific embeddings will be trained for tokens occurring less
-    /// than this count.
-    pub min_token_count: u32,
-
-    /// Minimum NGram count.
-    ///
-    /// Ngrams occurring less than `min_count` times in in-vocabulary tokens
-    /// will be ignored.
-    pub min_ngram_count: u32,
-
-    /// Discard threshold.
-    ///
-    /// The discard threshold is used to compute the discard probability of
-    /// a token. E.g. with a threshold of 0.00001 tokens with approximately
-    /// that probability will never be discarded.
-    pub discard_threshold: f32,
-}
-
-/// Hyperparameters for subword-vocabs.
+/// Hyperparameters for Subword vocabs.
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename = "SubwordVocab")]
 #[serde(tag = "type")]
-pub struct SubwordVocabConfig {
-    /// Minimum n-gram length for subword units (inclusive).
-    pub min_n: u32,
-
-    /// Maximum n-gram length for subword units (inclusive).
-    pub max_n: u32,
-
-    /// Bucket exponent. The model will use 2^bucket_exp buckets.
-    ///
-    /// A typical value for this parameter is 21, which gives roughly 2M
-    /// buckets.
-    pub buckets_exp: u32,
-
+pub struct SubwordVocabConfig<V> {
     /// Minimum token count.
     ///
     /// No word-specific embeddings will be trained for tokens occurring less
@@ -157,6 +114,39 @@ pub struct SubwordVocabConfig {
     /// a token. E.g. with a threshold of 0.00001 tokens with approximately
     /// that probability will never be discarded.
     pub discard_threshold: f32,
+
+    /// Minimum n-gram length for subword units (inclusive).
+    pub min_n: u32,
+
+    /// Maximum n-gram length for subword units (inclusive).
+    pub max_n: u32,
+
+    /// Indexer specific parameters.
+    pub indexer: V,
+}
+
+/// Hyperparameters for bucket-vocabs.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename = "Buckets")]
+#[serde(tag = "type")]
+pub struct BucketConfig {
+    /// Bucket exponent. The model will use 2^bucket_exp buckets.
+    ///
+    /// A typical value for this parameter is 21, which gives roughly 2M
+    /// buckets.
+    pub buckets_exp: u32,
+}
+
+/// Hyperparameters for ngram-vocabs.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename = "NGrams")]
+#[serde(tag = "type")]
+pub struct NGramConfig {
+    /// Minimum NGram count.
+    ///
+    /// Ngrams occurring less than `min_count` times in in-vocabulary tokens
+    /// will be ignored.
+    pub min_ngram_count: u32,
 }
 
 /// Hyperparameters for simple vocabs.
