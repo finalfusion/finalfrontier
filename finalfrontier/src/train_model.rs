@@ -199,7 +199,7 @@ where
         }
 
         let vocab: VocabWrap = trainer.try_into_input_vocab()?.into();
-        let storage = NdArray(input_matrix);
+        let storage = NdArray::new(input_matrix);
         let norms = NdNorms(Array1::from_vec(norms));
 
         Embeddings::new(Some(metadata), vocab, storage, norms)

@@ -6,8 +6,8 @@ use indicatif::{ProgressBar, ProgressStyle};
 use stdinout::OrExit;
 
 use finalfrontier::{
-    BucketConfig, CommonConfig, DepembedsConfig, LossType, ModelType, SimpleVocabConfig,
-    SkipGramConfig, SubwordVocabConfig, Trainer, Vocab, SGD,
+    BucketConfig, CommonConfig, DepembedsConfig, LossType, ModelType, NGramConfig,
+    SimpleVocabConfig, SkipGramConfig, SubwordVocabConfig, Trainer, Vocab, SGD,
 };
 
 static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
@@ -29,7 +29,8 @@ static MINCOUNT: &str = "mincount";
 static MINN: &str = "minn";
 static MAXN: &str = "maxn";
 static MODEL: &str = "model";
-static NO_SUBWORDS: &str = "no_subwords";
+static NGRAM_MINCOUNT: &str = "ngram_mincount";
+static SUBWORDS: &str = "subwords";
 static UNTYPED_DEPS: &str = "untyped";
 static NORMALIZE_CONTEXT: &str = "normalize";
 static NS: &str = "ns";
@@ -366,9 +367,21 @@ fn build_with_common_opts<'a, 'b>(name: &str) -> App<'a, 'b> {
                 .default_value("6"),
         )
         .arg(
-            Arg::with_name(NO_SUBWORDS)
-                .long("no_subwords")
-                .help("Train embeddings without subword information."),
+            Arg::with_name(SUBWORDS)
+                .long("subwords")
+                .takes_value(true)
+                .value_name("SUBWORDS")
+                .possible_values(&["buckets", "ngrams", "none"])
+                .default_value("buckets")
+                .help("What kind of subwords to use."),
+        )
+        .arg(
+            Arg::with_name(NGRAM_MINCOUNT)
+                .long("ngram_mincount")
+                .value_name("FREQ")
+                .help("Minimum ngram frequency.")
+                .takes_value(true)
+                .default_value("5"),
         )
         .arg(
             Arg::with_name(NS)
@@ -449,6 +462,7 @@ fn common_config_from_matches(matches: &ArgMatches) -> CommonConfig {
 #[derive(Copy, Clone)]
 pub enum VocabConfig {
     SubwordVocab(SubwordVocabConfig<BucketConfig>),
+    NGramVocab(SubwordVocabConfig<NGramConfig>),
     SimpleVocab(SimpleVocabConfig),
 }
 
@@ -462,31 +476,48 @@ fn vocab_config_from_matches(matches: &ArgMatches) -> VocabConfig {
         .value_of(MINCOUNT)
         .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
         .unwrap();
-    if matches.is_present(NO_SUBWORDS) {
-        VocabConfig::SimpleVocab(SimpleVocabConfig {
+    let min_n = matches
+        .value_of(MINN)
+        .map(|v| v.parse().or_exit("Cannot parse minimum n-gram length", 1))
+        .unwrap();
+    let max_n = matches
+        .value_of(MAXN)
+        .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
+        .unwrap();
+    match matches.value_of(SUBWORDS).unwrap() {
+        "buckets" => {
+            let buckets_exp = matches
+                .value_of(BUCKETS)
+                .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
+                .unwrap();
+            VocabConfig::SubwordVocab(SubwordVocabConfig {
+                discard_threshold,
+                min_count,
+                max_n,
+                min_n,
+                indexer: BucketConfig { buckets_exp },
+            })
+        }
+        "ngrams" => {
+            let min_ngram_count = matches
+                .value_of(NGRAM_MINCOUNT)
+                .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
+                .unwrap();
+            VocabConfig::NGramVocab(SubwordVocabConfig {
+                discard_threshold,
+                min_count,
+                max_n,
+                min_n,
+                indexer: NGramConfig { min_ngram_count },
+            })
+        }
+        "none" => VocabConfig::SimpleVocab(SimpleVocabConfig {
             min_count,
             discard_threshold,
-        })
-    } else {
-        let buckets_exp = matches
-            .value_of(BUCKETS)
-            .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
-            .unwrap();
-        let min_n = matches
-            .value_of(MINN)
-            .map(|v| v.parse().or_exit("Cannot parse minimum n-gram length", 1))
-            .unwrap();
-        let max_n = matches
-            .value_of(MAXN)
-            .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
-            .unwrap();
-        VocabConfig::SubwordVocab(SubwordVocabConfig {
-            discard_threshold,
-            min_count,
-            max_n,
-            min_n,
-            indexer: BucketConfig { buckets_exp },
-        })
+        }),
+        // unreachable as long as possible values in clap are in sync with this `VocabConfig`'s
+        // variants
+        s => unreachable!(format!("Unhandled vocab type: {}", s)),
     }
 }
 

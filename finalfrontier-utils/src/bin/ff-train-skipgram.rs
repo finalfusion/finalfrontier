@@ -30,6 +30,10 @@ fn main() {
             let vocab: SimpleVocab<String> = build_vocab(config, app.corpus());
             train(vocab, app);
         }
+        VocabConfig::NGramVocab(config) => {
+            let vocab: SubwordVocab<_, _> = build_vocab(config, app.corpus());
+            train(vocab, app);
+        }
     }
 }
 

@@ -3,11 +3,13 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use finalfusion::prelude::{SubwordVocab as FiFuSubwordVocab, VocabWrap};
-use finalfusion::subword::{BucketIndexer, FinalfusionHashIndexer, Indexer, SubwordIndices};
+use finalfusion::subword::{
+    BucketIndexer, FinalfusionHashIndexer, Indexer, NGramIndexer, NGrams, SubwordIndices,
+};
 
 use crate::idx::{WordIdx, WordWithSubwordsIdx};
 use crate::vocab::{bracket, create_discards, create_indices};
-use crate::{util, BucketConfig, SubwordVocabConfig, Vocab, VocabBuilder, Word};
+use crate::{util, BucketConfig, NGramConfig, SubwordVocabConfig, Vocab, VocabBuilder, Word};
 
 /// A corpus vocabulary with subword lookup.
 #[derive(Clone)]
@@ -196,6 +198,51 @@ where
     }
 }
 
+/// Constructs a `SubwordVocab` from a `VocabBuilder<T>` where `T: Into<String>`.
+impl<T> From<VocabBuilder<SubwordVocabConfig<NGramConfig>, T>>
+    for SubwordVocab<NGramConfig, NGramIndexer>
+where
+    T: Hash + Eq + Into<String>,
+{
+    fn from(builder: VocabBuilder<SubwordVocabConfig<NGramConfig>, T>) -> Self {
+        let config = builder.config;
+        let mut words = Vec::new();
+        let mut ngram_counts: HashMap<String, usize> = HashMap::new();
+        for (word, count) in builder.items {
+            let word = word.into();
+            if word != util::EOS && count < config.min_count as usize {
+                continue;
+            }
+            let word = Word::new(word, count);
+            for ngram in NGrams::new(
+                &bracket(word.label()),
+                config.min_n as usize,
+                config.max_n as usize,
+            )
+            .map(|ngram| ngram.to_string())
+            {
+                let cnt = ngram_counts.entry(ngram).or_default();
+                *cnt += count;
+            }
+            words.push(word);
+        }
+
+        let mut ngrams = ngram_counts
+            .iter()
+            .filter(|(_, count)| **count >= config.indexer.min_ngram_count as usize)
+            .map(|(ngram, _)| ngram.clone())
+            .collect::<Vec<_>>();
+
+        words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
+        ngrams.sort_unstable_by(|ngram1, ngram2| {
+            let ngram1_cnt = ngram_counts[ngram1];
+            let ngram2_cnt = ngram_counts[ngram2];
+            (ngram2_cnt, ngram2).cmp(&(ngram1_cnt, ngram1))
+        });
+        SubwordVocab::new(config, words, builder.n_items, NGramIndexer::new(ngrams))
+    }
+}
+
 macro_rules! impl_into_vocabwrap (
     ($vocab:ty) => {
         impl From<$vocab> for VocabWrap {
@@ -213,14 +260,16 @@ macro_rules! impl_into_vocabwrap (
 );
 
 impl_into_vocabwrap!(SubwordVocab<BucketConfig, FinalfusionHashIndexer>);
+impl_into_vocabwrap!(SubwordVocab<NGramConfig, NGramIndexer>);
 
 #[cfg(test)]
 mod tests {
     use super::{bracket, SubwordVocab, Vocab, VocabBuilder};
     use crate::config::SubwordVocabConfig;
     use crate::idx::WordIdx;
-    use crate::{util, BucketConfig};
-    use finalfusion::subword::{FinalfusionHashIndexer, SubwordIndices};
+    use crate::{util, BucketConfig, NGramConfig};
+
+    use finalfusion::subword::{FinalfusionHashIndexer, Indexer, NGramIndexer, SubwordIndices};
 
     const TEST_SUBWORDCONFIG: SubwordVocabConfig<BucketConfig> = SubwordVocabConfig {
         discard_threshold: 1e-4,
@@ -228,6 +277,14 @@ mod tests {
         max_n: 6,
         min_n: 3,
         indexer: BucketConfig { buckets_exp: 21 },
+    };
+
+    const TEST_NGRAMCONFIG: SubwordVocabConfig<NGramConfig> = SubwordVocabConfig {
+        discard_threshold: 1e-4,
+        min_count: 2,
+        max_n: 6,
+        min_n: 3,
+        indexer: NGramConfig { min_ngram_count: 2 },
     };
 
     #[test]
@@ -256,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_vocab_builder() {
+    pub fn test_bucket_vocab_builder() {
         let mut builder: VocabBuilder<_, &str> = VocabBuilder::new(TEST_SUBWORDCONFIG.clone());
         builder.count("to");
         builder.count("be");
@@ -320,6 +377,88 @@ mod tests {
             &[1145929, 1737852, 215572, 1187390, 1168229, 858603],
             vocab.indices("too").as_slice()
         );
+
+        // Ensure that the subword indices have the vocab size added.
+        assert_eq!(
+            bracket("too")
+                .subword_indices(
+                    TEST_SUBWORDCONFIG.min_n as usize,
+                    TEST_SUBWORDCONFIG.max_n as usize,
+                    &vocab.indexer,
+                )
+                .into_iter()
+                .map(|idx| idx + 3)
+                .collect::<Vec<_>>(),
+            vocab.indices("too").as_slice()
+        );
+    }
+
+    #[test]
+    pub fn test_ngram_vocab_builder() {
+        let mut builder: VocabBuilder<_, &str> = VocabBuilder::new(TEST_NGRAMCONFIG.clone());
+        builder.count("to");
+        builder.count("be");
+        builder.count("or");
+        builder.count("not");
+        builder.count("to");
+        builder.count("be");
+        builder.count("</s>");
+
+        let vocab: SubwordVocab<_, NGramIndexer> = builder.into();
+
+        // 'or' and 'not' should be filtered due to the minimum count.
+        assert_eq!(vocab.len(), 3);
+
+        assert_eq!(vocab.n_types(), 7);
+
+        // Check expected properties of 'to'.
+        let to = vocab.word("to").unwrap();
+        assert_eq!("to", to.word());
+        assert_eq!(2, to.count);
+        // 2x ["<to", "<to>", "to>", "<be", "<be>", "be>"]
+        // sorted ["to>", "be>", "<to>", "<to", "<be>", "<be"]
+        assert_eq!(6, vocab.indexer.ngrams().len());
+        assert_eq!(6, vocab.indexer.upper_bound());
+        assert_eq!(
+            &["to>", "be>", "<to>", "<to", "<be>", "<be"],
+            vocab.indexer.ngrams()
+        );
+        // subwords have offset of (vocab.len() - 1)
+        assert_eq!(&[5, 6, 3], vocab.subword_indices("to").as_ref());
+        assert_eq!(4, vocab.indices("to").len());
+        assert!(util::close(
+            0.019058,
+            vocab.discard(vocab.idx("to").unwrap().word_idx() as usize),
+            1e-5,
+        ));
+
+        // Check expected properties of 'be'.
+        let be = vocab.word("be").unwrap();
+        assert_eq!("be", be.label);
+        assert_eq!(2, be.count);
+        // see above explanation
+        assert_eq!(&[7, 8, 4], vocab.subword_indices("be").as_ref());
+        assert_eq!(4, vocab.indices("be").len());
+        assert!(util::close(
+            0.019058,
+            vocab.discard(vocab.idx("be").unwrap().word_idx() as usize),
+            1e-5,
+        ));
+
+        // Check expected properties of the end of sentence marker.
+        let eos = vocab.word(util::EOS).unwrap();
+        assert_eq!(util::EOS, eos.label);
+        assert_eq!(1, eos.count);
+        assert!(vocab.subword_indices(util::EOS).is_empty());
+        assert_eq!(1, vocab.indices(util::EOS).len());
+        assert!(util::close(
+            0.027158,
+            vocab.discard(vocab.idx(util::EOS).unwrap().word_idx() as usize),
+            1e-5,
+        ));
+
+        // Check indices for an unknown word. Only "<to" is a known ngram.
+        assert_eq!(&[6], vocab.indices("too").as_slice());
 
         // Ensure that the subword indices have the vocab size added.
         assert_eq!(

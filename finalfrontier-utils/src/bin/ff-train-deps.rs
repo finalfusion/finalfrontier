@@ -43,6 +43,15 @@ fn main() {
             );
             train(input_vocab, output_vocab, app);
         }
+        VocabConfig::NGramVocab(config) => {
+            let (input_vocab, output_vocab) = build_vocab::<_, SubwordVocab<_, _>, _>(
+                config,
+                app.output_vocab_config(),
+                app.depembeds_config(),
+                app.corpus(),
+            );
+            train(input_vocab, output_vocab, app);
+        }
     }
 }
 
