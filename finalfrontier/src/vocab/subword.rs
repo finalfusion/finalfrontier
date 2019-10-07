@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -87,41 +87,6 @@ where
     pub fn word(&self, word: &str) -> Option<&Word> {
         self.idx(word)
             .map(|idx| &self.words[idx.word_idx() as usize])
-    }
-
-    /// Get the subword indices of a word.
-    pub fn subword_indices(&self, word: &str) -> Cow<[u64]> {
-        if word == util::EOS {
-            // Do not create subwords for the EOS marker.
-            Cow::Borrowed(&[])
-        } else if let Some(&idx) = self.index.get(word) {
-            Cow::Borrowed(&self.subwords[idx])
-        } else {
-            Cow::Owned(
-                bracket(word)
-                    .as_str()
-                    .subword_indices(
-                        self.config.min_n as usize,
-                        self.config.max_n as usize,
-                        &self.indexer,
-                    )
-                    .into_iter()
-                    .map(|idx| idx + self.words.len() as u64)
-                    .collect(),
-            )
-        }
-    }
-
-    /// Get all indices of a word, both regular and subword.
-    ///
-    /// This method copies the subword list for known words into a new Vec.
-    pub fn indices(&self, word: &str) -> Vec<u64> {
-        let mut indices = self.subword_indices(word).into_owned();
-        if let Some(index) = self.idx(word) {
-            indices.push(index.word_idx() as u64);
-        }
-
-        indices
     }
 }
 
@@ -335,10 +300,9 @@ mod tests {
         assert_eq!("to", to.word());
         assert_eq!(2, to.count);
         assert_eq!(
-            &[1141947, 215572, 1324230],
-            vocab.subword_indices("to").as_ref()
+            vec![1141947, 215572, 1324230, 0],
+            vocab.idx("to").unwrap().into_iter().collect::<Vec<_>>()
         );
-        assert_eq!(4, vocab.indices("to").len());
         assert!(util::close(
             0.019058,
             vocab.discard(vocab.idx("to").unwrap().word_idx() as usize),
@@ -350,10 +314,9 @@ mod tests {
         assert_eq!("be", be.label);
         assert_eq!(2, be.count);
         assert_eq!(
-            &[277351, 1105488, 1482882],
-            vocab.subword_indices("be").as_ref()
+            vec![277351, 1105488, 1482882, 1],
+            vocab.idx("be").unwrap().into_iter().collect::<Vec<_>>()
         );
-        assert_eq!(4, vocab.indices("be").len());
         assert!(util::close(
             0.019058,
             vocab.discard(vocab.idx("be").unwrap().word_idx() as usize),
@@ -364,8 +327,14 @@ mod tests {
         let eos = vocab.word(util::EOS).unwrap();
         assert_eq!(util::EOS, eos.label);
         assert_eq!(1, eos.count);
-        assert!(vocab.subword_indices(util::EOS).is_empty());
-        assert_eq!(1, vocab.indices(util::EOS).len());
+        assert_eq!(
+            vocab
+                .idx(util::EOS)
+                .unwrap()
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![2]
+        );
         assert!(util::close(
             0.027158,
             vocab.discard(vocab.idx(util::EOS).unwrap().word_idx() as usize),
@@ -373,24 +342,7 @@ mod tests {
         ));
 
         // Check indices for an unknown word.
-        assert_eq!(
-            &[1145929, 1737852, 215572, 1187390, 1168229, 858603],
-            vocab.indices("too").as_slice()
-        );
-
-        // Ensure that the subword indices have the vocab size added.
-        assert_eq!(
-            bracket("too")
-                .subword_indices(
-                    TEST_SUBWORDCONFIG.min_n as usize,
-                    TEST_SUBWORDCONFIG.max_n as usize,
-                    &vocab.indexer,
-                )
-                .into_iter()
-                .map(|idx| idx + 3)
-                .collect::<Vec<_>>(),
-            vocab.indices("too").as_slice()
-        );
+        assert!(vocab.idx("too").is_none());
     }
 
     #[test]
@@ -424,8 +376,10 @@ mod tests {
             vocab.indexer.ngrams()
         );
         // subwords have offset of (vocab.len() - 1)
-        assert_eq!(&[5, 6, 3], vocab.subword_indices("to").as_ref());
-        assert_eq!(4, vocab.indices("to").len());
+        assert_eq!(
+            vec![5, 6, 3, 0],
+            vocab.idx("to").unwrap().into_iter().collect::<Vec<_>>()
+        );
         assert!(util::close(
             0.019058,
             vocab.discard(vocab.idx("to").unwrap().word_idx() as usize),
@@ -437,8 +391,10 @@ mod tests {
         assert_eq!("be", be.label);
         assert_eq!(2, be.count);
         // see above explanation
-        assert_eq!(&[7, 8, 4], vocab.subword_indices("be").as_ref());
-        assert_eq!(4, vocab.indices("be").len());
+        assert_eq!(
+            vec![7, 8, 4, 1],
+            vocab.idx("be").unwrap().into_iter().collect::<Vec<_>>()
+        );
         assert!(util::close(
             0.019058,
             vocab.discard(vocab.idx("be").unwrap().word_idx() as usize),
@@ -449,8 +405,14 @@ mod tests {
         let eos = vocab.word(util::EOS).unwrap();
         assert_eq!(util::EOS, eos.label);
         assert_eq!(1, eos.count);
-        assert!(vocab.subword_indices(util::EOS).is_empty());
-        assert_eq!(1, vocab.indices(util::EOS).len());
+        assert_eq!(
+            vec![2u64],
+            vocab
+                .idx(util::EOS)
+                .unwrap()
+                .into_iter()
+                .collect::<Vec<_>>()
+        );
         assert!(util::close(
             0.027158,
             vocab.discard(vocab.idx(util::EOS).unwrap().word_idx() as usize),
@@ -458,20 +420,6 @@ mod tests {
         ));
 
         // Check indices for an unknown word. Only "<to" is a known ngram.
-        assert_eq!(&[6], vocab.indices("too").as_slice());
-
-        // Ensure that the subword indices have the vocab size added.
-        assert_eq!(
-            bracket("too")
-                .subword_indices(
-                    TEST_SUBWORDCONFIG.min_n as usize,
-                    TEST_SUBWORDCONFIG.max_n as usize,
-                    &vocab.indexer,
-                )
-                .into_iter()
-                .map(|idx| idx + 3)
-                .collect::<Vec<_>>(),
-            vocab.indices("too").as_slice()
-        );
+        assert!(vocab.idx("too").is_none());
     }
 }
