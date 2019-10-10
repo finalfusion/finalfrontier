@@ -1,5 +1,6 @@
 use rand::{FromEntropy, SeedableRng};
 use rand_core::{self, RngCore};
+use serde::Serialize;
 
 pub static EOS: &str = "</s>";
 
@@ -58,6 +59,21 @@ where
 {
     fn clone(&self) -> Self {
         ReseedOnCloneRng(R::from_entropy())
+    }
+}
+
+#[derive(Serialize)]
+pub(crate) struct VersionInfo {
+    finalfusion_version: &'static str,
+    git_desc: Option<&'static str>,
+}
+
+impl VersionInfo {
+    pub(crate) fn new() -> Self {
+        VersionInfo {
+            finalfusion_version: env!("CARGO_PKG_VERSION"),
+            git_desc: option_env!("MAYBE_FINALFRONTIER_GIT_DESC"),
+        }
     }
 }
 

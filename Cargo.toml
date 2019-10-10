@@ -29,6 +29,9 @@ stdinout = "0.4"
 toml = "0.5"
 zipf = "5"
 
+[build-dependencies]
+git2 = "0.10"
+
 [dev-dependencies]
 lazy_static = "1"
 maplit = "1"

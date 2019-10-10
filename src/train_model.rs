@@ -12,6 +12,7 @@ use toml::Value;
 
 use crate::hogwild::HogwildArray2;
 use crate::idx::WordIdx;
+use crate::util::VersionInfo;
 use crate::vec_simd::{l2_normalize, scale, scaled_add};
 use crate::{CommonConfig, Vocab, WriteModelBinary};
 
@@ -181,8 +182,12 @@ where
 {
     fn write_model_binary(self, write: &mut W) -> Result<(), Error> {
         let (trainer, mut input_matrix) = self.into_parts()?;
-
-        let metadata = Metadata(Value::try_from(trainer.to_metadata())?);
+        let mut metadata = Value::try_from(trainer.to_metadata())?;
+        let build_info = Value::try_from(VersionInfo::new())?;
+        metadata
+            .as_table_mut()
+            .ok_or_else(|| err_msg("Metadata has to be 'Table'."))?
+            .insert("meta".to_string(), build_info);
 
         // Compute and write word embeddings.
         let mut norms = vec![0f32; trainer.input_vocab().len()];
@@ -202,7 +207,7 @@ where
         let storage = NdArray::new(input_matrix);
         let norms = NdNorms(Array1::from_vec(norms));
 
-        Embeddings::new(Some(metadata), vocab, storage, norms)
+        Embeddings::new(Some(Metadata(metadata)), vocab, storage, norms)
             .write_embeddings(write)
             .map_err(|err| err.into())
     }
