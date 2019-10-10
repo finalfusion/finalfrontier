@@ -301,8 +301,14 @@ impl DepembedsApp {
 }
 
 fn build_with_common_opts<'a, 'b>(name: &str) -> App<'a, 'b> {
+    let version = if let Some(git_desc) = option_env!("MAYBE_FINALFRONTIER_GIT_DESC") {
+        git_desc
+    } else {
+        env!("CARGO_PKG_VERSION")
+    };
     App::new(name)
         .settings(DEFAULT_CLAP_SETTINGS)
+        .version(version)
         .arg(
             Arg::with_name(BUCKETS)
                 .long("buckets")
