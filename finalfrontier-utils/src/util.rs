@@ -1,3 +1,4 @@
+use std::cmp;
 use std::thread;
 use std::time::Duration;
 
@@ -86,7 +87,7 @@ impl SkipGramApp {
         let n_threads = matches
             .value_of("threads")
             .map(|v| v.parse().or_exit("Cannot parse number of threads", 1))
-            .unwrap_or(num_cpus::get() / 2);
+            .unwrap_or_else(|| cmp::min(num_cpus::get() / 2, 20));
         SkipGramApp {
             corpus,
             output,
@@ -171,7 +172,7 @@ impl DepembedsApp {
         let n_threads = matches
             .value_of("threads")
             .map(|v| v.parse().or_exit("Cannot parse number of threads", 1))
-            .unwrap_or(num_cpus::get() / 2);
+            .unwrap_or_else(|| cmp::min(num_cpus::get() / 2, 20));
 
         let discard_threshold = matches
             .value_of(CONTEXT_DISCARD)
@@ -395,7 +396,7 @@ fn build_with_common_opts<'a, 'b>(name: &str) -> App<'a, 'b> {
             Arg::with_name(THREADS)
                 .long("threads")
                 .value_name("N")
-                .help("Number of threads (default: logical_cpus / 2)")
+                .help("Number of threads (default: min(logical_cpus / 2, 20))")
                 .takes_value(true),
         )
         .arg(
