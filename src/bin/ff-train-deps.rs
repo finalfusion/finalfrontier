@@ -7,12 +7,11 @@ use std::time::Duration;
 use conllx::graph::{Node, Sentence};
 use conllx::io::{ReadSentence, Reader};
 use conllx::proj::{HeadProjectivizer, Projectivize};
+use finalfrontier::app::{show_progress, DepembedsApp, VocabConfig};
+use finalfrontier::io::{thread_data_conllx, FileProgress};
 use finalfrontier::{
     DepembedsConfig, DepembedsTrainer, Dependency, DependencyIterator, SimpleVocab,
     SimpleVocabConfig, SubwordVocab, Vocab, VocabBuilder, WriteModelBinary, SGD,
-};
-use finalfrontier_utils::{
-    show_progress, thread_data_conllx, DepembedsApp, FileProgress, VocabConfig,
 };
 use finalfusion::prelude::VocabWrap;
 use rand::{FromEntropy, Rng};

@@ -2,7 +2,7 @@ use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-use ndarray::{Array, ArrayView, ArrayViewMut, Axis, Dimension, Ix, Ix1, Ix2, Ix3, RemoveAxis};
+use ndarray::{Array, ArrayView, ArrayViewMut, Axis, Dimension, Ix, Ix2, RemoveAxis};
 
 /// Array for Hogwild parallel optimization.
 ///
@@ -19,27 +19,6 @@ use ndarray::{Array, ArrayView, ArrayViewMut, Axis, Dimension, Ix, Ix1, Ix2, Ix3
 /// `HogwildArray` instances. Views of the underling `Array` can be borrowed
 /// mutably from each instance, without mutual exclusion between mutable
 /// borrows in different `HogwildArray` instances.
-///
-/// # Example
-///
-/// ```
-/// use hogwild::HogwildArray2;
-/// use ndarray::Array2;
-///
-/// let mut a1: HogwildArray2<f32> = Array2::zeros((2, 2)).into();
-/// let mut a2 = a1.clone();
-///
-/// let mut a1_view = a1.view_mut();
-///
-/// let c00 = &mut a1_view[(0, 0)];
-/// *c00 = 1.0;
-///
-/// // Two simultaneous mutable borrows of the underlying array.
-/// a2.view_mut()[(1, 1)] = *c00 * 2.0;
-///
-/// assert_eq!(&[1.0, 0.0, 0.0, 2.0], a2.as_slice().unwrap());
-/// ```
-
 #[derive(Clone)]
 pub struct HogwildArray<A, D>(Arc<UnsafeCell<Array<A, D>>>);
 
@@ -82,22 +61,10 @@ impl<A, D> HogwildArray<A, D>
 where
     D: Dimension,
 {
-    /// Get a slice reference to the underlying data array.
-    #[inline]
-    pub fn as_slice(&self) -> Option<&[A]> {
-        self.as_ref().as_slice()
-    }
-
     /// Get an immutable view of the Hogwild array.
     #[inline]
     pub fn view(&self) -> ArrayView<A, D> {
         self.as_ref().view()
-    }
-
-    /// Get an mutable view of the Hogwild array.
-    #[inline]
-    pub fn view_mut(&mut self) -> ArrayViewMut<A, D> {
-        self.as_mut().view_mut()
     }
 }
 
@@ -111,14 +78,8 @@ unsafe impl<A, D> Send for HogwildArray<A, D> {}
 
 unsafe impl<A, D> Sync for HogwildArray<A, D> {}
 
-/// One-dimensional Hogwild array.
-pub type HogwildArray1<A> = HogwildArray<A, Ix1>;
-
 /// Two-dimensional Hogwild array.
 pub type HogwildArray2<A> = HogwildArray<A, Ix2>;
-
-/// Three-dimensional Hogwild array.
-pub type HogwildArray3<A> = HogwildArray<A, Ix3>;
 
 /// Hogwild for arbitrary data types.
 ///
@@ -180,14 +141,14 @@ mod test {
         let mut a1: HogwildArray2<f32> = Array2::zeros((2, 2)).into();
         let mut a2 = a1.clone();
 
-        let mut a1_view = a1.view_mut();
+        let mut a1_view = a1.as_mut().view_mut();
 
         let c00 = &mut a1_view[(0, 0)];
         *c00 = 1.0;
 
         // Two simultaneous mutable borrows of the underlying array.
-        a2.view_mut()[(1, 1)] = *c00 * 2.0;
+        a2.as_mut().view_mut()[(1, 1)] = *c00 * 2.0;
 
-        assert_eq!(&[1.0, 0.0, 0.0, 2.0], a2.as_slice().unwrap());
+        assert_eq!(&[1.0, 0.0, 0.0, 2.0], a2.as_ref().as_slice().unwrap());
     }
 }

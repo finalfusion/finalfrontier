@@ -4,13 +4,13 @@ use std::sync::Arc;
 use failure::{err_msg, Error};
 use finalfusion::chunks::norms::NdNorms;
 use finalfusion::prelude::{Embeddings, Metadata, NdArray, VocabWrap, WriteEmbeddings};
-use hogwild::HogwildArray2;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
 use serde::Serialize;
 use toml::Value;
 
+use crate::hogwild::HogwildArray2;
 use crate::idx::WordIdx;
 use crate::vec_simd::{l2_normalize, scale, scaled_add};
 use crate::{CommonConfig, Vocab, WriteModelBinary};

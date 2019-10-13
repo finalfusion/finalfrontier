@@ -1,3 +1,5 @@
+pub mod app;
+
 mod config;
 pub use crate::config::{
     BucketConfig, CommonConfig, DepembedsConfig, LossType, ModelType, NGramConfig,
@@ -10,10 +12,12 @@ pub use crate::deps::{DepIter, Dependency, DependencyIterator};
 pub(crate) mod dep_trainer;
 pub use crate::dep_trainer::DepembedsTrainer;
 
+pub(crate) mod hogwild;
+
 pub(crate) mod idx;
 
-mod io;
-pub use crate::io::{SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec};
+pub mod io;
+pub use io::{SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec};
 
 pub(crate) mod loss;
 

@@ -4,12 +4,11 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 
+use finalfrontier::app::{show_progress, SkipGramApp, VocabConfig};
+use finalfrontier::io::{thread_data_text, FileProgress};
 use finalfrontier::{
     SentenceIterator, SimpleVocab, SkipgramTrainer, SubwordVocab, Vocab, VocabBuilder,
     WriteModelBinary, SGD,
-};
-use finalfrontier_utils::{
-    show_progress, thread_data_text, FileProgress, SkipGramApp, VocabConfig,
 };
 use finalfusion::prelude::VocabWrap;
 use rand::{FromEntropy, Rng};
