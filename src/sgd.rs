@@ -1,11 +1,10 @@
 use ndarray::{Array1, ArrayView1, ArrayViewMut1};
 
+use crate::hogwild::Hogwild;
 use crate::idx::WordIdx;
 use crate::loss::log_logistic_loss;
 use crate::train_model::{NegativeSamples, TrainIterFrom, TrainModel, Trainer};
 use crate::vec_simd::scaled_add;
-
-use hogwild::Hogwild;
 
 /// Stochastic gradient descent
 ///

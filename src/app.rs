@@ -6,7 +6,7 @@ use clap::{App, AppSettings, Arg, ArgMatches};
 use indicatif::{ProgressBar, ProgressStyle};
 use stdinout::OrExit;
 
-use finalfrontier::{
+use crate::{
     BucketConfig, CommonConfig, DepembedsConfig, LossType, ModelType, NGramConfig,
     SimpleVocabConfig, SkipGramConfig, SubwordVocabConfig, Trainer, Vocab, SGD,
 };

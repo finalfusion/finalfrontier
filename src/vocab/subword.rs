@@ -229,12 +229,12 @@ impl_into_vocabwrap!(SubwordVocab<NGramConfig, NGramIndexer>);
 
 #[cfg(test)]
 mod tests {
-    use super::{bracket, SubwordVocab, Vocab, VocabBuilder};
+    use super::{SubwordVocab, Vocab, VocabBuilder};
     use crate::config::SubwordVocabConfig;
     use crate::idx::WordIdx;
     use crate::{util, BucketConfig, NGramConfig};
 
-    use finalfusion::subword::{FinalfusionHashIndexer, Indexer, NGramIndexer, SubwordIndices};
+    use finalfusion::subword::{FinalfusionHashIndexer, Indexer, NGramIndexer};
 
     const TEST_SUBWORDCONFIG: SubwordVocabConfig<BucketConfig> = SubwordVocabConfig {
         discard_threshold: 1e-4,
