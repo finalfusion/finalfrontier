@@ -175,7 +175,11 @@ where
         let mut ngram_counts: HashMap<String, usize> = HashMap::new();
         for (word, count) in builder.items {
             let word = word.into();
-            if word != util::EOS && count < config.min_count as usize {
+            if word == util::EOS {
+                words.push(Word::new(word, count));
+                continue;
+            }
+            if count < config.min_count as usize {
                 continue;
             }
             let word = Word::new(word, count);
