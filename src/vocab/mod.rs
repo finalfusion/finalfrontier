@@ -19,7 +19,7 @@ pub struct CountedType<T> {
 
 impl<T> CountedType<T> {
     /// Construct a new type.
-    pub(crate) fn new(label: T, count: usize) -> Self {
+    pub fn new(label: T, count: usize) -> Self {
         CountedType { label, count }
     }
     pub fn count(&self) -> usize {
