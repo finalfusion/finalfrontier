@@ -107,7 +107,7 @@ where
     }
 
     sgd.into_model()
-        .write_model_binary(&mut output_writer)
+        .write_model_binary(&mut output_writer, app.train_info().clone())
         .or_exit("Cannot write model", 1);
 }
 

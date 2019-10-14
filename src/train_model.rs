@@ -10,6 +10,7 @@ use rand::distributions::Uniform;
 use serde::Serialize;
 use toml::Value;
 
+use crate::app::TrainInfo;
 use crate::hogwild::HogwildArray2;
 use crate::idx::WordIdx;
 use crate::util::VersionInfo;
@@ -180,14 +181,17 @@ where
     for<'a> &'a V::IdxType: IntoIterator<Item = u64>,
     M: Serialize,
 {
-    fn write_model_binary(self, write: &mut W) -> Result<(), Error> {
+    fn write_model_binary(self, write: &mut W, mut train_info: TrainInfo) -> Result<(), Error> {
         let (trainer, mut input_matrix) = self.into_parts()?;
         let mut metadata = Value::try_from(trainer.to_metadata())?;
         let build_info = Value::try_from(VersionInfo::new())?;
-        metadata
+        let metadata_table = metadata
             .as_table_mut()
-            .ok_or_else(|| err_msg("Metadata has to be 'Table'."))?
-            .insert("meta".to_string(), build_info);
+            .ok_or_else(|| err_msg("Metadata has to be 'Table'."))?;
+        metadata_table.insert("version_info".to_string(), build_info);
+        train_info.set_end();
+        let train_info = Value::try_from(train_info)?;
+        metadata_table.insert("training_info".to_string(), train_info);
 
         // Compute and write word embeddings.
         let mut norms = vec![0f32; trainer.input_vocab().len()];
