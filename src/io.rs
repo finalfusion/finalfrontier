@@ -5,6 +5,7 @@ use failure::{Error, ResultExt};
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap::{Mmap, MmapOptions};
 
+use crate::app::TrainInfo;
 use crate::util::EOS;
 
 pub struct FileProgress {
@@ -173,7 +174,7 @@ pub trait WriteModelBinary<W>
 where
     W: Write,
 {
-    fn write_model_binary(self, write: &mut W) -> Result<(), Error>;
+    fn write_model_binary(self, write: &mut W, train_info: TrainInfo) -> Result<(), Error>;
 }
 
 fn whitespace_tokenize(line: &str) -> Vec<String> {

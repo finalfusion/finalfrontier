@@ -2,8 +2,10 @@ use std::cmp;
 use std::thread;
 use std::time::Duration;
 
+use chrono::{DateTime, Local};
 use clap::{App, AppSettings, Arg, ArgMatches};
 use indicatif::{ProgressBar, ProgressStyle};
+use serde::Serialize;
 use stdinout::OrExit;
 
 use crate::{
@@ -44,11 +46,69 @@ static ZIPF_EXPONENT: &str = "zipf";
 static CORPUS: &str = "CORPUS";
 static OUTPUT: &str = "OUTPUT";
 
-/// SkipGramApp.
-pub struct SkipGramApp {
+/// Meta information about training.
+///
+/// Holds
+#[derive(Clone, Serialize)]
+pub struct TrainInfo {
     corpus: String,
     output: String,
     n_threads: usize,
+    start_datetime: String,
+    end_datetime: Option<String>,
+}
+
+impl TrainInfo {
+    /// Construct new TrainInfo.
+    ///
+    /// Constructs TrainInfo with `start_datetime` set to the current datetime. `end_datetime` is
+    /// set to `None` and can be set through `TrainInfo::set_end`.
+    pub fn new(corpus: String, output: String, n_threads: usize) -> Self {
+        let start_datetime: DateTime<Local> = Local::now();
+        TrainInfo {
+            corpus,
+            output,
+            n_threads,
+            start_datetime: start_datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+            end_datetime: None,
+        }
+    }
+
+    /// Get the corpus path.
+    pub fn corpus(&self) -> &str {
+        &self.corpus
+    }
+
+    /// Get the output file.
+    pub fn output(&self) -> &str {
+        &self.output
+    }
+
+    /// Get the number of threads.
+    pub fn n_threads(&self) -> usize {
+        self.n_threads
+    }
+
+    /// Get the start datetime.
+    pub fn start_datetime(&self) -> &str {
+        &self.start_datetime
+    }
+
+    /// Get the end datetime.
+    pub fn end_datetime(&self) -> Option<&str> {
+        self.end_datetime.as_ref().map(|s| s.as_str())
+    }
+
+    /// Set the end datetime to current datetime.
+    pub fn set_end(&mut self) {
+        let start_datetime: DateTime<Local> = Local::now();
+        self.end_datetime = Some(start_datetime.format("%Y-%m-%d %H:%M:%S").to_string());
+    }
+}
+
+/// SkipGramApp.
+pub struct SkipGramApp {
+    train_info: TrainInfo,
     common_config: CommonConfig,
     skipgram_config: SkipGramConfig,
     vocab_config: VocabConfig,
@@ -88,10 +148,9 @@ impl SkipGramApp {
             .value_of("threads")
             .map(|v| v.parse().or_exit("Cannot parse number of threads", 1))
             .unwrap_or_else(|| cmp::min(num_cpus::get() / 2, 20));
+        let train_info = TrainInfo::new(corpus, output, n_threads);
         SkipGramApp {
-            corpus,
-            output,
-            n_threads,
+            train_info,
             common_config: common_config_from_matches(&matches),
             skipgram_config: Self::skipgram_config_from_matches(&matches),
             vocab_config: vocab_config_from_matches(&matches),
@@ -100,17 +159,17 @@ impl SkipGramApp {
 
     /// Get the corpus path.
     pub fn corpus(&self) -> &str {
-        self.corpus.as_str()
+        self.train_info.corpus.as_str()
     }
 
     /// Get the output path.
     pub fn output(&self) -> &str {
-        self.output.as_str()
+        self.train_info.output.as_str()
     }
 
     /// Get the number of threads.
     pub fn n_threads(&self) -> usize {
-        self.n_threads
+        self.train_info.n_threads
     }
 
     /// Get the common config.
@@ -126,6 +185,11 @@ impl SkipGramApp {
     /// Get the vocab config.
     pub fn vocab_config(&self) -> VocabConfig {
         self.vocab_config
+    }
+
+    /// Get the train information.
+    pub fn train_info(&self) -> &TrainInfo {
+        &self.train_info
     }
 
     fn skipgram_config_from_matches(matches: &ArgMatches) -> SkipGramConfig {
@@ -147,9 +211,7 @@ impl SkipGramApp {
 
 /// DepembedsApp.
 pub struct DepembedsApp {
-    corpus: String,
-    output: String,
-    n_threads: usize,
+    train_info: TrainInfo,
     common_config: CommonConfig,
     depembeds_config: DepembedsConfig,
     input_vocab_config: VocabConfig,
@@ -187,11 +249,10 @@ impl DepembedsApp {
             min_count,
             discard_threshold,
         };
+        let train_info = TrainInfo::new(corpus, output, n_threads);
 
         DepembedsApp {
-            corpus,
-            output,
-            n_threads,
+            train_info,
             common_config: common_config_from_matches(&matches),
             depembeds_config: Self::depembeds_config_from_matches(&matches),
             input_vocab_config: vocab_config_from_matches(&matches),
@@ -201,17 +262,17 @@ impl DepembedsApp {
 
     /// Get the corpus path.
     pub fn corpus(&self) -> &str {
-        self.corpus.as_str()
+        self.train_info.corpus.as_str()
     }
 
     /// Get the output path.
     pub fn output(&self) -> &str {
-        self.output.as_str()
+        self.train_info.output.as_str()
     }
 
     /// Get the number of threads.
     pub fn n_threads(&self) -> usize {
-        self.n_threads
+        self.train_info.n_threads
     }
 
     /// Get the common config.
@@ -232,6 +293,11 @@ impl DepembedsApp {
     /// Get the output vocab config.
     pub fn output_vocab_config(&self) -> SimpleVocabConfig {
         self.output_vocab_config
+    }
+
+    /// Get the train information.
+    pub fn train_info(&self) -> &TrainInfo {
+        &self.train_info
     }
 
     fn add_depembeds_opts<'a, 'b>(app: App<'a, 'b>) -> App<'a, 'b> {
