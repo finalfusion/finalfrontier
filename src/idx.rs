@@ -8,11 +8,11 @@ pub struct SingleIdx {
 }
 
 impl SingleIdx {
-    pub(crate) fn new(idx: u64) -> Self {
+    pub fn new(idx: u64) -> Self {
         SingleIdx { idx }
     }
 
-    pub(crate) fn idx(self) -> u64 {
+    pub fn idx(self) -> u64 {
         self.idx
     }
 }
@@ -25,7 +25,7 @@ pub struct WordWithSubwordsIdx {
 }
 
 impl WordWithSubwordsIdx {
-    pub(crate) fn new(word_idx: u64, subwords: impl Into<Vec<u64>>) -> Self {
+    pub fn new(word_idx: u64, subwords: impl Into<Vec<u64>>) -> Self {
         WordWithSubwordsIdx {
             word_idx,
             subwords: subwords.into(),
@@ -45,6 +45,11 @@ pub trait WordIdx: Clone {
 
     /// Return the number of indices.
     fn len(&self) -> usize;
+
+    /// Return whether this is empty.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl WordIdx for SingleIdx {

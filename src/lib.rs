@@ -14,7 +14,7 @@ pub use crate::dep_trainer::DepembedsTrainer;
 
 pub(crate) mod hogwild;
 
-pub(crate) mod idx;
+pub mod idx;
 
 pub mod io;
 pub use io::{SentenceIterator, WriteModelBinary, WriteModelText, WriteModelWord2Vec};
