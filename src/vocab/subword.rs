@@ -2,10 +2,10 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use finalfusion::prelude::{SubwordVocab as FiFuSubwordVocab, VocabWrap};
 use finalfusion::subword::{
-    BucketIndexer, FinalfusionHashIndexer, Indexer, NGramIndexer, NGrams, SubwordIndices,
+    BucketIndexer, ExplicitIndexer, FinalfusionHashIndexer, Indexer, NGrams, SubwordIndices,
 };
+use finalfusion::vocab::{SubwordVocab as FiFuSubwordVocab, VocabWrap};
 
 use crate::idx::{WordIdx, WordWithSubwordsIdx};
 use crate::vocab::{bracket, create_discards, create_indices};
@@ -72,7 +72,6 @@ where
                 bracket(word.word())
                     .as_str()
                     .subword_indices(min_n, max_n, indexer)
-                    .into_iter()
                     .map(|idx| idx + words.len() as u64)
                     .collect(),
             );
@@ -165,7 +164,7 @@ where
 
 /// Constructs a `SubwordVocab` from a `VocabBuilder<T>` where `T: Into<String>`.
 impl<T> From<VocabBuilder<SubwordVocabConfig<NGramConfig>, T>>
-    for SubwordVocab<NGramConfig, NGramIndexer>
+    for SubwordVocab<NGramConfig, ExplicitIndexer>
 where
     T: Hash + Eq + Into<String>,
 {
@@ -208,7 +207,7 @@ where
             let ngram2_cnt = ngram_counts[ngram2];
             (ngram2_cnt, ngram2).cmp(&(ngram1_cnt, ngram1))
         });
-        SubwordVocab::new(config, words, builder.n_items, NGramIndexer::new(ngrams))
+        SubwordVocab::new(config, words, builder.n_items, ExplicitIndexer::new(ngrams))
     }
 }
 
@@ -229,7 +228,7 @@ macro_rules! impl_into_vocabwrap (
 );
 
 impl_into_vocabwrap!(SubwordVocab<BucketConfig, FinalfusionHashIndexer>);
-impl_into_vocabwrap!(SubwordVocab<NGramConfig, NGramIndexer>);
+impl_into_vocabwrap!(SubwordVocab<NGramConfig, ExplicitIndexer>);
 
 #[cfg(test)]
 mod tests {
@@ -238,7 +237,7 @@ mod tests {
     use crate::idx::WordIdx;
     use crate::{util, BucketConfig, NGramConfig};
 
-    use finalfusion::subword::{FinalfusionHashIndexer, Indexer, NGramIndexer};
+    use finalfusion::subword::{ExplicitIndexer, FinalfusionHashIndexer, Indexer};
 
     const TEST_SUBWORDCONFIG: SubwordVocabConfig<BucketConfig> = SubwordVocabConfig {
         discard_threshold: 1e-4,
@@ -360,7 +359,7 @@ mod tests {
         builder.count("be");
         builder.count("</s>");
 
-        let vocab: SubwordVocab<_, NGramIndexer> = builder.into();
+        let vocab: SubwordVocab<_, ExplicitIndexer> = builder.into();
 
         // 'or' and 'not' should be filtered due to the minimum count.
         assert_eq!(vocab.len(), 3);

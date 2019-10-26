@@ -293,8 +293,8 @@ pub fn l2_normalize(v: ArrayViewMut1<f32>) -> f32 {
 #[cfg(test)]
 mod tests {
     use ndarray::Array1;
+    use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
-    use rand::distributions::Uniform;
 
     use crate::util::{all_close, array_all_close, close};
 
@@ -426,7 +426,7 @@ mod tests {
 
     #[test]
     fn l2_normalize_test() {
-        let mut u = Array1::from_vec(vec![1., -2., -1., 3., -3., 1.]);
+        let mut u = Array1::from(vec![1., -2., -1., 3., -3., 1.]);
         assert!(close(l2_normalize(u.view_mut()), 5., 1e-5));
         assert!(all_close(
             &[0.2, -0.4, -0.2, 0.6, -0.6, 0.2],
