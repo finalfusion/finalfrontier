@@ -2,11 +2,14 @@ use std::io::{Seek, Write};
 use std::sync::Arc;
 
 use failure::{err_msg, Error};
-use finalfusion::chunks::norms::NdNorms;
-use finalfusion::prelude::{Embeddings, Metadata, NdArray, VocabWrap, WriteEmbeddings};
+use finalfusion::io::WriteEmbeddings;
+use finalfusion::metadata::Metadata;
+use finalfusion::norms::NdNorms;
+use finalfusion::prelude::{Embeddings, VocabWrap};
+use finalfusion::storage::NdArray;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis};
+use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
-use rand::distributions::Uniform;
 use serde::Serialize;
 use toml::Value;
 
@@ -122,7 +125,7 @@ impl<T> TrainModel<T> {
         I: WordIdx,
         &'a I: IntoIterator<Item = u64>,
     {
-        let mut embed = Array1::zeros((embeds.cols(),));
+        let mut embed = Array1::zeros((embeds.ncols(),));
         let len = indices.len();
         for idx in indices {
             scaled_add(
@@ -209,9 +212,9 @@ where
 
         let vocab: VocabWrap = trainer.try_into_input_vocab()?.into();
         let storage = NdArray::new(input_matrix);
-        let norms = NdNorms(Array1::from_vec(norms));
+        let norms = NdNorms::new(Array1::from(norms));
 
-        Embeddings::new(Some(Metadata(metadata)), vocab, storage, norms)
+        Embeddings::new(Some(Metadata::new(metadata)), vocab, storage, norms)
             .write_embeddings(write)
             .map_err(|err| err.into())
     }
