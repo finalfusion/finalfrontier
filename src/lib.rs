@@ -1,5 +1,3 @@
-pub mod app;
-
 mod config;
 pub use crate::config::{
     BucketConfig, CommonConfig, DepembedsConfig, LossType, ModelType, NGramConfig,

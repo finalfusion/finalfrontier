@@ -1,11 +1,12 @@
 use std::fs::File;
 use std::io::{self, BufRead, Lines, Read, Seek, SeekFrom, Write};
 
+use chrono::{DateTime, Local};
 use failure::{Error, ResultExt};
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap::{Mmap, MmapOptions};
+use serde::Serialize;
 
-use crate::app::TrainInfo;
 use crate::util::EOS;
 
 pub struct FileProgress {
@@ -167,6 +168,64 @@ pub fn thread_data_conllx(
     }
 
     Ok((mmap, start))
+}
+
+/// Meta information about training.
+#[derive(Clone, Serialize)]
+pub struct TrainInfo {
+    corpus: String,
+    output: String,
+    n_threads: usize,
+    start_datetime: String,
+    end_datetime: Option<String>,
+}
+
+impl TrainInfo {
+    /// Construct new TrainInfo.
+    ///
+    /// Constructs TrainInfo with `start_datetime` set to the current datetime. `end_datetime` is
+    /// set to `None` and can be set through `TrainInfo::set_end`.
+    pub fn new(corpus: String, output: String, n_threads: usize) -> Self {
+        let start_datetime: DateTime<Local> = Local::now();
+        TrainInfo {
+            corpus,
+            output,
+            n_threads,
+            start_datetime: start_datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+            end_datetime: None,
+        }
+    }
+
+    /// Get the corpus path.
+    pub fn corpus(&self) -> &str {
+        &self.corpus
+    }
+
+    /// Get the output file.
+    pub fn output(&self) -> &str {
+        &self.output
+    }
+
+    /// Get the number of threads.
+    pub fn n_threads(&self) -> usize {
+        self.n_threads
+    }
+
+    /// Get the start datetime.
+    pub fn start_datetime(&self) -> &str {
+        &self.start_datetime
+    }
+
+    /// Get the end datetime.
+    pub fn end_datetime(&self) -> Option<&str> {
+        self.end_datetime.as_ref().map(|s| s.as_str())
+    }
+
+    /// Set the end datetime to current datetime.
+    pub fn set_end(&mut self) {
+        let start_datetime: DateTime<Local> = Local::now();
+        self.end_datetime = Some(start_datetime.format("%Y-%m-%d %H:%M:%S").to_string());
+    }
 }
 
 /// Trait for writing models in binary format.
