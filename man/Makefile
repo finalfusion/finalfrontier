@@ -1,4 +1,4 @@
-all: ff-train-skipgram.1 ff-train-deps.1
+all: finalfrontier-skipgram.1 finalfrontier-deps.1
 
 clean:
 	rm -f *.1 *.5

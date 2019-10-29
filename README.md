@@ -33,8 +33,8 @@ Python module.
   * [Installation](docs/INSTALL.md)
   * [Quickstart](docs/QUICKSTART.md)
   * Manual pages:
-    - [ff-train-skipgram(1)](man/ff-train-skipgram.1.md) — train word
+    - [finalfrontier-skipgram(1)](man/finalfrontier-skipgram.1.md) — train word
       embeddings with the (structured) skip-gram model
-    - [ff-train-deps(1)](man/ff-train-skipgram.1.md) — train word embeddings with dependency contexts
+    - [finalfrontier-deps(1)](man/finalfrontier-deps.1.md) — train word embeddings with dependency contexts
   * [finalfusion crate](https://github.com/finalfusion/finalfusion-rust)
   * [Python module](https://github.com/finalfusion/finalfusion-python)

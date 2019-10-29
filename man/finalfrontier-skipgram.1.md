@@ -1,24 +1,24 @@
-% FF-TRAIN-SKIPGRAM(1)
+% FINALFRONTIER-SKIPGRAM(1)
 % Daniel de Kok
 % Sep 8, 2018
 
 NAME
 ====
 
-**ff-train-skipgram** -- train word embeddings with subword representations
+**finalfrontier skipgram** -- train word embeddings with subword representations
 
 SYNOPSIS
 ========
 
-**ff-train-skipgram** [*options*] *corpus* *output*
+**finalfrontier skipgram** [*options*] *corpus* *output*
 
 DESCRIPTION
 ===========
 
-The **ff-train-skipgram** trains word embeddings using data from a *corpus*. The
-corpus should have tokens separated by spaces and sentences separated by
-newlines. After training, the embeddings are written to *output* in the
-finalfusion format.
+The **finalfrontier skipgram** subcommand trains word embeddings using data
+from a *corpus*. The corpus should have tokens separated by spaces and
+sentences separated by newlines. After training, the embeddings are written to
+*output* in the finalfusion format.
 
 OPTIONS
 =======
@@ -85,7 +85,7 @@ OPTIONS
     suited for syntax-oriented tasks.
 
     The dependency embeddings model is supported by the separate
-    `ff-train-deps`(1) utility.
+    `finalfrontier deps`(1) subcommand.
 
     The default model is *skipgram*.
 
@@ -113,15 +113,15 @@ EXAMPLES
 
 Train embeddings on *dewiki.txt* using the skip-gram model:
 
-    ff-train-skipgram dewiki.txt dewiki-skipgram.bin
+    finalfrontier skipgram dewiki.txt dewiki-skipgram.bin
 
 Train embeddings with dimensionality 200 on *dewiki.txt* using the
 structured skip-gram model with a context window of 5 tokens:
 
-    ff-train-skipgram --model structgram --context 5 --dims 200 \
+    finalfrontier skipgram --model structgram --context 5 --dims 200 \
       dewiki.txt dewiki-structgram.bin
 
 SEE ALSO
 ========
 
-`ff-train-deps`(1)
+`finalfrontier-deps`(1)

@@ -13,9 +13,9 @@ use ndarray_rand::RandomExt;
 use serde::Serialize;
 use toml::Value;
 
-use crate::app::TrainInfo;
 use crate::hogwild::HogwildArray2;
 use crate::idx::WordIdx;
+use crate::io::TrainInfo;
 use crate::util::VersionInfo;
 use crate::vec_simd::{l2_normalize, scale, scaled_add};
 use crate::{CommonConfig, Vocab, WriteModelBinary};

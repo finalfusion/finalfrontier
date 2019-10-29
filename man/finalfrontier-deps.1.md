@@ -1,24 +1,24 @@
-% FF-TRAIN-DEPS(1) % Daniel de Kok, Sebastian Pütz % Apr 6, 2019
+% FINALFRONTIER-DEPS(1) % Daniel de Kok, Sebastian Pütz % Apr 6, 2019
 
 NAME
 ====
 
-**ff-train-deps** -- train dependency-based word embeddings with subword
+**finalfrontier deps** -- train dependency-based word embeddings with subword
 representations
 
 SYNOPSIS
 ========
 
-**ff-train-deps** [*options*] *corpus* *output*
+**finalfrontier deps** [*options*] *corpus* *output*
 
 DESCRIPTION
 ===========
 
-The **ff-train-deps** trains dependency based word embeddings (Levy and Goldberg,
-2014) using data from a *corpus* in CONLL-X format. The corpus contains
-sentences seperated by empty lines. Each sentence needs to be annotated with a
-dependency graph. After training, the embeddings are written to *output* in the
-finalfusion format.
+The **finalfrontier-deps** subcommand trains dependency based word embeddings
+(Levy and Goldberg, 2014) using data from a *corpus* in CONLL-X format. The
+corpus contains sentences seperated by empty lines. Each sentence needs to be
+annotated with a dependency graph. After training, the embeddings are written
+to *output* in the finalfusion format.
 
 OPTIONS
 =======
@@ -126,11 +126,15 @@ EXAMPLES
 Train embeddings on *dewiki.txt* using the dependency model with default
 parameters:
 
-    ff-train-deps dewiki.conll dewiki-deps.bin
+    finalfrontier deps dewiki.conll dewiki-deps.bin
 
 Train embeddings with dimensionality 200 on *dewiki.conll* using the dependency
 model from contexts with depth up to 2:
 
-    ff-train-deps --depth 2 --normalize --dims 200 \
+    finalfrontier deps --depth 2 --normalize --dims 200 \
       dewiki.conll dewiki-deps.bin
 
+SEE ALSO
+========
+
+`finalfrontier-skipgram`(1)
