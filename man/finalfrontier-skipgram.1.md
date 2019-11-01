@@ -124,4 +124,4 @@ structured skip-gram model with a context window of 5 tokens:
 SEE ALSO
 ========
 
-`finalfrontier-deps`(1)
+`finalfrontier`(1), `finalfrontier-deps`(1)
