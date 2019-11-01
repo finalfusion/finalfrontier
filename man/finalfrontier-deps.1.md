@@ -137,4 +137,4 @@ model from contexts with depth up to 2:
 SEE ALSO
 ========
 
-`finalfrontier-skipgram`(1)
+`finalfrontier`(1), `finalfrontier-skipgram`(1)

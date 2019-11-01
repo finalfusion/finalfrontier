@@ -1,4 +1,4 @@
-all: finalfrontier-skipgram.1 finalfrontier-deps.1
+all: finalfrontier.1 finalfrontier-skipgram.1 finalfrontier-deps.1
 
 clean:
 	rm -f *.1 *.5
