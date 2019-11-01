@@ -1,4 +1,4 @@
-use rand::{FromEntropy, SeedableRng};
+use rand::SeedableRng;
 use rand_core::{self, RngCore};
 use serde::Serialize;
 
@@ -55,7 +55,7 @@ where
 
 impl<R> Clone for ReseedOnCloneRng<R>
 where
-    R: RngCore + FromEntropy + SeedableRng,
+    R: RngCore + SeedableRng,
 {
     fn clone(&self) -> Self {
         ReseedOnCloneRng(R::from_entropy())
@@ -83,7 +83,7 @@ pub use self::test::*;
 #[cfg(test)]
 mod test {
     use ndarray::{ArrayView, Dimension};
-    use rand::{FromEntropy, SeedableRng};
+    use rand::SeedableRng;
     use rand_core::{self, impls, le, RngCore};
 
     use super::ReseedOnCloneRng;

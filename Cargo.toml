@@ -22,13 +22,13 @@ memmap = "0.7"
 ndarray = "0.13"
 ndarray-rand = "0.11"
 num_cpus = "1"
-rand = "0.6"
-rand_core = "0.4"
-rand_xorshift = "0.1"
+rand = "0.7"
+rand_core = "0.5"
+rand_xorshift = "0.2"
 serde = { version = "1", features = ["derive"] }
 stdinout = "0.4"
 toml = "0.5"
-zipf = "5"
+zipf = "6"
 
 [build-dependencies]
 git2 = "0.10"
@@ -36,4 +36,3 @@ git2 = "0.10"
 [dev-dependencies]
 lazy_static = "1"
 maplit = "1"
-rand_xorshift = "0.1"

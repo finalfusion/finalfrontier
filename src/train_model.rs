@@ -276,7 +276,7 @@ pub trait NegativeSamples {
 mod tests {
     use finalfusion::subword::FinalfusionHashIndexer;
     use ndarray::Array2;
-    use rand::FromEntropy;
+    use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
     use super::TrainModel;

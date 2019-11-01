@@ -12,7 +12,7 @@ use finalfrontier::{
     SubwordVocab, Vocab, VocabBuilder, WriteModelBinary, SGD,
 };
 use finalfusion::prelude::VocabWrap;
-use rand::{FromEntropy, Rng};
+use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use serde::Serialize;
 use stdinout::OrExit;
