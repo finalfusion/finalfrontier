@@ -41,17 +41,17 @@ discarded during training. The default context discard threshold is *1e-4*.
 :   The minimum count controls discarding of infrequent contexts. Contexts
 occuring fewer than *FREQ* times are not considered during training.  The
 default minimum count is 5.
-    
-`--dims` *DIMS*
-
-:   The dimensionality of the trained word embeddings. The default
-dimensionality is 300.
 
 `--dependency_depth` *DEPTH*
 
 :   Dependency contexts up to *DEPTH* distance from the focus word in the
 dependency graph will be used to learn the representation of the focus word. The
 default depth is *1*.
+
+`--dims` *DIMS*
+
+:   The dimensionality of the trained word embeddings. The default
+dimensionality is 300.
 
 `--discard` *THRESHOLD*
 
@@ -83,14 +83,15 @@ minimum count is 5.
 
 :   The minimum n-gram length for subword representations. Default: 3
 
+`--ngram_mincount` *FREQ*
+
+:   The minimum n-gram frequency. n-grams occurring fewer than *FREQ*
+    times are excluded from training. This option is only applicable
+    with the *ngrams* argument of the `subwords` option.
+
 `--normalize_contexts`
 
 :   Normalize the attached form in the dependency contexts.
-
-`--no_subwords`
-
-:   Train embeddings without subword information. This option overrides
-arguments for `buckets`, `minn` and `maxn`.
 
 `--ns` *FREQ*
 
@@ -108,6 +109,26 @@ arguments for `buckets`, `minn` and `maxn`.
     threads increases the probability of update collisions, requiring
     more epochs to reach the same loss.
     
+`--subwords` *SUBWORDS*
+
+:   The type of subword embeddings to train. The possible types are
+    *buckets*, *ngrams*, and *none*. Subword embeddings are used to
+    compute embeddings for unknown words by summing embeddings of
+    n-grams within unknown words.
+
+    The *none* type does not use subwords. The resulting model will
+    not be able assign an embeddings to unknown words.
+
+    The *ngrams* type stores subword n-grams explicitly. The included
+    n-gram lengths are specified using the `minn` and `maxn`
+    options. The frequency threshold for n-grams is configured with
+    the `ngram_mincount` option.
+
+    The *buckets* type maps n-grams to buckets using the FNV1 hash.
+    The considered n-gram lengths are specified using the `minn` and
+    `maxn` options.  The number of buckets is controlled with the
+    `buckets` option.
+
 `--untyped_deps`
 
 :   Only use the word of the attached token in the dependency relation as

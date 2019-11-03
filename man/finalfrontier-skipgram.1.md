@@ -89,14 +89,35 @@ OPTIONS
 
     The default model is *skipgram*.
 
-`--no_subwords`
+`--ngram_mincount` *FREQ*
 
-:   Train embeddings without subword information. This option overrides
-arguments for `buckets`, `minn` and `maxn`.
+:   The minimum n-gram frequency. n-grams occurring fewer than *FREQ*
+    times are excluded from training. This option is only applicable
+    with the *ngrams* argument of the `subwords` option.
 
 `--ns` *FREQ*
 
 :   The number of negatives to sample per positive example. Default: 5
+
+`--subwords` *SUBWORDS*
+
+:   The type of subword embeddings to train. The possible types are
+    *buckets*, *ngrams*, and *none*. Subword embeddings are used to
+    compute embeddings for unknown words by summing embeddings of
+    n-grams within unknown words.
+
+    The *none* type does not use subwords. The resulting model will
+    not be able assign an embeddings to unknown words.
+
+    The *ngrams* type stores subword n-grams explicitly. The included
+    n-gram lengths are specified using the `minn` and `maxn`
+    options. The frequency threshold for n-grams is configured with
+    the `ngram_mincount` option.
+
+    The *buckets* type maps n-grams to buckets using the FNV1 hash.
+    The considered n-gram lengths are specified using the `minn` and
+    `maxn` options.  The number of buckets is controlled with the
+    `buckets` option.
 
 `--threads` *N*
 
