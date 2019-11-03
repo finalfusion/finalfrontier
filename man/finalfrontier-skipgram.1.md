@@ -100,8 +100,11 @@ arguments for `buckets`, `minn` and `maxn`.
 
 `--threads` *N*
 
-:   The number of thread to use during training for parallelization. The
-    default is to use half of the logical CPUs of the machine.
+:   The number of thread to use during training for
+    parallelization. The default is to use half of the logical CPUs of
+    the machine, capped at 20 threads. Increasing the number of
+    threads increases the probability of update collisions, requiring
+    more epochs to reach the same loss.
 
 `--zipf` *EXP*
 
