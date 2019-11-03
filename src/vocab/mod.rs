@@ -2,10 +2,12 @@ pub(crate) mod simple;
 pub(crate) mod subword;
 
 use std::borrow::Borrow;
+use std::cmp::Ordering::*;
 use std::collections::HashMap;
 use std::hash::Hash;
 
 use crate::idx::WordIdx;
+use crate::VocabCutoff;
 
 const BOW: char = '<';
 const EOW: char = '>';
@@ -156,4 +158,58 @@ pub(crate) fn bracket(word: &str) -> String {
     bracketed.push(EOW);
 
     bracketed
+}
+
+/// Search for the first occurrence of a value in a reverse-sorted vector.
+pub(crate) fn first_occurrence<S>(vec: &[CountedType<S>], key: &CountedType<S>) -> usize {
+    match vec.binary_search_by(|v| {
+        if v.count() > key.count() {
+            Less
+        } else {
+            Greater
+        }
+    }) {
+        Ok(idx) => idx,
+        Err(idx) => idx,
+    }
+}
+
+/// Cut vocabulary into a target size or cut off words whose frequence is lower than minimal count.
+fn words_cutoff<S, T>(vocab_cutoff: VocabCutoff, items: HashMap<T, usize>) -> Vec<CountedType<S>>
+where
+    T: Hash + Eq + Into<S>,
+    S: Hash + Eq + Clone + Ord,
+{
+    match vocab_cutoff {
+        VocabCutoff::MinCount(min_count) => {
+            let mut words: Vec<_> = items
+                .into_iter()
+                .map(|(word, count)| (word.into(), count))
+                .filter(|(_, count)| *count >= min_count.min_count() as usize)
+                .map(|(word, count)| CountedType::new(word, count))
+                .collect();
+            words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
+            words
+        }
+        VocabCutoff::TargetVocabSize(vocab_size) => {
+            assert!(
+                vocab_size.vocab_size() >= 1,
+                "Target vocab size must be positive"
+            );
+            let mut words: Vec<_> = items
+                .into_iter()
+                .map(|(word, count)| CountedType::new(word.into(), count))
+                .collect();
+            words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
+
+            let last_index = vocab_size.vocab_size() - 1;
+            if last_index >= 1 && words[last_index].count() == words[last_index + 1].count() {
+                if let Some(last_word) = words.get(last_index) {
+                    let cutoff_point = first_occurrence(&words[..=last_index], last_word);
+                    words.truncate(cutoff_point);
+                }
+            }
+            words
+        }
+    }
 }

@@ -1,4 +1,5 @@
 use failure::{err_msg, Error};
+use serde::ser::Serializer;
 use serde::Serialize;
 
 /// Model types.
@@ -102,11 +103,10 @@ pub struct DepembedsConfig {
 #[serde(rename = "SubwordVocab")]
 #[serde(tag = "type")]
 pub struct SubwordVocabConfig<V> {
-    /// Minimum token count.
+    /// Vocabulary cutoff options.
     ///
-    /// No word-specific embeddings will be trained for tokens occurring less
-    /// than this count.
-    pub min_count: u32,
+    /// Vocabulary size cut-off.
+    pub vocab_cutoff: VocabCutoff,
 
     /// Discard threshold.
     ///
@@ -154,11 +154,10 @@ pub struct NGramConfig {
 #[serde(rename = "SimpleVocab")]
 #[serde(tag = "type")]
 pub struct SimpleVocabConfig {
-    /// Minimum token count.
+    /// Vocabulary size cut-off.
     ///
-    /// No word-specific embeddings will be trained for tokens occurring less
-    /// than this count.
-    pub min_count: u32,
+    /// Ways of sizing vocabularies.
+    pub vocab_cutoff: VocabCutoff,
 
     /// Discard threshold.
     ///
@@ -166,6 +165,69 @@ pub struct SimpleVocabConfig {
     /// a token. E.g. with a threshold of 0.00001 tokens with approximately
     /// that probability will never be discarded.
     pub discard_threshold: f32,
+}
+
+/// Options for sizing the vocabulary.
+#[derive(Copy, Clone, Debug)]
+pub enum VocabCutoff {
+    /// Minimum token count
+    ///
+    /// Discard tokens that occur less than the given count.
+    MinCount(MinCount),
+
+    /// Maximum target vocabulary size
+    ///
+    /// Cut off the vocabulary at the given size, retaining the n most frequent tokens. Tokens with
+    /// the same count as the token at the cut-off point will also be discarded.
+    TargetVocabSize(TargetVocabSize),
+}
+
+/// Hyperparameter for target vocab size in vocab configurations.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename = "vocab_size")]
+#[serde(tag = "type")]
+pub struct TargetVocabSize {
+    /// Target size for the vocabulary.
+    pub vocab_size: usize,
+}
+
+impl TargetVocabSize {
+    /// Get target vocab size.
+    pub fn vocab_size(self) -> usize {
+        self.vocab_size
+    }
+}
+
+/// Hyperparameter for minimal count in vocab configurations.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename = "min_count")]
+#[serde(tag = "type")]
+pub struct MinCount {
+    /// Minimum token count
+    pub min_count: usize,
+}
+
+impl MinCount {
+    /// Get minimal token count.
+    pub fn min_count(self) -> usize {
+        self.min_count
+    }
+}
+
+impl Serialize for VocabCutoff {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match *self {
+            VocabCutoff::MinCount(ref min_count) => {
+                serde::Serialize::serialize(min_count, serializer)
+            }
+            VocabCutoff::TargetVocabSize(ref vocab_size) => {
+                serde::Serialize::serialize(vocab_size, serializer)
+            }
+        }
+    }
 }
 
 /// Hyperparameters for SkipGram-like models.

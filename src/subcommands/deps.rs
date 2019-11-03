@@ -11,8 +11,9 @@ use conllx::io::{ReadSentence, Reader};
 use conllx::proj::{HeadProjectivizer, Projectivize};
 use finalfrontier::io::{thread_data_conllx, FileProgress, TrainInfo};
 use finalfrontier::{
-    CommonConfig, DepembedsConfig, DepembedsTrainer, Dependency, DependencyIterator, SimpleVocab,
-    SimpleVocabConfig, SubwordVocab, Vocab, VocabBuilder, WriteModelBinary, SGD,
+    CommonConfig, DepembedsConfig, DepembedsTrainer, Dependency, DependencyIterator, MinCount,
+    SimpleVocab, SimpleVocabConfig, SubwordVocab, Vocab, VocabBuilder, VocabCutoff,
+    WriteModelBinary, SGD,
 };
 use finalfusion::prelude::VocabWrap;
 use rand::{FromEntropy, Rng};
@@ -169,7 +170,7 @@ impl FinalfrontierApp for DepsApp {
             .unwrap();
 
         let output_vocab_config = SimpleVocabConfig {
-            min_count,
+            vocab_cutoff: VocabCutoff::MinCount(MinCount { min_count }),
             discard_threshold,
         };
         let train_info = TrainInfo::new(corpus, output, n_threads);

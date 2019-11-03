@@ -1,6 +1,7 @@
 use clap::{App, AppSettings, Arg, ArgMatches};
 use finalfrontier::{
-    BucketConfig, CommonConfig, LossType, NGramConfig, SimpleVocabConfig, SubwordVocabConfig,
+    BucketConfig, CommonConfig, LossType, MinCount, NGramConfig, SimpleVocabConfig,
+    SubwordVocabConfig, TargetVocabSize, VocabCutoff,
 };
 use stdinout::OrExit;
 
@@ -23,6 +24,7 @@ static MAXN: &str = "maxn";
 static NGRAM_MINCOUNT: &str = "ngram_mincount";
 static SUBWORDS: &str = "subwords";
 static NS: &str = "ns";
+static VOCAB_SIZE: &str = "vocab_size";
 static ZIPF_EXPONENT: &str = "zipf";
 
 pub trait FinalfrontierApp {
@@ -142,6 +144,13 @@ pub trait FinalfrontierApp {
                     .takes_value(true),
             )
             .arg(
+                Arg::with_name(VOCAB_SIZE)
+                    .long("vocab_size")
+                    .value_name("VOCABULARY_SIZE")
+                    .help("Maximum vocabulary size")
+                    .takes_value(true),
+            )
+            .arg(
                 Arg::with_name(ZIPF_EXPONENT)
                     .long("zipf")
                     .value_name("EXP")
@@ -208,10 +217,6 @@ pub trait FinalfrontierApp {
             .value_of(DISCARD)
             .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
             .unwrap();
-        let min_count = matches
-            .value_of(MINCOUNT)
-            .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
-            .unwrap();
         let min_n = matches
             .value_of(MINN)
             .map(|v| v.parse().or_exit("Cannot parse minimum n-gram length", 1))
@@ -220,6 +225,21 @@ pub trait FinalfrontierApp {
             .value_of(MAXN)
             .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
             .unwrap();
+        let vocab_cutoff = if matches.is_present(VOCAB_SIZE) {
+            VocabCutoff::TargetVocabSize(TargetVocabSize {
+                vocab_size: matches
+                    .value_of(VOCAB_SIZE)
+                    .map(|v| v.parse().or_exit("Cannot parse vocab size", 1))
+                    .unwrap(),
+            })
+        } else {
+            VocabCutoff::MinCount(MinCount {
+                min_count: matches
+                    .value_of(MINCOUNT)
+                    .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
+                    .unwrap(),
+            })
+        };
         match matches.value_of(SUBWORDS).unwrap() {
             "buckets" => {
                 let buckets_exp = matches
@@ -228,7 +248,7 @@ pub trait FinalfrontierApp {
                     .unwrap();
                 VocabConfig::SubwordVocab(SubwordVocabConfig {
                     discard_threshold,
-                    min_count,
+                    vocab_cutoff,
                     max_n,
                     min_n,
                     indexer: BucketConfig { buckets_exp },
@@ -241,14 +261,14 @@ pub trait FinalfrontierApp {
                     .unwrap();
                 VocabConfig::NGramVocab(SubwordVocabConfig {
                     discard_threshold,
-                    min_count,
+                    vocab_cutoff,
                     max_n,
                     min_n,
                     indexer: NGramConfig { min_ngram_count },
                 })
             }
             "none" => VocabConfig::SimpleVocab(SimpleVocabConfig {
-                min_count,
+                vocab_cutoff,
                 discard_threshold,
             }),
             // unreachable as long as possible values in clap are in sync with this `VocabConfig`'s

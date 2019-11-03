@@ -5,7 +5,7 @@ use std::hash::Hash;
 use finalfusion::vocab::{SimpleVocab as FiFuSimpleVocab, VocabWrap};
 
 use crate::idx::{SingleIdx, WordIdx};
-use crate::vocab::{create_discards, create_indices};
+use crate::vocab::{create_discards, create_indices, words_cutoff};
 use crate::{CountedType, SimpleVocabConfig, Vocab, VocabBuilder};
 
 /// Generic corpus vocabulary type.
@@ -112,16 +112,9 @@ where
     S: Hash + Eq + Clone + Ord,
 {
     fn from(builder: VocabBuilder<SimpleVocabConfig, T>) -> Self {
-        let min_count = builder.config.min_count;
-
-        let mut types: Vec<_> = builder
-            .items
-            .into_iter()
-            .filter(|(_, count)| *count >= min_count as usize)
-            .map(|(item, count)| CountedType::new(item.into(), count))
-            .collect();
-        types.sort_unstable_by(|w1, w2| w2.cmp(&w1));
-        SimpleVocab::new(builder.config, types, builder.n_items)
+        let config = builder.config;
+        let types = words_cutoff(config.vocab_cutoff, builder.items);
+        SimpleVocab::new(config, types, builder.n_items)
     }
 }
 
@@ -129,11 +122,11 @@ where
 mod tests {
     use super::{SimpleVocab, Vocab, VocabBuilder};
     use crate::idx::WordIdx;
-    use crate::{util, SimpleVocabConfig};
+    use crate::{util, MinCount, SimpleVocabConfig, VocabCutoff};
 
     const TEST_SIMPLECONFIG: SimpleVocabConfig = SimpleVocabConfig {
         discard_threshold: 1e-4,
-        min_count: 2,
+        vocab_cutoff: VocabCutoff::MinCount(MinCount { min_count: 2 }),
     };
 
     #[test]
