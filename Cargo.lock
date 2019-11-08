@@ -241,7 +241,7 @@ dependencies = [
 
 [[package]]
 name = "finalfrontier"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
