@@ -1,6 +1,6 @@
 [package]
 name = "finalfrontier-utils"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2018"
 authors = ["Daniël de Kok <me@danieldk.eu>", "Sebastian Pütz <sebastian.puetz@student.uni-tuebingen.de>"]
 description = "Train and use word embeddings with subword representations"
@@ -9,11 +9,14 @@ homepage = "https://finalfusion.github.io/finalfrontier"
 repository = "https://github.com/finalfusion/finalfrontier.git"
 license = "Apache-2.0"
 
+[badges]
+maintenance = { status = "deprecated" }
+
 [dependencies]
 clap = "2"
 conllx = "0.11"
 failure = "0.1"
-finalfrontier = { path = "../finalfrontier", version = "0.6.1" }
+finalfrontier = { path = "../finalfrontier", version = "0.6.2" }
 indicatif = "0.11"
 memmap = "0.7"
 num_cpus = "1"

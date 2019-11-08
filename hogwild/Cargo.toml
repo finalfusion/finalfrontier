@@ -1,6 +1,6 @@
 [package]
 name = "hogwild"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2018"
 authors = ["Daniël de Kok <me@danieldk.eu>"]
 description = "Data types for hogwild SGD"
@@ -8,6 +8,9 @@ documentation = "https://docs.rs/hogwild/"
 homepage = "https://finalfusion.github.io/finalfrontier"
 repository = "https://github.com/finalfusion/finalfrontier.git"
 license = "Apache-2.0"
+
+[badges]
+maintenance = { status = "deprecated" }
 
 [dependencies]
 ndarray = "0.12"
