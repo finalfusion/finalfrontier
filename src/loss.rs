@@ -41,13 +41,13 @@ const LOGISTIC_ROUND_ACTIVATION: f32 = 10.0;
 /// We can simplify the first term:
 ///
 /// y log(σ(u·v)) =
-/// y log(1/e^{-u·v}) =
-/// -y log(e^{-u·v})
+/// y log(1/(1+e^{-u·v})) =
+/// -y log(1+e^{-u·v})
 ///
 /// Then we find the derivative with respect to v_1:
 ///
-/// ∂/∂v_1 -y log(e^{-u·v}) =
-/// -y σ(u·v) ∂/∂v_1(e^{-u·v}) =
+/// ∂/∂v_1 -y log(1+e^{-u·v}) =
+/// -y σ(u·v) ∂/∂v_1(1+e^{-u·v}) =
 /// -y σ(u·v) e^{-u·v} -u_1 =
 /// y σ(-u·v) u_1 =
 /// y (1 - σ(u·v)) u_1 =
@@ -59,8 +59,8 @@ const LOGISTIC_ROUND_ACTIVATION: f32 = 10.0;
 ///
 /// For the second term above, we also find the derivative:
 ///
-/// ∂/∂v_1 -(1 - y) log(e^{u·v}) =
-/// -(1 - y) σ(-u·v) ∂/∂v_1(e^{u·v}) =
+/// ∂/∂v_1 -(1 - y) log(1+e^{u·v}) =
+/// -(1 - y) σ(-u·v) ∂/∂v_1(1+e^{u·v}) =
 /// -(1 - y) σ(-u·v) e^{u·v} ∂/∂v_1 u·v=
 /// -(1 - y) σ(-u·v) e^{u·v} u_1 =
 /// -(1 - y) σ(u·v) u_1 =
