@@ -20,7 +20,7 @@ static LR: &str = "lr";
 static MINCOUNT: &str = "mincount";
 static MINN: &str = "minn";
 static MAXN: &str = "maxn";
-static NGRAM_MINCOUNT: &str = "ngram_mincount";
+static NGRAM_MINCOUNT: &str = "ngram-mincount";
 static SUBWORDS: &str = "subwords";
 static NS: &str = "ns";
 static ZIPF_EXPONENT: &str = "zipf";
@@ -120,7 +120,7 @@ pub trait FinalfrontierApp {
             )
             .arg(
                 Arg::with_name(NGRAM_MINCOUNT)
-                    .long("ngram_mincount")
+                    .long("ngram-mincount")
                     .value_name("FREQ")
                     .help("Minimum ngram frequency.")
                     .takes_value(true)

@@ -22,13 +22,13 @@ use stdinout::OrExit;
 
 use crate::subcommands::{show_progress, FinalfrontierApp, VocabConfig};
 
-static CONTEXT_MINCOUNT: &str = "context_mincount";
-static CONTEXT_DISCARD: &str = "context_discard";
-static DEPENDENCY_DEPTH: &str = "dependency_depth";
+static CONTEXT_MINCOUNT: &str = "context-mincount";
+static CONTEXT_DISCARD: &str = "context-discard";
+static DEPENDENCY_DEPTH: &str = "dependency-depth";
 static UNTYPED_DEPS: &str = "untyped";
 static NORMALIZE_CONTEXT: &str = "normalize";
 static PROJECTIVIZE: &str = "projectivize";
-static USE_ROOT: &str = "use_root";
+static USE_ROOT: &str = "use-root";
 
 const PROGRESS_UPDATE_INTERVAL: u64 = 200;
 
@@ -107,7 +107,7 @@ impl FinalfrontierApp for DepsApp {
             .about("Train a dependency embeddings model")
             .arg(
                 Arg::with_name(CONTEXT_DISCARD)
-                    .long("context_discard")
+                    .long("context-discard")
                     .value_name("CONTEXT_THRESHOLD")
                     .help("Context discard threshold")
                     .takes_value(true)
@@ -115,7 +115,7 @@ impl FinalfrontierApp for DepsApp {
             )
             .arg(
                 Arg::with_name(CONTEXT_MINCOUNT)
-                    .long("context_mincount")
+                    .long("context-mincount")
                     .value_name("CONTEXT_FREQ")
                     .help("Context mincount")
                     .takes_value(true)
@@ -123,7 +123,7 @@ impl FinalfrontierApp for DepsApp {
             )
             .arg(
                 Arg::with_name(DEPENDENCY_DEPTH)
-                    .long("dependency_depth")
+                    .long("dependency-depth")
                     .value_name("DEPENDENCY_DEPTH")
                     .help("Dependency depth")
                     .takes_value(true)
@@ -131,12 +131,12 @@ impl FinalfrontierApp for DepsApp {
             )
             .arg(
                 Arg::with_name(UNTYPED_DEPS)
-                    .long("untyped_deps")
+                    .long("untyped-deps")
                     .help("Don't use dependency relation labels."),
             )
             .arg(
                 Arg::with_name(NORMALIZE_CONTEXT)
-                    .long("normalize_context")
+                    .long("normalize-context")
                     .help("Normalize contexts"),
             )
             .arg(
@@ -146,7 +146,7 @@ impl FinalfrontierApp for DepsApp {
             )
             .arg(
                 Arg::with_name(USE_ROOT)
-                    .long("use_root")
+                    .long("use-root")
                     .help("Use root when extracting dependency contexts."),
             )
     }

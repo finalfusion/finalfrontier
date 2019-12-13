@@ -31,18 +31,18 @@ bucket based on this hash. Using more buckets will result in fewer bucket
 collisions between subword representations at the cost of memory use. The
 default bucket exponent is *21* (approximately 2 million buckets).
 
-`--context_discard` *THRESHOLD*
+`--context-discard` *THRESHOLD*
 
 :   The context discard threshold influences how often frequent contexts are
 discarded during training. The default context discard threshold is *1e-4*.
     
-`--context_mincount` *FREQ*
+`--context-mincount` *FREQ*
 
 :   The minimum count controls discarding of infrequent contexts. Contexts
 occuring fewer than *FREQ* times are not considered during training.  The
 default minimum count is 5.
 
-`--dependency_depth` *DEPTH*
+`--dependency-depth` *DEPTH*
 
 :   Dependency contexts up to *DEPTH* distance from the focus word in the
 dependency graph will be used to learn the representation of the focus word. The
@@ -83,13 +83,13 @@ minimum count is 5.
 
 :   The minimum n-gram length for subword representations. Default: 3
 
-`--ngram_mincount` *FREQ*
+`--ngram-mincount` *FREQ*
 
 :   The minimum n-gram frequency. n-grams occurring fewer than *FREQ*
     times are excluded from training. This option is only applicable
     with the *ngrams* argument of the `subwords` option.
 
-`--normalize_contexts`
+`--normalize-contexts`
 
 :   Normalize the attached form in the dependency contexts.
 
@@ -122,19 +122,19 @@ minimum count is 5.
     The *ngrams* type stores subword n-grams explicitly. The included
     n-gram lengths are specified using the `minn` and `maxn`
     options. The frequency threshold for n-grams is configured with
-    the `ngram_mincount` option.
+    the `ngram-mincount` option.
 
     The *buckets* type maps n-grams to buckets using the FNV1 hash.
     The considered n-gram lengths are specified using the `minn` and
     `maxn` options.  The number of buckets is controlled with the
     `buckets` option.
 
-`--untyped_deps`
+`--untyped-deps`
 
 :   Only use the word of the attached token in the dependency relation as
 contexts to train the representation of the focus word.
     
-`--use_root`
+`--use-root`
 
 :   Include the abstract root node in the dependency graph as contexts during
 training.
