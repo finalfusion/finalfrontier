@@ -89,7 +89,7 @@ OPTIONS
 
     The default model is *skipgram*.
 
-`--ngram_mincount` *FREQ*
+`--ngram-mincount` *FREQ*
 
 :   The minimum n-gram frequency. n-grams occurring fewer than *FREQ*
     times are excluded from training. This option is only applicable
@@ -112,7 +112,7 @@ OPTIONS
     The *ngrams* type stores subword n-grams explicitly. The included
     n-gram lengths are specified using the `minn` and `maxn`
     options. The frequency threshold for n-grams is configured with
-    the `ngram_mincount` option.
+    the `ngram-mincount` option.
 
     The *buckets* type maps n-grams to buckets using the FNV1 hash.
     The considered n-gram lengths are specified using the `minn` and
