@@ -9,7 +9,7 @@ use finalfusion::vocab::{SubwordVocab as FiFuSubwordVocab, VocabWrap};
 
 use crate::idx::{WordIdx, WordWithSubwordsIdx};
 use crate::vocab::{bracket, create_discards, create_indices};
-use crate::{util, BucketConfig, NGramConfig, SubwordVocabConfig, Vocab, VocabBuilder, Word};
+use crate::{BucketConfig, NGramConfig, SubwordVocabConfig, Vocab, VocabBuilder, Word};
 
 /// A corpus vocabulary with subword lookup.
 #[derive(Clone)]
@@ -63,11 +63,6 @@ where
         let mut subword_indices = Vec::new();
 
         for word in words {
-            if word.word() == util::EOS {
-                subword_indices.push(Vec::new());
-                continue;
-            }
-
             subword_indices.push(
                 bracket(word.word())
                     .as_str()
@@ -149,7 +144,7 @@ where
             .items
             .into_iter()
             .map(|(word, count)| (word.into(), count))
-            .filter(|(word, count)| word == util::EOS || *count >= config.min_count as usize)
+            .filter(|(_, count)| *count >= config.min_count as usize)
             .map(|(word, count)| Word::new(word, count))
             .collect();
         words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
@@ -174,10 +169,6 @@ where
         let mut ngram_counts: HashMap<String, usize> = HashMap::new();
         for (word, count) in builder.items {
             let word = word.into();
-            if word == util::EOS {
-                words.push(Word::new(word, count));
-                continue;
-            }
             if count < config.min_count as usize {
                 continue;
             }
@@ -294,7 +285,7 @@ mod tests {
         let vocab: SubwordVocab<_, FinalfusionHashIndexer> = builder.into();
 
         // 'or' and 'not' should be filtered due to the minimum count.
-        assert_eq!(vocab.len(), 3);
+        assert_eq!(vocab.len(), 2);
 
         assert_eq!(vocab.n_types(), 7);
 
@@ -303,7 +294,7 @@ mod tests {
         assert_eq!("to", to.word());
         assert_eq!(2, to.count);
         assert_eq!(
-            vec![1141947, 215572, 1324230, 0],
+            vec![1141946, 215571, 1324229, 0],
             vocab.idx("to").unwrap().into_iter().collect::<Vec<_>>()
         );
         assert!(util::close(
@@ -317,30 +308,12 @@ mod tests {
         assert_eq!("be", be.label);
         assert_eq!(2, be.count);
         assert_eq!(
-            vec![277351, 1105488, 1482882, 1],
+            vec![277350, 1105487, 1482881, 1],
             vocab.idx("be").unwrap().into_iter().collect::<Vec<_>>()
         );
         assert!(util::close(
             0.019058,
             vocab.discard(vocab.idx("be").unwrap().word_idx() as usize),
-            1e-5,
-        ));
-
-        // Check expected properties of the end of sentence marker.
-        let eos = vocab.word(util::EOS).unwrap();
-        assert_eq!(util::EOS, eos.label);
-        assert_eq!(1, eos.count);
-        assert_eq!(
-            vocab
-                .idx(util::EOS)
-                .unwrap()
-                .into_iter()
-                .collect::<Vec<_>>(),
-            vec![2]
-        );
-        assert!(util::close(
-            0.027158,
-            vocab.discard(vocab.idx(util::EOS).unwrap().word_idx() as usize),
             1e-5,
         ));
 
@@ -362,7 +335,7 @@ mod tests {
         let vocab: SubwordVocab<_, ExplicitIndexer> = builder.into();
 
         // 'or' and 'not' should be filtered due to the minimum count.
-        assert_eq!(vocab.len(), 3);
+        assert_eq!(vocab.len(), 2);
 
         assert_eq!(vocab.n_types(), 7);
 
@@ -380,7 +353,7 @@ mod tests {
         );
         // subwords have offset of (vocab.len() - 1)
         assert_eq!(
-            vec![5, 6, 3, 0],
+            vec![4, 5, 2, 0],
             vocab.idx("to").unwrap().into_iter().collect::<Vec<_>>()
         );
         assert!(util::close(
@@ -395,30 +368,12 @@ mod tests {
         assert_eq!(2, be.count);
         // see above explanation
         assert_eq!(
-            vec![7, 8, 4, 1],
+            vec![6, 7, 3, 1],
             vocab.idx("be").unwrap().into_iter().collect::<Vec<_>>()
         );
         assert!(util::close(
             0.019058,
             vocab.discard(vocab.idx("be").unwrap().word_idx() as usize),
-            1e-5,
-        ));
-
-        // Check expected properties of the end of sentence marker.
-        let eos = vocab.word(util::EOS).unwrap();
-        assert_eq!(util::EOS, eos.label);
-        assert_eq!(1, eos.count);
-        assert_eq!(
-            vec![2u64],
-            vocab
-                .idx(util::EOS)
-                .unwrap()
-                .into_iter()
-                .collect::<Vec<_>>()
-        );
-        assert!(util::close(
-            0.027158,
-            vocab.discard(vocab.idx(util::EOS).unwrap().word_idx() as usize),
             1e-5,
         ));
 
