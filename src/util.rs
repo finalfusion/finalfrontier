@@ -2,8 +2,6 @@ use rand::SeedableRng;
 use rand_core::{self, RngCore};
 use serde::Serialize;
 
-pub static EOS: &str = "</s>";
-
 /// Tolerance for small negative values.
 const NEGATIVE_TOLERANCE: f32 = 1e-5;
 

@@ -7,8 +7,6 @@ use indicatif::{ProgressBar, ProgressStyle};
 use memmap::{Mmap, MmapOptions};
 use serde::Serialize;
 
-use crate::util::EOS;
-
 pub struct FileProgress {
     inner: File,
     progress: ProgressBar,
@@ -237,12 +235,9 @@ where
 }
 
 fn whitespace_tokenize(line: &str) -> Vec<String> {
-    let mut tokens = line
-        .split_whitespace()
+    line.split_whitespace()
         .map(ToOwned::to_owned)
-        .collect::<Vec<_>>();
-    tokens.push(EOS.to_string());
-    tokens
+        .collect::<Vec<_>>()
 }
 
 /// Trait for writing models in text format.
@@ -275,7 +270,6 @@ mod tests {
 
     use super::SentenceIterator;
     use super::{thread_data_conllx, thread_data_text};
-    use crate::util::EOS;
 
     #[test]
     fn sentence_iterator_test() {
@@ -284,11 +278,11 @@ mod tests {
         let mut iter = SentenceIterator::new(c);
         assert_eq!(
             iter.next().unwrap().unwrap(),
-            vec!["This", "is", "a", "sentence", ".", EOS]
+            vec!["This", "is", "a", "sentence", "."]
         );
         assert_eq!(
             iter.next().unwrap().unwrap(),
-            vec!["And", "another", "one", ".", EOS]
+            vec!["And", "another", "one", "."]
         );
         assert!(iter.next().is_none());
     }
@@ -300,11 +294,11 @@ mod tests {
         let mut iter = SentenceIterator::new(c);
         assert_eq!(
             iter.next().unwrap().unwrap(),
-            vec!["This", "is", "a", "sentence", ".", EOS]
+            vec!["This", "is", "a", "sentence", "."]
         );
         assert_eq!(
             iter.next().unwrap().unwrap(),
-            vec!["And", "another", "one", ".", EOS]
+            vec!["And", "another", "one", "."]
         );
         assert!(iter.next().is_none());
     }
