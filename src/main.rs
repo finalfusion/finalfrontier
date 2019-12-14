@@ -15,7 +15,13 @@ fn main() {
     // Known subapplications.
     let apps = vec![subcommands::DepsApp::app(), subcommands::SkipgramApp::app()];
 
+    let version = if let Some(git_desc) = option_env!("MAYBE_FINALFRONTIER_GIT_DESC") {
+        git_desc
+    } else {
+        env!("CARGO_PKG_VERSION")
+    };
     let cli = App::new("finalfrontier")
+        .version(version)
         .settings(DEFAULT_CLAP_SETTINGS)
         .subcommands(apps)
         .subcommand(
