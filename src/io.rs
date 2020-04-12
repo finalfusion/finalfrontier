@@ -129,12 +129,12 @@ pub fn thread_data_text(f: &File, thread: usize, n_threads: usize) -> Result<(Mm
     Ok((mmap, start))
 }
 
-/// Get thread-specific data for a CONLLX-Corpus.
+/// Get thread-specific data for a CoNLL-U corpus.
 ///
 /// This function will return a memory map of the corpus data. The initial
 /// starting position for the given thread is also returned. This starting
 /// Position will always be the beginning of a sentence.
-pub fn thread_data_conllx(
+pub fn thread_data_conllu(
     f: &File,
     thread: usize,
     n_threads: usize,
@@ -216,7 +216,7 @@ impl TrainInfo {
 
     /// Get the end datetime.
     pub fn end_datetime(&self) -> Option<&str> {
-        self.end_datetime.as_ref().map(|s| s.as_str())
+        self.end_datetime.as_deref()
     }
 
     /// Set the end datetime to current datetime.
@@ -269,7 +269,7 @@ mod tests {
     use std::io::Cursor;
 
     use super::SentenceIterator;
-    use super::{thread_data_conllx, thread_data_text};
+    use super::{thread_data_conllu, thread_data_text};
 
     #[test]
     fn sentence_iterator_test() {
@@ -361,7 +361,7 @@ mod tests {
         // first double linebreak is at 26
         // second at 39
         let f = File::open("testdata/dep_chunking.txt").unwrap();
-        let (mmap, start) = thread_data_conllx(&f, 0, 3).unwrap();
+        let (mmap, start) = thread_data_conllu(&f, 0, 3).unwrap();
         assert_eq!(
             &*mmap,
             CHUNKING_TEST_DATA_DEPS.as_bytes(),
@@ -369,7 +369,7 @@ mod tests {
         );
         assert_eq!(start, 0, "Incorrect start index");
 
-        let (mmap, start) = thread_data_conllx(&f, 1, 3).unwrap();
+        let (mmap, start) = thread_data_conllu(&f, 1, 3).unwrap();
         assert_eq!(
             &*mmap,
             CHUNKING_TEST_DATA_DEPS.as_bytes(),
@@ -377,7 +377,7 @@ mod tests {
         );
         assert_eq!(start, 26, "Incorrect start index");
 
-        let (mmap, start) = thread_data_conllx(&f, 2, 3).unwrap();
+        let (mmap, start) = thread_data_conllu(&f, 2, 3).unwrap();
         assert_eq!(
             &*mmap,
             CHUNKING_TEST_DATA_DEPS.as_bytes(),
@@ -390,6 +390,6 @@ mod tests {
     #[test]
     fn thread_data_out_of_bounds_test() {
         let f = File::open("testdata/chunking.txt").unwrap();
-        let _ = thread_data_conllx(&f, 3, 3).unwrap();
+        let _ = thread_data_conllu(&f, 3, 3).unwrap();
     }
 }
