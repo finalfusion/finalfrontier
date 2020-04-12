@@ -1,6 +1,6 @@
 use std::mem;
 
-use conllx::graph::{DepGraph, DepTriple};
+use conllu::graph::{DepGraph, DepTriple};
 
 use crate::DepembedsConfig;
 
@@ -90,7 +90,7 @@ pub enum DependencyDirection {
     Regular,
 }
 
-/// Struct to iterate over the dependencies in a `conllx::DepGraph`.
+/// Struct to iterate over the dependencies in a `conllu::DepGraph`.
 ///
 /// Provides tuples with form `(focus_idx, Dependency)` where focus_idx is the index of the
 /// focus token for the Dependency context.
@@ -320,8 +320,8 @@ mod tests {
 
     use crate::deps::{DepIter, Dependency, Dependency::Untyped, DependencyIterator, PathIter};
 
-    use conllx::graph::Node;
-    use conllx::io::{ReadSentence, Reader};
+    use conllu::graph::Node;
+    use conllu::io::{ReadSentence, Reader};
 
     static DEP: &[u8; 143] = b"1	Er	a	_	_	_	2	SUBJ	_	_\n\
     2	geht	b	_	_	_	0	ROOT	_	_\n\

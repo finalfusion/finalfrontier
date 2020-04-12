@@ -15,7 +15,7 @@ DESCRIPTION
 ===========
 
 The **finalfrontier-deps** subcommand trains dependency based word embeddings
-(Levy and Goldberg, 2014) using data from a *corpus* in CONLL-X format. The
+(Levy and Goldberg, 2014) using data from a *corpus* in CONLL-U format. The
 corpus contains sentences seperated by empty lines. Each sentence needs to be
 annotated with a dependency graph. After training, the embeddings are written
 to *output* in the finalfusion format.

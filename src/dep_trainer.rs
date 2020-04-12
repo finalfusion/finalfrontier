@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::sync::Arc;
 
-use conllx::graph::Sentence;
+use conllu::graph::Sentence;
 use failure::{err_msg, Error};
 use rand::{Rng, SeedableRng};
 use serde::Serialize;
@@ -18,7 +18,7 @@ use crate::{
 /// Dependency embeddings Trainer.
 ///
 /// The `DepembedsTrainer` holds the information and logic necessary to transform a
-/// `conllx::Sentence` into an iterator of focus and context tuples. The struct is cheap to clone
+/// `conllu::Sentence` into an iterator of focus and context tuples. The struct is cheap to clone
 /// because the vocabulary is shared between clones.
 #[derive(Clone)]
 pub struct DepembedsTrainer<R, V> {

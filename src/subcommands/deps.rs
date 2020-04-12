@@ -6,10 +6,10 @@ use std::thread;
 use std::time::Duration;
 
 use clap::{App, Arg, ArgMatches};
-use conllx::graph::{Node, Sentence};
-use conllx::io::{ReadSentence, Reader};
-use conllx::proj::{HeadProjectivizer, Projectivize};
-use finalfrontier::io::{thread_data_conllx, FileProgress, TrainInfo};
+use conllu::graph::{Node, Sentence};
+use conllu::io::{ReadSentence, Reader};
+use conllu::proj::{HeadProjectivizer, Projectivize};
+use finalfrontier::io::{thread_data_conllu, FileProgress, TrainInfo};
 use finalfrontier::{
     CommonConfig, DepembedsConfig, DepembedsTrainer, Dependency, DependencyIterator, SimpleVocab,
     SimpleVocabConfig, SubwordVocab, Vocab, VocabBuilder, WriteModelBinary, SGD,
@@ -292,7 +292,7 @@ fn do_work<P, R, V>(
 
     let f = File::open(corpus_path.into()).or_exit("Cannot open corpus for reading", 1);
     let (data, start) =
-        thread_data_conllx(&f, thread, n_threads).or_exit("Could not get thread-specific data", 1);
+        thread_data_conllu(&f, thread, n_threads).or_exit("Could not get thread-specific data", 1);
     let projectivizer = if projectivize {
         Some(HeadProjectivizer::new())
     } else {
