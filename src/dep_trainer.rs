@@ -1,8 +1,8 @@
 use std::borrow::Borrow;
 use std::sync::Arc;
 
+use anyhow::{bail, Result};
 use conllu::graph::Sentence;
-use failure::{err_msg, Error};
 use rand::{Rng, SeedableRng};
 use serde::Serialize;
 
@@ -137,10 +137,10 @@ where
         &self.input_vocab
     }
 
-    fn try_into_input_vocab(self) -> Result<Self::InputVocab, Error> {
+    fn try_into_input_vocab(self) -> Result<Self::InputVocab> {
         match Arc::try_unwrap(self.input_vocab) {
             Ok(vocab) => Ok(vocab),
-            Err(_) => Err(err_msg("Cannot unwrap input vocab.")),
+            Err(_) => bail!("Cannot unwrap input vocab."),
         }
     }
 

@@ -1,8 +1,8 @@
+use anyhow::{Context, Result};
 use clap::{App, AppSettings, Arg, ArgMatches};
 use finalfrontier::{
     BucketConfig, CommonConfig, LossType, NGramConfig, SimpleVocabConfig, SubwordVocabConfig,
 };
-use stdinout::OrExit;
 
 use crate::subcommands::VocabConfig;
 
@@ -25,16 +25,19 @@ static SUBWORDS: &str = "subwords";
 static NS: &str = "ns";
 static ZIPF_EXPONENT: &str = "zipf";
 
-pub trait FinalfrontierApp {
+pub trait FinalfrontierApp
+where
+    Self: Sized,
+{
     const CORPUS: &'static str = "CORPUS";
     const OUTPUT: &'static str = "OUTPUT";
     const THREADS: &'static str = "THREADS";
 
     fn app() -> App<'static, 'static>;
 
-    fn parse(matches: &ArgMatches) -> Self;
+    fn parse(matches: &ArgMatches) -> Result<Self>;
 
-    fn run(&self);
+    fn run(&self) -> Result<()>;
 
     fn common_opts<'a, 'b>(name: &str) -> App<'a, 'b> {
         let version = if let Some(git_desc) = option_env!("MAYBE_FINALFRONTIER_GIT_DESC") {
@@ -164,93 +167,98 @@ pub trait FinalfrontierApp {
     }
 
     /// Construct `CommonConfig` from `matches`.
-    fn parse_common_config(matches: &ArgMatches) -> CommonConfig {
+    fn parse_common_config(matches: &ArgMatches) -> Result<CommonConfig> {
         let dims = matches
             .value_of(DIMS)
-            .map(|v| v.parse().or_exit("Cannot parse dimensionality", 1))
+            .map(|v| v.parse().context("Cannot parse dimensionality"))
+            .transpose()?
             .unwrap();
         let epochs = matches
             .value_of(EPOCHS)
-            .map(|v| v.parse().or_exit("Cannot parse number of epochs", 1))
+            .map(|v| v.parse().context("Cannot parse number of epochs"))
+            .transpose()?
             .unwrap();
         let lr = matches
             .value_of(LR)
-            .map(|v| v.parse().or_exit("Cannot parse learning rate", 1))
+            .map(|v| v.parse().context("Cannot parse learning rate"))
+            .transpose()?
             .unwrap();
         let negative_samples = matches
             .value_of(NS)
-            .map(|v| {
-                v.parse()
-                    .or_exit("Cannot parse number of negative samples", 1)
-            })
+            .map(|v| v.parse().context("Cannot parse number of negative samples"))
+            .transpose()?
             .unwrap();
         let zipf_exponent = matches
             .value_of(ZIPF_EXPONENT)
-            .map(|v| {
-                v.parse()
-                    .or_exit("Cannot parse exponent zipf distribution", 1)
-            })
+            .map(|v| v.parse().context("Cannot parse exponent zipf distribution"))
+            .transpose()?
             .unwrap();
 
-        CommonConfig {
+        Ok(CommonConfig {
             loss: LossType::LogisticNegativeSampling,
             dims,
             epochs,
             lr,
             negative_samples,
             zipf_exponent,
-        }
+        })
     }
 
     /// Construct `SubwordVocabConfig` from `matches`.
-    fn parse_vocab_config(matches: &ArgMatches) -> VocabConfig {
+    fn parse_vocab_config(matches: &ArgMatches) -> Result<VocabConfig> {
         let discard_threshold = matches
             .value_of(DISCARD)
-            .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
+            .map(|v| v.parse().context("Cannot parse discard threshold"))
+            .transpose()?
             .unwrap();
         let min_count = matches
             .value_of(MINCOUNT)
-            .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
+            .map(|v| v.parse().context("Cannot parse mincount"))
+            .transpose()?
             .unwrap();
         let min_n = matches
             .value_of(MINN)
-            .map(|v| v.parse().or_exit("Cannot parse minimum n-gram length", 1))
+            .map(|v| v.parse().context("Cannot parse minimum n-gram length"))
+            .transpose()?
             .unwrap();
         let max_n = matches
             .value_of(MAXN)
-            .map(|v| v.parse().or_exit("Cannot parse maximum n-gram length", 1))
+            .map(|v| v.parse().context("Cannot parse maximum n-gram length"))
+            .transpose()?
             .unwrap();
         match matches.value_of(SUBWORDS).unwrap() {
             "buckets" => {
                 let buckets_exp = matches
                     .value_of(BUCKETS)
-                    .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
+                    .map(|v| v.parse().context("Cannot parse bucket exponent"))
+                    .transpose()?
                     .unwrap();
-                VocabConfig::SubwordVocab(SubwordVocabConfig {
+                Ok(VocabConfig::SubwordVocab(SubwordVocabConfig {
                     discard_threshold,
                     min_count,
                     max_n,
                     min_n,
                     indexer: BucketConfig { buckets_exp },
-                })
+                }))
             }
             "ngrams" => {
                 let min_ngram_count = matches
                     .value_of(NGRAM_MINCOUNT)
-                    .map(|v| v.parse().or_exit("Cannot parse bucket exponent", 1))
+                    .map(|v| v.parse().context("Cannot parse bucket exponent"))
+                    .transpose()?
                     .unwrap();
-                VocabConfig::NGramVocab(SubwordVocabConfig {
+                Ok(VocabConfig::NGramVocab(SubwordVocabConfig {
                     discard_threshold,
                     min_count,
                     max_n,
                     min_n,
                     indexer: NGramConfig { min_ngram_count },
-                })
+                }))
             }
-            "none" => VocabConfig::SimpleVocab(SimpleVocabConfig {
+            "none" => Ok(VocabConfig::SimpleVocab(SimpleVocabConfig {
                 min_count,
                 discard_threshold,
-            }),
+            })),
             // unreachable as long as possible values in clap are in sync with this `VocabConfig`'s
             // variants
             s => unreachable!(format!("Unhandled vocab type: {}", s)),

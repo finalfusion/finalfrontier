@@ -4,7 +4,7 @@ use std::iter::FusedIterator;
 use std::sync::Arc;
 use std::{cmp, mem};
 
-use failure::{err_msg, Error};
+use anyhow::{bail, Result};
 use rand::{Rng, SeedableRng};
 use serde::Serialize;
 
@@ -119,10 +119,10 @@ where
         &self.vocab
     }
 
-    fn try_into_input_vocab(self) -> Result<V, Error> {
+    fn try_into_input_vocab(self) -> Result<V> {
         match Arc::try_unwrap(self.vocab) {
             Ok(vocab) => Ok(vocab),
-            Err(_) => Err(err_msg("Cannot unwrap input vocab.")),
+            Err(_) => bail!("Cannot unwrap input vocab."),
         }
     }
 

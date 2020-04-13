@@ -5,9 +5,10 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 
+use anyhow::{Context, Result};
 use clap::{App, Arg, ArgMatches};
 use conllu::graph::{Node, Sentence};
-use conllu::io::{ReadSentence, Reader};
+use conllu::io::{ReadSentence, Reader, Sentences};
 use conllu::proj::{HeadProjectivizer, Projectivize};
 use finalfrontier::io::{thread_data_conllu, FileProgress, TrainInfo};
 use finalfrontier::{
@@ -18,7 +19,6 @@ use finalfusion::prelude::VocabWrap;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use serde::Serialize;
-use stdinout::OrExit;
 
 use crate::subcommands::{show_progress, FinalfrontierApp, VocabConfig};
 
@@ -42,22 +42,24 @@ pub struct DepsApp {
 }
 
 impl DepsApp {
-    fn depembeds_config_from_matches(matches: &ArgMatches) -> DepembedsConfig {
+    fn depembeds_config_from_matches(matches: &ArgMatches) -> Result<DepembedsConfig> {
         let depth = matches
             .value_of(DEPENDENCY_DEPTH)
-            .map(|v| v.parse().or_exit("Cannot parse dependency depth", 1))
+            .map(|v| v.parse().context("Cannot parse dependency depth"))
+            .transpose()?
             .unwrap();
         let untyped = matches.is_present(UNTYPED_DEPS);
         let normalize = matches.is_present(NORMALIZE_CONTEXT);
         let projectivize = matches.is_present(PROJECTIVIZE);
         let use_root = matches.is_present(USE_ROOT);
-        DepembedsConfig {
+
+        Ok(DepembedsConfig {
             depth,
             untyped,
             normalize,
             projectivize,
             use_root,
-        }
+        })
     }
 
     /// Get the corpus path.
@@ -151,21 +153,24 @@ impl FinalfrontierApp for DepsApp {
             )
     }
 
-    fn parse(matches: &ArgMatches) -> Self {
+    fn parse(matches: &ArgMatches) -> Result<Self> {
         let corpus = matches.value_of(Self::CORPUS).unwrap().into();
         let output = matches.value_of(Self::OUTPUT).unwrap().into();
         let n_threads = matches
             .value_of(Self::THREADS)
-            .map(|v| v.parse().or_exit("Cannot parse number of threads", 1))
+            .map(|v| v.parse().context("Cannot parse number of threads"))
+            .transpose()?
             .unwrap_or_else(|| cmp::min(num_cpus::get() / 2, 20));
 
         let discard_threshold = matches
             .value_of(CONTEXT_DISCARD)
-            .map(|v| v.parse().or_exit("Cannot parse discard threshold", 1))
+            .map(|v| v.parse().context("Cannot parse discard threshold"))
+            .transpose()?
             .unwrap();
         let min_count = matches
             .value_of(CONTEXT_MINCOUNT)
-            .map(|v| v.parse().or_exit("Cannot parse mincount", 1))
+            .map(|v| v.parse().context("Cannot parse mincount"))
+            .transpose()?
             .unwrap();
 
         let output_vocab_config = SimpleVocabConfig {
@@ -174,16 +179,16 @@ impl FinalfrontierApp for DepsApp {
         };
         let train_info = TrainInfo::new(corpus, output, n_threads);
 
-        DepsApp {
+        Ok(DepsApp {
             train_info,
-            common_config: Self::parse_common_config(&matches),
-            depembeds_config: Self::depembeds_config_from_matches(&matches),
-            input_vocab_config: Self::parse_vocab_config(&matches),
+            common_config: Self::parse_common_config(&matches)?,
+            depembeds_config: Self::depembeds_config_from_matches(&matches)?,
+            input_vocab_config: Self::parse_vocab_config(&matches)?,
             output_vocab_config,
-        }
+        })
     }
 
-    fn run(&self) {
+    fn run(&self) -> Result<()> {
         match self.input_vocab_config() {
             VocabConfig::SimpleVocab(config) => {
                 let (input_vocab, output_vocab) = build_vocab::<_, SimpleVocab<String>, _>(
@@ -191,8 +196,8 @@ impl FinalfrontierApp for DepsApp {
                     self.output_vocab_config(),
                     self.depembeds_config(),
                     self.corpus(),
-                );
-                train(input_vocab, output_vocab, self);
+                )?;
+                train(input_vocab, output_vocab, self)?;
             }
             VocabConfig::SubwordVocab(config) => {
                 let (input_vocab, output_vocab) = build_vocab::<_, SubwordVocab<_, _>, _>(
@@ -200,8 +205,8 @@ impl FinalfrontierApp for DepsApp {
                     self.output_vocab_config(),
                     self.depembeds_config(),
                     self.corpus(),
-                );
-                train(input_vocab, output_vocab, self);
+                )?;
+                train(input_vocab, output_vocab, self)?;
             }
             VocabConfig::NGramVocab(config) => {
                 let (input_vocab, output_vocab) = build_vocab::<_, SubwordVocab<_, _>, _>(
@@ -209,14 +214,16 @@ impl FinalfrontierApp for DepsApp {
                     self.output_vocab_config(),
                     self.depembeds_config(),
                     self.corpus(),
-                );
-                train(input_vocab, output_vocab, self);
+                )?;
+                train(input_vocab, output_vocab, self)?;
             }
         }
+
+        Ok(())
     }
 }
 
-fn train<V>(input_vocab: V, output_vocab: SimpleVocab<Dependency>, app: &DepsApp)
+fn train<V>(input_vocab: V, output_vocab: SimpleVocab<Dependency>, app: &DepsApp) -> Result<()>
 where
     V: Vocab<VocabType = String> + Into<VocabWrap> + Clone + Send + Sync + 'static,
     V::Config: Serialize,
@@ -226,9 +233,8 @@ where
     let common_config = app.common_config();
     let n_threads = app.n_threads();
 
-    let mut output_writer = BufWriter::new(
-        File::create(app.output()).or_exit("Cannot open output file for writing.", 1),
-    );
+    let mut output_writer =
+        BufWriter::new(File::create(app.output()).context("Cannot open output file for writing.")?);
     let trainer = DepembedsTrainer::new(
         input_vocab,
         output_vocab,
@@ -253,7 +259,7 @@ where
                 common_config.epochs,
                 common_config.lr,
                 projectivize,
-            );
+            )
         }));
     }
 
@@ -265,12 +271,12 @@ where
 
     // Wait until all threads have finished.
     for child in children {
-        let _ = child.join();
+        child.join().expect("Thread panicked")?;
     }
 
     sgd.into_model()
         .write_model_binary(&mut output_writer, app.train_info().clone())
-        .or_exit("Cannot write model", 1);
+        .context("Cannot write model")
 }
 
 fn do_work<P, R, V>(
@@ -281,7 +287,8 @@ fn do_work<P, R, V>(
     epochs: u32,
     start_lr: f32,
     projectivize: bool,
-) where
+) -> Result<()>
+where
     P: Into<PathBuf>,
     R: Clone + Rng,
     V: Vocab<VocabType = String>,
@@ -290,9 +297,9 @@ fn do_work<P, R, V>(
 {
     let n_tokens = sgd.model().input_vocab().n_types();
 
-    let f = File::open(corpus_path.into()).or_exit("Cannot open corpus for reading", 1);
+    let f = File::open(corpus_path.into()).context("Cannot open corpus for reading")?;
     let (data, start) =
-        thread_data_conllu(&f, thread, n_threads).or_exit("Could not get thread-specific data", 1);
+        thread_data_conllu(&f, thread, n_threads).context("Could not get thread-specific data")?;
     let projectivizer = if projectivize {
         Some(HeadProjectivizer::new())
     } else {
@@ -307,12 +314,15 @@ fn do_work<P, R, V>(
                 sentences = SentenceIter::new(BufReader::new(&*data), projectivizer);
                 sentences.next()
             })
-            .or_exit("Cannot read sentence.", 1);
+            .transpose()?
+            .context("Cannot read sentence")?;
 
         let lr = (1.0 - (sgd.n_tokens_processed() as f32 / (epochs as usize * n_tokens) as f32))
             * start_lr;
         sgd.update_sentence(&sentence, lr);
     }
+
+    Ok(())
 }
 
 fn build_vocab<P, V, C>(
@@ -320,14 +330,14 @@ fn build_vocab<P, V, C>(
     output_config: SimpleVocabConfig,
     dep_config: DepembedsConfig,
     corpus_path: P,
-) -> (V, SimpleVocab<Dependency>)
+) -> Result<(V, SimpleVocab<Dependency>)>
 where
     P: AsRef<Path>,
     V: Vocab<VocabType = String> + From<VocabBuilder<C, String>>,
     VocabBuilder<C, String>: Into<V>,
 {
-    let f = File::open(corpus_path).or_exit("Cannot open corpus for reading", 1);
-    let file_progress = FileProgress::new(f).or_exit("Cannot create progress bar", 1);
+    let f = File::open(corpus_path).context("Cannot open corpus for reading")?;
+    let file_progress = FileProgress::new(f).context("Cannot create progress bar")?;
     let mut input_builder = VocabBuilder::new(input_config);
     let mut output_builder: VocabBuilder<_, Dependency> = VocabBuilder::new(output_config);
 
@@ -338,6 +348,8 @@ where
     };
 
     for sentence in SentenceIter::new(BufReader::new(file_progress), projectivizer) {
+        let sentence = sentence?;
+
         for token in sentence.iter().filter_map(Node::token) {
             input_builder.count(token.form());
         }
@@ -347,21 +359,24 @@ where
         }
     }
 
-    (input_builder.into(), output_builder.into())
+    Ok((input_builder.into(), output_builder.into()))
 }
 
-struct SentenceIter<P, R> {
-    inner: Reader<R>,
+struct SentenceIter<P, R>
+where
+    R: ReadSentence,
+{
+    inner: Sentences<R>,
     projectivizer: Option<P>,
 }
 
-impl<P, R> SentenceIter<P, R> {
-    fn new(read: R, projectivizer: Option<P>) -> Self
-    where
-        R: BufRead,
-    {
+impl<P, R> SentenceIter<P, Reader<R>>
+where
+    R: BufRead,
+{
+    fn new(read: R, projectivizer: Option<P>) -> Self {
         SentenceIter {
-            inner: Reader::new(read),
+            inner: Reader::new(read).into_iter(),
             projectivizer,
         }
     }
@@ -370,19 +385,24 @@ impl<P, R> SentenceIter<P, R> {
 impl<P, R> Iterator for SentenceIter<P, R>
 where
     P: Projectivize,
-    R: BufRead,
+    R: ReadSentence,
 {
-    type Item = Sentence;
+    type Item = Result<Sentence>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut sentence = self
-            .inner
-            .read_sentence()
-            .or_exit("Cannot read sentence", 1)?;
+        let sentence = self.inner.next()?;
+        let mut sentence = match sentence.context("Cannot read sentence") {
+            Ok(sentence) => sentence,
+            err @ Err(_) => return Some(err),
+        };
+
         if let Some(proj) = &self.projectivizer {
-            proj.projectivize(&mut sentence)
-                .or_exit("Cannot projectivize sentence.", 1);
+            // Rewrap error.
+            if let Err(err) = proj.projectivize(&mut sentence) {
+                return Some(Err(err).context("Cannot projectivize sentence."));
+            }
         }
-        Some(sentence)
+
+        Some(Ok(sentence))
     }
 }

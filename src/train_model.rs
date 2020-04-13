@@ -1,7 +1,7 @@
 use std::io::{Seek, Write};
 use std::sync::Arc;
 
-use failure::{err_msg, Error};
+use anyhow::{anyhow, bail, Result};
 use finalfusion::io::WriteEmbeddings;
 use finalfusion::metadata::Metadata;
 use finalfusion::norms::NdNorms;
@@ -153,10 +153,10 @@ impl<T> TrainModel<T> {
         self.input.subview_mut(Axis(0), idx)
     }
 
-    pub(crate) fn into_parts(self) -> Result<(T, Array2<f32>), Error> {
+    pub(crate) fn into_parts(self) -> Result<(T, Array2<f32>)> {
         let input = match Arc::try_unwrap(self.input.into_inner()) {
             Ok(input) => input.into_inner(),
-            Err(_) => return Err(err_msg("Cannot unwrap input matrix.")),
+            Err(_) => bail!("Cannot unwrap input matrix."),
         };
 
         Ok((self.trainer, input))
@@ -184,13 +184,13 @@ where
     for<'a> &'a V::IdxType: IntoIterator<Item = u64>,
     M: Serialize,
 {
-    fn write_model_binary(self, write: &mut W, mut train_info: TrainInfo) -> Result<(), Error> {
+    fn write_model_binary(self, write: &mut W, mut train_info: TrainInfo) -> Result<()> {
         let (trainer, mut input_matrix) = self.into_parts()?;
         let mut metadata = Value::try_from(trainer.to_metadata())?;
         let build_info = Value::try_from(VersionInfo::new())?;
         let metadata_table = metadata
             .as_table_mut()
-            .ok_or_else(|| err_msg("Metadata has to be 'Table'."))?;
+            .ok_or_else(|| anyhow!("Metadata has to be 'Table'."))?;
         metadata_table.insert("version_info".to_string(), build_info);
         train_info.set_end();
         let train_info = Value::try_from(train_info)?;
@@ -229,7 +229,7 @@ pub trait Trainer {
     fn input_vocab(&self) -> &Self::InputVocab;
 
     /// Destruct the trainer and get the input vocabulary.
-    fn try_into_input_vocab(self) -> Result<Self::InputVocab, Error>;
+    fn try_into_input_vocab(self) -> Result<Self::InputVocab>;
 
     /// Get the number of possible input types.
     ///
