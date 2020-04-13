@@ -5,3 +5,6 @@
 # Rust files
 /target
 **/*.rs.bk
+
+# Nix output
+result

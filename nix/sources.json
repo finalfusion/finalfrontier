@@ -1,0 +1,26 @@
+{
+    "crate2nix": {
+        "branch": "master",
+        "description": "nix build file generator for rust crates",
+        "homepage": "",
+        "owner": "kolloch",
+        "repo": "crate2nix",
+        "rev": "5e91171eec185f86cbc02a17ba8de2dfc7f67f52",
+        "sha256": "133dqpwsx9n819xnnbwxnhj994khx16572cc7d3xznzl0a8bysjc",
+        "type": "tarball",
+        "url": "https://github.com/kolloch/crate2nix/archive/5e91171eec185f86cbc02a17ba8de2dfc7f67f52.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nixpkgs": {
+        "branch": "nixos-20.03",
+        "description": "A read-only mirror of NixOS/nixpkgs tracking the released channels. Send issues and PRs to",
+        "homepage": "https://github.com/NixOS/nixpkgs",
+        "owner": "NixOS",
+        "repo": "nixpkgs-channels",
+        "rev": "29eddfc36d720dcc4822581175217543b387b1e8",
+        "sha256": "1gqv2m7plkladd3va664xyqb962pqs4pizzibvkm1nh0f4rfpxvy",
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs-channels/archive/29eddfc36d720dcc4822581175217543b387b1e8.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    }
+}
