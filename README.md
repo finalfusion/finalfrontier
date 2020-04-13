@@ -28,6 +28,8 @@ and the
 [finalfusion](https://github.com/finalfusion/finalfusion-python)
 Python module.
 
+The minimum required Rust version is currently 1.40.
+
 ## Where to go from here
 
   * [Installation](docs/INSTALL.md)
