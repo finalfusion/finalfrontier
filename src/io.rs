@@ -1,8 +1,8 @@
 use std::fs::File;
 use std::io::{self, BufRead, Lines, Read, Seek, SeekFrom, Write};
 
+use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
-use failure::{Error, ResultExt};
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap::{Mmap, MmapOptions};
 use serde::Serialize;
@@ -76,13 +76,13 @@ impl<R> Iterator for SentenceIterator<R>
 where
     R: BufRead,
 {
-    type Item = Result<Vec<String>, io::Error>;
+    type Item = Result<Vec<String>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         for line in &mut self.lines {
             let line = match line {
                 Ok(ref line) => line.trim(),
-                Err(err) => return Some(Err(err)),
+                Err(err) => return Some(Err(err.into())),
             };
 
             // Skip empty lines.
@@ -100,7 +100,7 @@ where
 /// This function will return a memory map of the corpus data. The initial
 /// starting position for the given thread is also returned. This starting
 /// Position will always be the beginning of a sentence.
-pub fn thread_data_text(f: &File, thread: usize, n_threads: usize) -> Result<(Mmap, usize), Error> {
+pub fn thread_data_text(f: &File, thread: usize, n_threads: usize) -> Result<(Mmap, usize)> {
     assert!(
         thread < n_threads,
         "Thread {} out of index [0, {})",
@@ -134,11 +134,7 @@ pub fn thread_data_text(f: &File, thread: usize, n_threads: usize) -> Result<(Mm
 /// This function will return a memory map of the corpus data. The initial
 /// starting position for the given thread is also returned. This starting
 /// Position will always be the beginning of a sentence.
-pub fn thread_data_conllu(
-    f: &File,
-    thread: usize,
-    n_threads: usize,
-) -> Result<(Mmap, usize), Error> {
+pub fn thread_data_conllu(f: &File, thread: usize, n_threads: usize) -> Result<(Mmap, usize)> {
     assert!(
         thread < n_threads,
         "Thread {} out of index [0, {})",
@@ -231,7 +227,7 @@ pub trait WriteModelBinary<W>
 where
     W: Write,
 {
-    fn write_model_binary(self, write: &mut W, train_info: TrainInfo) -> Result<(), Error>;
+    fn write_model_binary(self, write: &mut W, train_info: TrainInfo) -> Result<()>;
 }
 
 fn whitespace_tokenize(line: &str) -> Vec<String> {
@@ -252,7 +248,7 @@ where
     ///
     /// The `write_dims` parameter indicates whether the first line
     /// should contain the dimensionality of the embedding matrix.
-    fn write_model_text(&self, write: &mut W, write_dims: bool) -> Result<(), Error>;
+    fn write_model_text(&self, write: &mut W, write_dims: bool) -> Result<()>;
 }
 
 /// Trait for writing models in binary format.
@@ -260,7 +256,7 @@ pub trait WriteModelWord2Vec<W>
 where
     W: Write,
 {
-    fn write_model_word2vec(&self, write: &mut W) -> Result<(), Error>;
+    fn write_model_word2vec(&self, write: &mut W) -> Result<()>;
 }
 
 #[cfg(test)]

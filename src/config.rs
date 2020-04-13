@@ -1,4 +1,4 @@
-use failure::{err_msg, Error};
+use anyhow::{bail, Result};
 use serde::Serialize;
 
 /// Model types.
@@ -15,21 +15,21 @@ pub enum ModelType {
 }
 
 impl ModelType {
-    pub fn try_from(model: u8) -> Result<ModelType, Error> {
+    pub fn try_from(model: u8) -> Result<ModelType> {
         match model {
             0 => Ok(ModelType::SkipGram),
             1 => Ok(ModelType::StructuredSkipGram),
             2 => Ok(ModelType::DirectionalSkipgram),
-            _ => Err(err_msg(format!("Unknown model type: {}", model))),
+            _ => bail!("Unknown model type: {}", model),
         }
     }
 
-    pub fn try_from_str(model: &str) -> Result<ModelType, Error> {
+    pub fn try_from_str(model: &str) -> Result<ModelType> {
         match model {
             "skipgram" => Ok(ModelType::SkipGram),
             "structgram" => Ok(ModelType::StructuredSkipGram),
             "dirgram" => Ok(ModelType::DirectionalSkipgram),
-            _ => Err(err_msg(format!("Unknown model type: {}", model))),
+            _ => bail!("Unknown model type: {}", model),
         }
     }
 }
@@ -42,10 +42,10 @@ pub enum LossType {
 }
 
 impl LossType {
-    pub fn try_from(model: u8) -> Result<LossType, Error> {
+    pub fn try_from(model: u8) -> Result<LossType> {
         match model {
             0 => Ok(LossType::LogisticNegativeSampling),
-            _ => Err(err_msg(format!("Unknown model type: {}", model))),
+            _ => bail!("Unknown model type: {}", model),
         }
     }
 }

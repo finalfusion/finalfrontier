@@ -1,5 +1,6 @@
 use std::io::stdout;
 
+use anyhow::Result;
 use clap::{App, AppSettings, Arg, Shell, SubCommand};
 
 mod subcommands;
@@ -11,7 +12,7 @@ static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
     AppSettings::SubcommandRequiredElseHelp,
 ];
 
-fn main() {
+fn main() -> Result<()> {
     // Known subapplications.
     let apps = vec![subcommands::DepsApp::app(), subcommands::SkipgramApp::app()];
 
@@ -39,10 +40,11 @@ fn main() {
                 .value_of("shell")
                 .unwrap();
             write_completion_script(cli, shell.parse::<Shell>().unwrap());
+            Ok(())
         }
-        "deps" => subcommands::DepsApp::parse(matches.subcommand_matches("deps").unwrap()).run(),
+        "deps" => subcommands::DepsApp::parse(matches.subcommand_matches("deps").unwrap())?.run(),
         "skipgram" => {
-            subcommands::SkipgramApp::parse(matches.subcommand_matches("skipgram").unwrap()).run()
+            subcommands::SkipgramApp::parse(matches.subcommand_matches("skipgram").unwrap())?.run()
         }
         _unknown => unreachable!(),
     }
