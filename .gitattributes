@@ -1,0 +1,5 @@
+# Let Git decide which files are text files.
+*	text=auto
+
+# Avoid that unit test files are converted to CR-LF on Windows.
+*.txt	-text
