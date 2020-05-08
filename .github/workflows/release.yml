@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Get release version
+      run: echo ::set-env name=TAG_NAME::$(echo ${GITHUB_REF:10})
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: x86_64-unknown-linux-musl
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release
+    - name: Create release archive
+      id: create_archive
+      run: |
+        ARCHIVE=finalfrontier-${TAG_NAME}-x86_64-unknown-linux-musl.tar.gz
+        strip target/release/finalfrontier
+        tar -czvf ${ARCHIVE} -C target/release finalfrontier
+        echo ::set-output name=ASSET::$ARCHIVE
+    - uses: actions/create-release@v1.0.0
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: true
+        prerelease: false
+    - uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.create_archive.outputs.ASSET }}
+        asset_name: ${{ steps.create_archive.outputs.ASSET }}
+        asset_content_type: application/gzip
