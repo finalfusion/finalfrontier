@@ -280,6 +280,7 @@ mod tests {
     use rand_xorshift::XorShiftRng;
 
     use super::TrainModel;
+    use crate::config::BucketIndexerType::Finalfusion;
     use crate::config::SubwordVocabConfig;
     use crate::idx::WordWithSubwordsIdx;
     use crate::skipgram_trainer::SkipgramTrainer;
@@ -307,7 +308,10 @@ mod tests {
         min_count: 2,
         max_n: 6,
         min_n: 3,
-        indexer: BucketConfig { buckets_exp: 21 },
+        indexer: BucketConfig {
+            buckets_exp: 21,
+            indexer_type: Finalfusion,
+        },
     };
 
     #[test]

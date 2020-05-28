@@ -9,10 +9,12 @@ use anyhow::{Context, Result};
 use clap::{App, Arg, ArgMatches};
 use finalfrontier::io::{thread_data_text, FileProgress, TrainInfo};
 use finalfrontier::{
-    CommonConfig, ModelType, SentenceIterator, SimpleVocab, SkipGramConfig, SkipgramTrainer,
-    SubwordVocab, Vocab, VocabBuilder, WriteModelBinary, SGD,
+    BucketIndexerType, CommonConfig, ModelType, SentenceIterator, SimpleVocab, SkipGramConfig,
+    SkipgramTrainer, SubwordVocab, Vocab, VocabBuilder, WriteModelBinary, SGD,
 };
+use finalfusion::compat::fasttext::FastTextIndexer;
 use finalfusion::prelude::VocabWrap;
+use finalfusion::subword::FinalfusionHashIndexer;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use serde::Serialize;
@@ -130,10 +132,18 @@ impl FinalfrontierApp for SkipgramApp {
 
     fn run(&self) -> Result<()> {
         match self.vocab_config() {
-            VocabConfig::SubwordVocab(config) => {
-                let vocab: SubwordVocab<_, _> = build_vocab(config, self.corpus())?;
-                train(vocab, self)
-            }
+            VocabConfig::SubwordVocab(config) => match config.indexer.indexer_type {
+                BucketIndexerType::Finalfusion => {
+                    let vocab: SubwordVocab<_, FinalfusionHashIndexer> =
+                        build_vocab(config, self.corpus())?;
+                    train(vocab, self)
+                }
+                BucketIndexerType::FastText => {
+                    let vocab: SubwordVocab<_, FastTextIndexer> =
+                        build_vocab(config, self.corpus())?;
+                    train(vocab, self)
+                }
+            },
             VocabConfig::SimpleVocab(config) => {
                 let vocab: SimpleVocab<String> = build_vocab(config, self.corpus())?;
                 train(vocab, self)

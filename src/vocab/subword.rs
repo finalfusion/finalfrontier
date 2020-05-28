@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 
+use finalfusion::compat::fasttext::FastTextIndexer;
 use finalfusion::subword::{
     BucketIndexer, ExplicitIndexer, FinalfusionHashIndexer, Indexer, NGrams, SubwordIndices,
 };
@@ -9,7 +10,9 @@ use finalfusion::vocab::{SubwordVocab as FiFuSubwordVocab, VocabWrap};
 
 use crate::idx::{WordIdx, WordWithSubwordsIdx};
 use crate::vocab::{bracket, create_discards, create_indices};
-use crate::{BucketConfig, NGramConfig, SubwordVocabConfig, Vocab, VocabBuilder, Word};
+use crate::{
+    BucketConfig, BucketIndexerType, NGramConfig, SubwordVocabConfig, Vocab, VocabBuilder, Word,
+};
 
 /// A corpus vocabulary with subword lookup.
 #[derive(Clone)]
@@ -148,12 +151,11 @@ where
             .map(|(word, count)| Word::new(word, count))
             .collect();
         words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
-        SubwordVocab::new(
-            config,
-            words,
-            builder.n_items,
-            I::new(config.indexer.buckets_exp as usize),
-        )
+        let buckets = match config.indexer.indexer_type {
+            BucketIndexerType::Finalfusion => config.indexer.buckets_exp as usize,
+            BucketIndexerType::FastText => 2u64.pow(config.indexer.buckets_exp) as usize,
+        };
+        SubwordVocab::new(config, words, builder.n_items, I::new(buckets))
     }
 }
 
@@ -219,6 +221,7 @@ macro_rules! impl_into_vocabwrap (
 );
 
 impl_into_vocabwrap!(SubwordVocab<BucketConfig, FinalfusionHashIndexer>);
+impl_into_vocabwrap!(SubwordVocab<BucketConfig, FastTextIndexer>);
 impl_into_vocabwrap!(SubwordVocab<NGramConfig, ExplicitIndexer>);
 
 #[cfg(test)]
@@ -228,6 +231,7 @@ mod tests {
     use crate::idx::WordIdx;
     use crate::{util, BucketConfig, NGramConfig};
 
+    use crate::config::BucketIndexerType::Finalfusion;
     use finalfusion::subword::{ExplicitIndexer, FinalfusionHashIndexer, Indexer};
 
     const TEST_SUBWORDCONFIG: SubwordVocabConfig<BucketConfig> = SubwordVocabConfig {
@@ -235,7 +239,10 @@ mod tests {
         min_count: 2,
         max_n: 6,
         min_n: 3,
-        indexer: BucketConfig { buckets_exp: 21 },
+        indexer: BucketConfig {
+            buckets_exp: 21,
+            indexer_type: Finalfusion,
+        },
     };
 
     const TEST_NGRAMCONFIG: SubwordVocabConfig<NGramConfig> = SubwordVocabConfig {

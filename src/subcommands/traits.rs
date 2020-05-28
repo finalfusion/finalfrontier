@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use anyhow::{Context, Result};
 use clap::{App, AppSettings, Arg, ArgMatches};
 use finalfrontier::{
@@ -16,6 +18,7 @@ static BUCKETS: &str = "buckets";
 static DIMS: &str = "dims";
 static DISCARD: &str = "discard";
 static EPOCHS: &str = "epochs";
+static HASH_INDEXER_TYPE: &str = "hash-indexer";
 static LR: &str = "lr";
 static MINCOUNT: &str = "mincount";
 static MINN: &str = "minn";
@@ -71,6 +74,15 @@ where
                     .help("Discard threshold")
                     .takes_value(true)
                     .default_value("1e-4"),
+            )
+            .arg(
+                Arg::with_name(HASH_INDEXER_TYPE)
+                    .long("hash-indexer")
+                    .value_name("INDEXER")
+                    .help("Hash indexer type")
+                    .takes_value(true)
+                    .default_value("finalfusion")
+                    .possible_values(&["finalfusion", "fasttext"]),
             )
             .arg(
                 Arg::with_name(EPOCHS)
@@ -233,12 +245,20 @@ where
                     .map(|v| v.parse().context("Cannot parse bucket exponent"))
                     .transpose()?
                     .unwrap();
+                let indexer = matches
+                    .value_of(HASH_INDEXER_TYPE)
+                    .map(|v| v.try_into().context("Unknown subword indexer type"))
+                    .transpose()?
+                    .unwrap();
                 Ok(VocabConfig::SubwordVocab(SubwordVocabConfig {
                     discard_threshold,
                     min_count,
                     max_n,
                     min_n,
-                    indexer: BucketConfig { buckets_exp },
+                    indexer: BucketConfig {
+                        buckets_exp,
+                        indexer_type: indexer,
+                    },
                 }))
             }
             "ngrams" => {
