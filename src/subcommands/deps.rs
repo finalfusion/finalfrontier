@@ -12,10 +12,13 @@ use conllu::io::{ReadSentence, Reader, Sentences};
 use conllu::proj::{HeadProjectivizer, Projectivize};
 use finalfrontier::io::{thread_data_conllu, FileProgress, TrainInfo};
 use finalfrontier::{
-    CommonConfig, DepembedsConfig, DepembedsTrainer, Dependency, DependencyIterator, SimpleVocab,
-    SimpleVocabConfig, SubwordVocab, Vocab, VocabBuilder, WriteModelBinary, SGD,
+    BucketIndexerType, CommonConfig, DepembedsConfig, DepembedsTrainer, Dependency,
+    DependencyIterator, SimpleVocab, SimpleVocabConfig, SubwordVocab, Vocab, VocabBuilder,
+    WriteModelBinary, SGD,
 };
+use finalfusion::compat::fasttext::FastTextIndexer;
 use finalfusion::prelude::VocabWrap;
+use finalfusion::subword::FinalfusionHashIndexer;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use serde::Serialize;
@@ -199,15 +202,28 @@ impl FinalfrontierApp for DepsApp {
                 )?;
                 train(input_vocab, output_vocab, self)?;
             }
-            VocabConfig::SubwordVocab(config) => {
-                let (input_vocab, output_vocab) = build_vocab::<_, SubwordVocab<_, _>, _>(
-                    config,
-                    self.output_vocab_config(),
-                    self.depembeds_config(),
-                    self.corpus(),
-                )?;
-                train(input_vocab, output_vocab, self)?;
-            }
+            VocabConfig::SubwordVocab(config) => match config.indexer.indexer_type {
+                BucketIndexerType::Finalfusion => {
+                    let (input_vocab, output_vocab) =
+                        build_vocab::<_, SubwordVocab<_, FinalfusionHashIndexer>, _>(
+                            config,
+                            self.output_vocab_config(),
+                            self.depembeds_config(),
+                            self.corpus(),
+                        )?;
+                    train(input_vocab, output_vocab, self)?
+                }
+                BucketIndexerType::FastText => {
+                    let (input_vocab, output_vocab) =
+                        build_vocab::<_, SubwordVocab<_, FastTextIndexer>, _>(
+                            config,
+                            self.output_vocab_config(),
+                            self.depembeds_config(),
+                            self.corpus(),
+                        )?;
+                    train(input_vocab, output_vocab, self)?;
+                }
+            },
             VocabConfig::NGramVocab(config) => {
                 let (input_vocab, output_vocab) = build_vocab::<_, SubwordVocab<_, _>, _>(
                     config,

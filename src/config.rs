@@ -1,4 +1,6 @@
-use anyhow::{bail, Result};
+use std::convert::TryFrom;
+
+use anyhow::{bail, Error, Result};
 use serde::Serialize;
 
 /// Model types.
@@ -46,6 +48,27 @@ impl LossType {
         match model {
             0 => Ok(LossType::LogisticNegativeSampling),
             _ => bail!("Unknown model type: {}", model),
+        }
+    }
+}
+
+/// Bucket Indexer Types
+#[derive(Copy, Clone, Debug, Serialize)]
+pub enum BucketIndexerType {
+    /// FinalfusionBucketIndexer
+    Finalfusion,
+    /// FastTextIndexer
+    FastText,
+}
+
+impl TryFrom<&str> for BucketIndexerType {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self> {
+        match value {
+            "finalfusion" => Ok(BucketIndexerType::Finalfusion),
+            "fasttext" => Ok(BucketIndexerType::FastText),
+            v => bail!("Unknown indexer type: {}", v),
         }
     }
 }
@@ -135,6 +158,8 @@ pub struct BucketConfig {
     /// A typical value for this parameter is 21, which gives roughly 2M
     /// buckets.
     pub buckets_exp: u32,
+
+    pub indexer_type: BucketIndexerType,
 }
 
 /// Hyperparameters for ngram-vocabs.
