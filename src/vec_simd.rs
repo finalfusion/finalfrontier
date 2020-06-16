@@ -1,78 +1,64 @@
-use cfg_if::cfg_if;
 use ndarray::{ArrayView1, ArrayViewMut1};
 
-cfg_if! {
-    if #[cfg(target_feature = "avx")] {
-        /// Dot product: u · v
-        ///
-        /// This SIMD-vectorized function computes the dot product
-        /// (BLAS sdot).
-        pub fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
-            unsafe { avx::dot(u, v) }
-        }
-    } else if #[cfg(target_feature = "sse")] {
-        /// Dot product: u · v
-        ///
-        /// This SIMD-vectorized function computes the dot product
-        /// (BLAS sdot).
-        pub fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
-            unsafe { sse::dot(u, v) }
-        }
-    } else {
-        /// Unvectorized dot product: u · v
-        pub fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
-            dot_unvectorized(u, v)
+/// Dot product: u · v
+///
+/// If the CPU supports SSE or AVX instructions, the dot
+/// product is SIMD-vectorized.
+pub fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if is_x86_feature_detected!("avx") {
+            return unsafe { avx::dot(u, v) };
+        } else if is_x86_feature_detected!("sse") {
+            return unsafe { sse::dot(u, v) };
         }
     }
+
+    dot_unvectorized(
+        u.as_slice().expect("Cannot use vector u as slice"),
+        v.as_slice().expect("Cannot use vector v as slice"),
+    )
 }
 
-cfg_if! {
-    if #[cfg(target_feature = "avx")] {
-        /// Scaling: u = au
-        ///
-        /// This function performs SIMD-vectorized scaling (BLAS sscal).
-        pub fn scale(u: ArrayViewMut1<f32>, a: f32) {
-            unsafe { avx::scale(u, a) }
-        }
-    } else if #[cfg(target_feature = "sse")] {
-        /// Scaling: u = au
-        ///
-        /// This function performs SIMD-vectorized scaling (BLAS sscal).
-        pub fn scale(u: ArrayViewMut1<f32>, a: f32) {
-            unsafe { sse::scale(u, a) }
-        }
-    } else {
-        /// Unvectorized Scaling: u = au
-        pub fn scale(u: ArrayViewMut1<f32>, a: f32) {
-            scale_unvectorized(u, a)
+/// Scaling: u = au
+///
+/// If the CPU supports SSE or AVX instructions, scaling is
+/// SIMD-vectorized.
+pub fn scale(mut u: ArrayViewMut1<f32>, a: f32) {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if is_x86_feature_detected!("avx") {
+            return unsafe { avx::scale(u, a) };
+        } else if is_x86_feature_detected!("sse") {
+            return unsafe { sse::scale(u, a) };
         }
     }
+
+    scale_unvectorized(u.as_slice_mut().expect("Cannot use vector u as slice"), a)
 }
 
-cfg_if! {
-    if #[cfg(target_feature = "avx")] {
-        /// Scaled addition: *u = u + av*
-        ///
-        /// This function performs SIMD-vectorized scaled addition (BLAS saxpy).
-        pub fn scaled_add(u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
-            unsafe { avx::scaled_add(u, v, a) }
-        }
-    } else if #[cfg(target_feature = "sse")] {
-        /// Scaled addition: *u = u + av*
-        ///
-        /// This function performs SIMD-vectorized scaled addition (BLAS saxpy).
-        pub fn scaled_add(u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
-            unsafe { sse::scaled_add(u, v, a) }
-        }
-    } else {
-        /// Unvectorized scaled addition: *u = u + av*.
-        pub fn scaled_add(u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
-            scaled_add_unvectorized(u, v, a)
+/// Scaled addition: *u = u + av*
+///
+/// If the CPU supports SSE or AVX instructions, scaled addition is
+/// SIMD-vectorized.
+pub fn scaled_add(mut u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if is_x86_feature_detected!("avx") {
+            return unsafe { avx::scaled_add(u, v, a) };
+        } else if is_x86_feature_detected!("sse") {
+            return unsafe { sse::scaled_add(u, v, a) };
         }
     }
+
+    scaled_add_unvectorized(
+        u.as_slice_mut().expect("Cannot use vector u as slice"),
+        v.as_slice().expect("Cannot use vector v as slice"),
+        a,
+    )
 }
 
-#[cfg(target_feature = "sse")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod sse {
     #[cfg(target_arch = "x86")]
     use std::arch::x86::*;
@@ -84,6 +70,7 @@ mod sse {
 
     use super::{dot_unvectorized, scale_unvectorized, scaled_add_unvectorized};
 
+    #[target_feature(enable = "sse")]
     #[allow(dead_code)]
     pub unsafe fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
         assert_eq!(u.len(), v.len());
@@ -113,6 +100,7 @@ mod sse {
         _mm_cvtss_f32(sums) + dot_unvectorized(u, v)
     }
 
+    #[target_feature(enable = "sse")]
     #[allow(dead_code)]
     pub unsafe fn scale(mut u: ArrayViewMut1<f32>, a: f32) {
         let mut u = u
@@ -131,6 +119,7 @@ mod sse {
         scale_unvectorized(u, a);
     }
 
+    #[target_feature(enable = "sse")]
     #[allow(dead_code, clippy::float_cmp)]
     pub unsafe fn scaled_add(mut u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
         assert_eq!(u.len(), v.len());
@@ -168,7 +157,7 @@ mod sse {
     }
 }
 
-#[cfg(target_feature = "avx")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod avx {
     #[cfg(target_arch = "x86")]
     use std::arch::x86::*;
@@ -180,6 +169,7 @@ mod avx {
 
     use super::{dot_unvectorized, scale_unvectorized, scaled_add_unvectorized};
 
+    #[target_feature(enable = "avx")]
     pub unsafe fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
         assert_eq!(u.len(), v.len());
 
@@ -214,6 +204,7 @@ mod avx {
         _mm_cvtss_f32(sums) + dot_unvectorized(u, v)
     }
 
+    #[target_feature(enable = "avx")]
     pub unsafe fn scale(mut u: ArrayViewMut1<f32>, a: f32) {
         let mut u = u
             .as_slice_mut()
@@ -231,6 +222,8 @@ mod avx {
         scale_unvectorized(u, a);
     }
 
+    #[target_feature(enable = "avx")]
+    #[allow(clippy::float_cmp)]
     pub unsafe fn scaled_add(mut u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
         assert_eq!(u.len(), v.len());
 
