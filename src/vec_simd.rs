@@ -8,6 +8,10 @@ pub fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
         if is_x86_feature_detected!("avx") {
+            if is_x86_feature_detected!("fma") {
+                return unsafe { avx_fma::dot(u, v) };
+            }
+
             return unsafe { avx::dot(u, v) };
         } else if is_x86_feature_detected!("sse") {
             return unsafe { sse::dot(u, v) };
@@ -186,9 +190,6 @@ mod avx {
             let ux8 = _mm256_loadu_ps(&u[0] as *const f32);
             let vx8 = _mm256_loadu_ps(&v[0] as *const f32);
 
-            // Future: support FMA?
-            // sums = _mm256_fmadd_ps(a, b, sums);
-
             sums = _mm256_add_ps(_mm256_mul_ps(ux8, vx8), sums);
 
             u = &u[8..];
@@ -264,6 +265,51 @@ mod avx {
     }
 }
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+mod avx_fma {
+    #[cfg(target_arch = "x86")]
+    use std::arch::x86::*;
+
+    #[cfg(target_arch = "x86_64")]
+    use std::arch::x86_64::*;
+
+    use ndarray::ArrayView1;
+
+    use super::dot_unvectorized;
+
+    #[target_feature(enable = "avx", enable = "fma")]
+    pub unsafe fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
+        assert_eq!(u.len(), v.len());
+
+        let mut u = u
+            .as_slice()
+            .expect("Cannot apply SIMD instructions on non-contiguous data.");
+        let mut v = &v
+            .as_slice()
+            .expect("Cannot apply SIMD instructions on non-contiguous data.")[..u.len()];
+
+        let mut sums = _mm256_setzero_ps();
+
+        while u.len() >= 8 {
+            let ux8 = _mm256_loadu_ps(&u[0] as *const f32);
+            let vx8 = _mm256_loadu_ps(&v[0] as *const f32);
+
+            sums = _mm256_fmadd_ps(ux8, vx8, sums);
+
+            u = &u[8..];
+            v = &v[8..];
+        }
+
+        sums = _mm256_hadd_ps(sums, sums);
+        sums = _mm256_hadd_ps(sums, sums);
+
+        // Sum sums[0..4] and sums[4..8].
+        let sums = _mm_add_ps(_mm256_castps256_ps128(sums), _mm256_extractf128_ps(sums, 1));
+
+        _mm_cvtss_f32(sums) + dot_unvectorized(u, v)
+    }
+}
+
 pub fn dot_unvectorized(u: &[f32], v: &[f32]) -> f32 {
     assert_eq!(u.len(), v.len());
     u.iter().zip(v).map(|(&a, &b)| a * b).sum()
@@ -315,6 +361,9 @@ mod tests {
     #[cfg(target_feature = "avx")]
     use super::avx;
 
+    #[cfg(all(target_feature = "avx", target_feature = "fma"))]
+    use super::avx_fma;
+
     #[test]
     fn add_unvectorized_test() {
         let u = &mut [1., 2., 3., 4., 5.];
@@ -362,6 +411,18 @@ mod tests {
         let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         assert!(close(
             unsafe { avx::dot(u.view(), v.view()) },
+            dot_unvectorized(u.as_slice().unwrap(), v.as_slice().unwrap()),
+            1e-5
+        ));
+    }
+
+    #[test]
+    #[cfg(all(target_feature = "avx", target_feature = "fma"))]
+    fn dot_avx_fma_test() {
+        let u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
+        let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
+        assert!(close(
+            unsafe { avx_fma::dot(u.view(), v.view()) },
             dot_unvectorized(u.as_slice().unwrap(), v.as_slice().unwrap()),
             1e-5
         ));
