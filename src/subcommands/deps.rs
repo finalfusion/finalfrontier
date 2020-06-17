@@ -192,6 +192,9 @@ impl FinalfrontierApp for DepsApp {
     }
 
     fn run(&self) -> Result<()> {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        eprintln!("SIMD features: {}", Self::simd_features().join(" "));
+
         match self.input_vocab_config() {
             VocabConfig::SimpleVocab(config) => {
                 let (input_vocab, output_vocab) = build_vocab::<_, SimpleVocab<String>, _>(
