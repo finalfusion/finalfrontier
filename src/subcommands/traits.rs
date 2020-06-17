@@ -284,4 +284,30 @@ where
             s => unreachable!(format!("Unhandled vocab type: {}", s)),
         }
     }
+
+    /// Get features that will be used by SIMD code paths.
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn simd_features() -> Vec<&'static str> {
+        let mut features = vec![];
+
+        if is_x86_feature_detected!("sse") {
+            features.push("+sse");
+        } else {
+            features.push("-sse");
+        }
+
+        if is_x86_feature_detected!("avx") {
+            features.push("+avx");
+        } else {
+            features.push("-avx");
+        }
+
+        if is_x86_feature_detected!("fma") {
+            features.push("+fma");
+        } else {
+            features.push("-fma");
+        }
+
+        features
+    }
 }

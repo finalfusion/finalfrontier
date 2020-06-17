@@ -131,6 +131,9 @@ impl FinalfrontierApp for SkipgramApp {
     }
 
     fn run(&self) -> Result<()> {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        eprintln!("SIMD features: {}", Self::simd_features().join(" "));
+
         match self.vocab_config() {
             VocabConfig::SubwordVocab(config) => match config.indexer.indexer_type {
                 BucketIndexerType::Finalfusion => {
