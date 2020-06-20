@@ -12,7 +12,7 @@ use conllu::io::{ReadSentence, Reader, Sentences};
 use conllu::proj::{HeadProjectivizer, Projectivize};
 use finalfrontier::io::{thread_data_conllu, FileProgress, TrainInfo};
 use finalfrontier::{
-    BucketIndexerType, CommonConfig, DepembedsConfig, DepembedsTrainer, Dependency,
+    BucketIndexerType, CommonConfig, Cutoff, DepembedsConfig, DepembedsTrainer, Dependency,
     DependencyIterator, SimpleVocab, SimpleVocabConfig, SubwordVocab, Vocab, VocabBuilder,
     WriteModelBinary, SGD,
 };
@@ -23,9 +23,10 @@ use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use serde::Serialize;
 
-use crate::subcommands::{show_progress, FinalfrontierApp, VocabConfig};
+use crate::subcommands::{cutoff_from_matches, show_progress, FinalfrontierApp, VocabConfig};
 
 static CONTEXT_MINCOUNT: &str = "context-mincount";
+static CONTEXT_TARGET_SIZE: &str = "context-target-size";
 static CONTEXT_DISCARD: &str = "context-discard";
 static DEPENDENCY_DEPTH: &str = "dependency-depth";
 static UNTYPED_DEPS: &str = "untyped";
@@ -122,9 +123,16 @@ impl FinalfrontierApp for DepsApp {
                 Arg::with_name(CONTEXT_MINCOUNT)
                     .long("context-mincount")
                     .value_name("CONTEXT_FREQ")
-                    .help("Context mincount")
+                    .help("Context mincount. Default: 5")
                     .takes_value(true)
-                    .default_value("5"),
+                    .conflicts_with(CONTEXT_TARGET_SIZE),
+            )
+            .arg(
+                Arg::with_name(CONTEXT_TARGET_SIZE)
+                    .long("context-target-size")
+                    .value_name("CONTEXT_TARGET_SIZE")
+                    .help("Context vocab target size")
+                    .takes_value(true),
             )
             .arg(
                 Arg::with_name(DEPENDENCY_DEPTH)
@@ -170,14 +178,11 @@ impl FinalfrontierApp for DepsApp {
             .map(|v| v.parse().context("Cannot parse discard threshold"))
             .transpose()?
             .unwrap();
-        let min_count = matches
-            .value_of(CONTEXT_MINCOUNT)
-            .map(|v| v.parse().context("Cannot parse mincount"))
-            .transpose()?
-            .unwrap();
+        let cutoff = cutoff_from_matches(matches, CONTEXT_MINCOUNT, CONTEXT_TARGET_SIZE)?
+            .unwrap_or_else(|| Cutoff::MinCount(5));
 
         let output_vocab_config = SimpleVocabConfig {
-            min_count,
+            cutoff,
             discard_threshold,
         };
         let train_info = TrainInfo::new(corpus, output, n_threads);

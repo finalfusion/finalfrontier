@@ -112,15 +112,7 @@ where
     S: Hash + Eq + Clone + Ord,
 {
     fn from(builder: VocabBuilder<SimpleVocabConfig, T>) -> Self {
-        let min_count = builder.config.min_count;
-
-        let mut types: Vec<_> = builder
-            .items
-            .into_iter()
-            .filter(|(_, count)| *count >= min_count as usize)
-            .map(|(item, count)| CountedType::new(item.into(), count))
-            .collect();
-        types.sort_unstable_by(|w1, w2| w2.cmp(&w1));
+        let types = builder.config.cutoff.filter(builder.items);
         SimpleVocab::new(builder.config, types, builder.n_items)
     }
 }
@@ -129,11 +121,11 @@ where
 mod tests {
     use super::{SimpleVocab, Vocab, VocabBuilder};
     use crate::idx::WordIdx;
-    use crate::{util, SimpleVocabConfig};
+    use crate::{util, Cutoff, SimpleVocabConfig};
 
     const TEST_SIMPLECONFIG: SimpleVocabConfig = SimpleVocabConfig {
         discard_threshold: 1e-4,
-        min_count: 2,
+        cutoff: Cutoff::MinCount(2),
     };
 
     #[test]

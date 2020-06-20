@@ -5,7 +5,11 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 
+use serde::Serialize;
+use superslice::Ext;
+
 use crate::idx::WordIdx;
+use std::cmp::Reverse;
 
 const BOW: char = '<';
 const EOW: char = '>';
@@ -156,4 +160,152 @@ pub(crate) fn bracket(word: &str) -> String {
     bracketed.push(EOW);
 
     bracketed
+}
+
+/// Cutoff to determine vocabulary size.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "type", content = "value")]
+pub enum Cutoff {
+    /// Cutoff based on minimum frequency, items appearing less than
+    /// `min_count` times are discarded.
+    MinCount(usize),
+    /// Cutoff based on a target size, up to `target_size` items are kept
+    /// in the vocabulary. If the item at `target_size+1` appears `n` times,
+    /// all items with frequency `n` and smaller are discarded.
+    TargetSize(usize),
+}
+
+impl Cutoff {
+    pub(crate) fn filter<T, S>(
+        &self,
+        items: impl IntoIterator<Item = (T, usize)>,
+    ) -> Vec<CountedType<S>>
+    where
+        T: Hash + Eq + Into<S>,
+        S: Hash + Eq + Clone + Ord,
+    {
+        match self {
+            Cutoff::MinCount(min_count) => filter_minfreq(items, *min_count),
+            Cutoff::TargetSize(target_size) => filter_targetsize(items, *target_size),
+        }
+    }
+}
+
+fn filter_minfreq<T, S>(
+    items: impl IntoIterator<Item = (T, usize)>,
+    min_count: usize,
+) -> Vec<CountedType<S>>
+where
+    T: Hash + Eq + Into<S>,
+    S: Hash + Eq + Clone + Ord,
+{
+    let mut types: Vec<_> = items
+        .into_iter()
+        .filter(|(_, count)| *count >= min_count as usize)
+        .map(|(item, count)| CountedType::new(item.into(), count))
+        .collect();
+    types.sort_unstable_by(|w1, w2| w2.cmp(&w1));
+    types
+}
+
+fn filter_targetsize<T, S>(
+    items: impl IntoIterator<Item = (T, usize)>,
+    target_size: usize,
+) -> Vec<CountedType<S>>
+where
+    T: Hash + Eq + Into<S>,
+    S: Hash + Eq + Clone + Ord,
+{
+    let mut items = items
+        .into_iter()
+        .map(|(item, count)| CountedType::new(item.into(), count))
+        .collect::<Vec<_>>();
+    items.sort_unstable_by(|i1, i2| i2.cmp(&i1));
+
+    if target_size > items.len() {
+        return items;
+    }
+
+    let cutoff_idx =
+        items.lower_bound_by_key(&Reverse(items[target_size].count), |key| Reverse(key.count));
+    items.truncate(cutoff_idx);
+    items
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{Cutoff, Word};
+
+    #[test]
+    pub fn target_size_unique_counts() {
+        let cutoff = Cutoff::TargetSize(3);
+        let items = vec![("a", 10), ("b", 3), ("c", 12), ("d", 5)];
+        let filtered: Vec<Word> = cutoff.filter(items);
+        let target_items = vec![
+            Word::new("c".to_string(), 12),
+            Word::new("a".to_string(), 10),
+            Word::new("d".to_string(), 5),
+        ];
+        assert!(
+            filtered == target_items,
+            format!("{:#?}\n != \n {:#?}", filtered, target_items)
+        );
+    }
+
+    #[test]
+    pub fn target_size_discard_equal() {
+        let cutoff = Cutoff::TargetSize(3);
+        let items = vec![("a", 10), ("b", 3), ("c", 12), ("e", 12), ("d", 10)];
+        let filtered: Vec<Word> = cutoff.filter(items);
+        let target_items = vec![
+            Word::new("e".to_string(), 12),
+            Word::new("c".to_string(), 12),
+        ];
+        assert!(
+            filtered == target_items,
+            format!("{:#?}\n != \n {:#?}", filtered, target_items)
+        );
+    }
+
+    #[test]
+    pub fn target_size_0() {
+        let cutoff = Cutoff::TargetSize(0);
+        let items = vec![("a", 10), ("b", 3), ("c", 12), ("e", 12), ("d", 10)];
+        let filtered: Vec<Word> = cutoff.filter(items);
+        let target_items = vec![];
+        assert!(
+            filtered == target_items,
+            format!("{:#?}\n != \n {:#?}", filtered, target_items)
+        );
+    }
+
+    #[test]
+    pub fn target_size_large() {
+        let cutoff = Cutoff::TargetSize(10);
+        let items = vec![("a", 10), ("b", 3), ("c", 12), ("e", 12), ("d", 10)];
+        let filtered: Vec<Word> = cutoff.filter(items);
+        let target_items = vec![
+            Word::new("e".to_string(), 12),
+            Word::new("c".to_string(), 12),
+            Word::new("d".to_string(), 10),
+            Word::new("a".to_string(), 10),
+            Word::new("b".to_string(), 3),
+        ];
+        assert!(
+            filtered == target_items,
+            format!("{:#?}\n != \n {:#?}", filtered, target_items)
+        );
+    }
+
+    #[test]
+    pub fn target_size_all_equal_too_many() {
+        let cutoff = Cutoff::TargetSize(3);
+        let items = vec![("a", 10), ("b", 10), ("c", 10), ("e", 10), ("d", 10)];
+        let filtered: Vec<Word> = cutoff.filter(items);
+        let target_items = vec![];
+        assert!(
+            filtered == target_items,
+            format!("{:#?}\n != \n {:#?}", filtered, target_items)
+        );
+    }
 }

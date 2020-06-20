@@ -11,7 +11,8 @@ use finalfusion::vocab::{SubwordVocab as FiFuSubwordVocab, VocabWrap};
 use crate::idx::{WordIdx, WordWithSubwordsIdx};
 use crate::vocab::{bracket, create_discards, create_indices};
 use crate::{
-    BucketConfig, BucketIndexerType, NGramConfig, SubwordVocabConfig, Vocab, VocabBuilder, Word,
+    BucketConfig, BucketIndexerType, CountedType, NGramConfig, SubwordVocabConfig, Vocab,
+    VocabBuilder, Word,
 };
 
 /// A corpus vocabulary with subword lookup.
@@ -142,15 +143,7 @@ where
 {
     fn from(builder: VocabBuilder<SubwordVocabConfig<BucketConfig>, T>) -> Self {
         let config = builder.config;
-
-        let mut words: Vec<_> = builder
-            .items
-            .into_iter()
-            .map(|(word, count)| (word.into(), count))
-            .filter(|(_, count)| *count >= config.min_count as usize)
-            .map(|(word, count)| Word::new(word, count))
-            .collect();
-        words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
+        let words = config.cutoff.filter(builder.items);
         let buckets = match config.indexer.indexer_type {
             BucketIndexerType::Finalfusion => config.indexer.buckets_exp as usize,
             BucketIndexerType::FastText => 2u64.pow(config.indexer.buckets_exp) as usize,
@@ -167,14 +160,9 @@ where
 {
     fn from(builder: VocabBuilder<SubwordVocabConfig<NGramConfig>, T>) -> Self {
         let config = builder.config;
-        let mut words = Vec::new();
+        let words: Vec<Word> = builder.config.cutoff.filter(builder.items);
         let mut ngram_counts: HashMap<String, usize> = HashMap::new();
-        for (word, count) in builder.items {
-            let word = word.into();
-            if count < config.min_count as usize {
-                continue;
-            }
-            let word = Word::new(word, count);
+        for word in words.iter() {
             for ngram in NGrams::new(
                 &bracket(word.label()),
                 config.min_n as usize,
@@ -183,23 +171,15 @@ where
             .map(|ngram| ngram.to_string())
             {
                 let cnt = ngram_counts.entry(ngram).or_default();
-                *cnt += count;
+                *cnt += word.count;
             }
-            words.push(word);
         }
 
-        let mut ngrams = ngram_counts
-            .iter()
-            .filter(|(_, count)| **count >= config.indexer.min_ngram_count as usize)
-            .map(|(ngram, _)| ngram.clone())
+        let ngrams: Vec<CountedType<String>> = config.indexer.cutoff.filter(ngram_counts);
+        let ngrams = ngrams
+            .into_iter()
+            .map(|counted| counted.label)
             .collect::<Vec<_>>();
-
-        words.sort_unstable_by(|w1, w2| w2.cmp(&w1));
-        ngrams.sort_unstable_by(|ngram1, ngram2| {
-            let ngram1_cnt = ngram_counts[ngram1];
-            let ngram2_cnt = ngram_counts[ngram2];
-            (ngram2_cnt, ngram2).cmp(&(ngram1_cnt, ngram1))
-        });
         SubwordVocab::new(config, words, builder.n_items, ExplicitIndexer::new(ngrams))
     }
 }
@@ -229,14 +209,14 @@ mod tests {
     use super::{SubwordVocab, Vocab, VocabBuilder};
     use crate::config::SubwordVocabConfig;
     use crate::idx::WordIdx;
-    use crate::{util, BucketConfig, NGramConfig};
+    use crate::{util, BucketConfig, Cutoff, NGramConfig};
 
     use crate::config::BucketIndexerType::Finalfusion;
     use finalfusion::subword::{ExplicitIndexer, FinalfusionHashIndexer, Indexer};
 
     const TEST_SUBWORDCONFIG: SubwordVocabConfig<BucketConfig> = SubwordVocabConfig {
         discard_threshold: 1e-4,
-        min_count: 2,
+        cutoff: Cutoff::MinCount(2),
         max_n: 6,
         min_n: 3,
         indexer: BucketConfig {
@@ -247,16 +227,18 @@ mod tests {
 
     const TEST_NGRAMCONFIG: SubwordVocabConfig<NGramConfig> = SubwordVocabConfig {
         discard_threshold: 1e-4,
-        min_count: 2,
+        cutoff: Cutoff::MinCount(2),
         max_n: 6,
         min_n: 3,
-        indexer: NGramConfig { min_ngram_count: 2 },
+        indexer: NGramConfig {
+            cutoff: Cutoff::MinCount(2),
+        },
     };
 
     #[test]
     pub fn vocab_is_sorted() {
         let mut config = TEST_SUBWORDCONFIG.clone();
-        config.min_count = 1;
+        config.cutoff = Cutoff::MinCount(1);
 
         let mut builder: VocabBuilder<_, &str> = VocabBuilder::new(config);
         builder.count("to");

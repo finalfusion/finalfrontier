@@ -36,5 +36,5 @@ pub(crate) mod vec_simd;
 
 mod vocab;
 pub use crate::vocab::{
-    simple::SimpleVocab, subword::SubwordVocab, CountedType, Vocab, VocabBuilder, Word,
+    simple::SimpleVocab, subword::SubwordVocab, CountedType, Cutoff, Vocab, VocabBuilder, Word,
 };

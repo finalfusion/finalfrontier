@@ -3,10 +3,11 @@ use std::convert::TryInto;
 use anyhow::{Context, Result};
 use clap::{App, AppSettings, Arg, ArgMatches};
 use finalfrontier::{
-    BucketConfig, CommonConfig, LossType, NGramConfig, SimpleVocabConfig, SubwordVocabConfig,
+    BucketConfig, CommonConfig, Cutoff, LossType, NGramConfig, SimpleVocabConfig,
+    SubwordVocabConfig,
 };
 
-use crate::subcommands::VocabConfig;
+use crate::subcommands::{cutoff_from_matches, VocabConfig};
 
 static DEFAULT_CLAP_SETTINGS: &[AppSettings] = &[
     AppSettings::DontCollapseArgsInUsage,
@@ -21,9 +22,11 @@ static EPOCHS: &str = "epochs";
 static HASH_INDEXER_TYPE: &str = "hash-indexer";
 static LR: &str = "lr";
 static MINCOUNT: &str = "mincount";
+static TARGET_SIZE: &str = "target-size";
 static MINN: &str = "minn";
 static MAXN: &str = "maxn";
 static NGRAM_MINCOUNT: &str = "ngram-mincount";
+static NGRAM_TARGET_SIZE: &str = "ngram-target-size";
 static SUBWORDS: &str = "subwords";
 static NS: &str = "ns";
 static ZIPF_EXPONENT: &str = "zipf";
@@ -104,9 +107,16 @@ where
                 Arg::with_name(MINCOUNT)
                     .long("mincount")
                     .value_name("FREQ")
-                    .help("Minimum token frequency")
+                    .help("Minimum token frequency. Default: 5")
                     .takes_value(true)
-                    .default_value("5"),
+                    .conflicts_with(TARGET_SIZE),
+            )
+            .arg(
+                Arg::with_name(TARGET_SIZE)
+                    .long("target-size")
+                    .value_name("SIZE")
+                    .help("Target vocab size.")
+                    .takes_value(true),
             )
             .arg(
                 Arg::with_name(MINN)
@@ -137,9 +147,16 @@ where
                 Arg::with_name(NGRAM_MINCOUNT)
                     .long("ngram-mincount")
                     .value_name("FREQ")
-                    .help("Minimum ngram frequency.")
+                    .help("Minimum ngram frequency. Default: 5")
                     .takes_value(true)
-                    .default_value("5"),
+                    .conflicts_with(NGRAM_TARGET_SIZE),
+            )
+            .arg(
+                Arg::with_name(NGRAM_TARGET_SIZE)
+                    .long("ngram-target-size")
+                    .value_name("SIZE")
+                    .help("Target ngram vocab size")
+                    .takes_value(true),
             )
             .arg(
                 Arg::with_name(NS)
@@ -223,11 +240,8 @@ where
             .map(|v| v.parse().context("Cannot parse discard threshold"))
             .transpose()?
             .unwrap();
-        let min_count = matches
-            .value_of(MINCOUNT)
-            .map(|v| v.parse().context("Cannot parse mincount"))
-            .transpose()?
-            .unwrap();
+        let cutoff = cutoff_from_matches(matches, MINCOUNT, TARGET_SIZE)?
+            .unwrap_or_else(|| Cutoff::MinCount(5));
         let min_n = matches
             .value_of(MINN)
             .map(|v| v.parse().context("Cannot parse minimum n-gram length"))
@@ -252,7 +266,7 @@ where
                     .unwrap();
                 Ok(VocabConfig::SubwordVocab(SubwordVocabConfig {
                     discard_threshold,
-                    min_count,
+                    cutoff,
                     max_n,
                     min_n,
                     indexer: BucketConfig {
@@ -262,21 +276,20 @@ where
                 }))
             }
             "ngrams" => {
-                let min_ngram_count = matches
-                    .value_of(NGRAM_MINCOUNT)
-                    .map(|v| v.parse().context("Cannot parse bucket exponent"))
-                    .transpose()?
-                    .unwrap();
+                let ngram_cutoff = cutoff_from_matches(matches, NGRAM_MINCOUNT, NGRAM_TARGET_SIZE)?
+                    .unwrap_or_else(|| Cutoff::MinCount(5));
                 Ok(VocabConfig::NGramVocab(SubwordVocabConfig {
                     discard_threshold,
-                    min_count,
+                    cutoff,
                     max_n,
                     min_n,
-                    indexer: NGramConfig { min_ngram_count },
+                    indexer: NGramConfig {
+                        cutoff: ngram_cutoff,
+                    },
                 }))
             }
             "none" => Ok(VocabConfig::SimpleVocab(SimpleVocabConfig {
-                min_count,
+                cutoff,
                 discard_threshold,
             })),
             // unreachable as long as possible values in clap are in sync with this `VocabConfig`'s

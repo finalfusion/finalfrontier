@@ -1,5 +1,5 @@
 mod config;
-pub use self::config::VocabConfig;
+pub use self::config::{cutoff_from_matches, VocabConfig};
 
 mod deps;
 pub use self::deps::DepsApp;

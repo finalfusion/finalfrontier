@@ -3,6 +3,8 @@ use std::convert::TryFrom;
 use anyhow::{bail, Error, Result};
 use serde::Serialize;
 
+use crate::vocab::Cutoff;
+
 /// Model types.
 #[derive(Copy, Clone, Debug, Serialize)]
 pub enum ModelType {
@@ -125,11 +127,11 @@ pub struct DepembedsConfig {
 #[serde(rename = "SubwordVocab")]
 #[serde(tag = "type")]
 pub struct SubwordVocabConfig<V> {
-    /// Minimum token count.
+    /// Token cutoff.
     ///
-    /// No word-specific embeddings will be trained for tokens occurring less
-    /// than this count.
-    pub min_count: u32,
+    /// No word-specific embeddings will be trained for tokens excluded by the
+    /// cutoff.
+    pub cutoff: Cutoff,
 
     /// Discard threshold.
     ///
@@ -167,11 +169,10 @@ pub struct BucketConfig {
 #[serde(rename = "NGrams")]
 #[serde(tag = "type")]
 pub struct NGramConfig {
-    /// Minimum NGram count.
+    /// NGram cutoff.
     ///
-    /// Ngrams occurring less than `min_count` times in in-vocabulary tokens
-    /// will be ignored.
-    pub min_ngram_count: u32,
+    /// NGrams excluded by the cutoff will be ignored during training.
+    pub cutoff: Cutoff,
 }
 
 /// Hyperparameters for simple vocabs.
@@ -179,11 +180,11 @@ pub struct NGramConfig {
 #[serde(rename = "SimpleVocab")]
 #[serde(tag = "type")]
 pub struct SimpleVocabConfig {
-    /// Minimum token count.
+    /// Token cutoff.
     ///
-    /// No word-specific embeddings will be trained for tokens occurring less
-    /// than this count.
-    pub min_count: u32,
+    /// No word-specific embeddings will be trained for tokens excluded by the
+    /// cutoff.
+    pub cutoff: Cutoff,
 
     /// Discard threshold.
     ///
