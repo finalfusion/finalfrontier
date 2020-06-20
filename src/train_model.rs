@@ -286,7 +286,8 @@ mod tests {
     use crate::skipgram_trainer::SkipgramTrainer;
     use crate::util::all_close;
     use crate::{
-        BucketConfig, CommonConfig, LossType, ModelType, SkipGramConfig, SubwordVocab, VocabBuilder,
+        BucketConfig, CommonConfig, Cutoff, LossType, ModelType, SkipGramConfig, SubwordVocab,
+        VocabBuilder,
     };
 
     const TEST_COMMON_CONFIG: CommonConfig = CommonConfig {
@@ -305,7 +306,7 @@ mod tests {
 
     const VOCAB_CONF: SubwordVocabConfig<BucketConfig> = SubwordVocabConfig {
         discard_threshold: 1e-4,
-        min_count: 2,
+        cutoff: Cutoff::MinCount(2),
         max_n: 6,
         min_n: 3,
         indexer: BucketConfig {
@@ -317,7 +318,7 @@ mod tests {
     #[test]
     pub fn model_embed_methods() {
         let mut vocab_config = VOCAB_CONF.clone();
-        vocab_config.min_count = 1;
+        vocab_config.cutoff = Cutoff::MinCount(1);
 
         let common_config = TEST_COMMON_CONFIG.clone();
         let skipgram_config = TEST_SKIP_CONFIG.clone();

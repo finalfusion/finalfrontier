@@ -69,6 +69,12 @@ OPTIONS
     fewer than *FREQ* times are not considered during training. The
     default minimum count is 5.
 
+`--target-size` *SIZE*
+
+:   The target size for the token vocabulary. At most *SIZE* tokens are
+    included for training. Only tokens appearing more frequently than the token
+    at *SIZE* are included.
+
 `--minn` *LEN*
 
 :   The minimum n-gram length for subword representations. Default: 3
@@ -94,6 +100,13 @@ OPTIONS
 :   The minimum n-gram frequency. n-grams occurring fewer than *FREQ*
     times are excluded from training. This option is only applicable
     with the *ngrams* argument of the `subwords` option.
+
+`--ngram-target-size` *SIZE*
+
+:   The target size for the n-gram vocabulary. At most *SIZE* n-ngrams are
+    included for training. Only n-grams appearing more frequently than the
+    n-gram at *SIZE* are included. This option is only applicable with the
+    *ngrams* argument of the `subwords` option.
 
 `--ns` *FREQ*
 
