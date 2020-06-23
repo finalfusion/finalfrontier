@@ -1,4 +1,5 @@
 use std::cmp;
+use std::convert::TryFrom;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
@@ -78,7 +79,7 @@ impl SkipgramApp {
             .unwrap();
         let model = matches
             .value_of(MODEL)
-            .map(|v| ModelType::try_from_str(v).context("Cannot parse model type"))
+            .map(|v| ModelType::try_from(v).context("Cannot parse model type"))
             .transpose()?
             .unwrap();
 
