@@ -18,8 +18,10 @@ pub enum ModelType {
     DirectionalSkipgram,
 }
 
-impl ModelType {
-    pub fn try_from(model: u8) -> Result<ModelType> {
+impl TryFrom<u8> for ModelType {
+    type Error = Error;
+
+    fn try_from(model: u8) -> Result<ModelType> {
         match model {
             0 => Ok(ModelType::SkipGram),
             1 => Ok(ModelType::StructuredSkipGram),
@@ -27,8 +29,12 @@ impl ModelType {
             _ => bail!("Unknown model type: {}", model),
         }
     }
+}
 
-    pub fn try_from_str(model: &str) -> Result<ModelType> {
+impl TryFrom<&str> for ModelType {
+    type Error = Error;
+
+    fn try_from(model: &str) -> Result<ModelType> {
         match model {
             "skipgram" => Ok(ModelType::SkipGram),
             "structgram" => Ok(ModelType::StructuredSkipGram),
@@ -45,8 +51,10 @@ pub enum LossType {
     LogisticNegativeSampling,
 }
 
-impl LossType {
-    pub fn try_from(model: u8) -> Result<LossType> {
+impl TryFrom<u8> for LossType {
+    type Error = Error;
+
+    fn try_from(model: u8) -> Result<LossType> {
         match model {
             0 => Ok(LossType::LogisticNegativeSampling),
             _ => bail!("Unknown model type: {}", model),
