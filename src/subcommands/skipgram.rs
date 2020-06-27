@@ -208,7 +208,11 @@ where
     }
 
     sgd.into_model()
-        .write_model_binary(&mut output_writer, app.train_info().clone())
+        .write_model_binary(
+            &mut output_writer,
+            app.train_info().clone(),
+            app.common_config.format,
+        )
         .context("Cannot write model")
 }
 

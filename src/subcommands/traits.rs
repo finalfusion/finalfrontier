@@ -19,6 +19,7 @@ static BUCKETS: &str = "buckets";
 static DIMS: &str = "dims";
 static DISCARD: &str = "discard";
 static EPOCHS: &str = "epochs";
+static FORMAT: &str = "format";
 static HASH_INDEXER_TYPE: &str = "hash-indexer";
 static LR: &str = "lr";
 static MINCOUNT: &str = "mincount";
@@ -77,6 +78,15 @@ where
                     .help("Discard threshold")
                     .takes_value(true)
                     .default_value("1e-4"),
+            )
+            .arg(
+                Arg::with_name(FORMAT)
+                    .short("f")
+                    .long("format")
+                    .value_name("FORMAT")
+                    .help("Output format")
+                    .takes_value(true)
+                    .default_value("finalfusion"),
             )
             .arg(
                 Arg::with_name(HASH_INDEXER_TYPE)
@@ -207,6 +217,11 @@ where
             .map(|v| v.parse().context("Cannot parse number of epochs"))
             .transpose()?
             .unwrap();
+        let format = matches
+            .value_of(FORMAT)
+            .map(|v| v.try_into().context("Cannot parse output format"))
+            .transpose()?
+            .unwrap();
         let lr = matches
             .value_of(LR)
             .map(|v| v.parse().context("Cannot parse learning rate"))
@@ -227,6 +242,7 @@ where
             loss: LossType::LogisticNegativeSampling,
             dims,
             epochs,
+            format,
             lr,
             negative_samples,
             zipf_exponent,
