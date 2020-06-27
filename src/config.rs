@@ -3,6 +3,7 @@ use std::convert::TryFrom;
 use anyhow::{bail, Error, Result};
 use serde::Serialize;
 
+use crate::io::EmbeddingFormat;
 use crate::vocab::Cutoff;
 
 /// Model types.
@@ -94,6 +95,10 @@ pub struct CommonConfig {
 
     /// The number of training epochs.
     pub epochs: u32,
+
+    /// The output format.
+    #[serde(skip)]
+    pub format: EmbeddingFormat,
 
     /// Number of negative samples to use for each context word.
     pub negative_samples: u32,
