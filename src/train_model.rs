@@ -2,6 +2,8 @@ use std::io::{Seek, Write};
 use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Result};
+use finalfusion::compat::text::{WriteText, WriteTextDims};
+use finalfusion::compat::word2vec::WriteWord2Vec;
 use finalfusion::io::WriteEmbeddings;
 use finalfusion::metadata::Metadata;
 use finalfusion::norms::NdNorms;
@@ -15,7 +17,7 @@ use toml::Value;
 
 use crate::hogwild::HogwildArray2;
 use crate::idx::WordIdx;
-use crate::io::TrainInfo;
+use crate::io::{EmbeddingFormat, TrainInfo};
 use crate::util::VersionInfo;
 use crate::vec_simd::{l2_normalize, scale, scaled_add};
 use crate::{CommonConfig, Vocab, WriteModelBinary};
@@ -184,7 +186,12 @@ where
     for<'a> &'a V::IdxType: IntoIterator<Item = u64>,
     M: Serialize,
 {
-    fn write_model_binary(self, write: &mut W, mut train_info: TrainInfo) -> Result<()> {
+    fn write_model_binary(
+        self,
+        write: &mut W,
+        mut train_info: TrainInfo,
+        format: EmbeddingFormat,
+    ) -> Result<()> {
         let (trainer, mut input_matrix) = self.into_parts()?;
         let mut metadata = Value::try_from(trainer.to_metadata())?;
         let build_info = Value::try_from(VersionInfo::new())?;
@@ -214,9 +221,17 @@ where
         let storage = NdArray::new(input_matrix);
         let norms = NdNorms::new(Array1::from(norms));
 
-        Embeddings::new(Some(Metadata::new(metadata)), vocab, storage, norms)
-            .write_embeddings(write)
-            .map_err(|err| err.into())
+        let embeddings = Embeddings::new(Some(Metadata::new(metadata)), vocab, storage, norms);
+
+        use self::EmbeddingFormat::*;
+        match format {
+            FinalFusion => embeddings.write_embeddings(write)?,
+            Word2Vec => embeddings.write_word2vec_binary(write, true)?,
+            Text => embeddings.write_text(write, true)?,
+            TextDims => embeddings.write_text_dims(write, true)?,
+        };
+
+        Ok(())
     }
 }
 
@@ -283,6 +298,7 @@ mod tests {
     use crate::config::BucketIndexerType::Finalfusion;
     use crate::config::SubwordVocabConfig;
     use crate::idx::WordWithSubwordsIdx;
+    use crate::io::EmbeddingFormat;
     use crate::skipgram_trainer::SkipgramTrainer;
     use crate::util::all_close;
     use crate::{
@@ -293,6 +309,7 @@ mod tests {
     const TEST_COMMON_CONFIG: CommonConfig = CommonConfig {
         dims: 3,
         epochs: 5,
+        format: EmbeddingFormat::FinalFusion,
         loss: LossType::LogisticNegativeSampling,
         lr: 0.05,
         negative_samples: 5,

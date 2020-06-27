@@ -1,7 +1,8 @@
+use std::convert::TryFrom;
 use std::fs::File;
 use std::io::{self, BufRead, Lines, Read, Seek, SeekFrom, Write};
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use chrono::{DateTime, Local};
 use indicatif::{ProgressBar, ProgressStyle};
 use memmap::{Mmap, MmapOptions};
@@ -10,6 +11,30 @@ use serde::Serialize;
 pub struct FileProgress {
     inner: File,
     progress: ProgressBar,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EmbeddingFormat {
+    FinalFusion,
+    Word2Vec,
+    Text,
+    TextDims,
+}
+
+impl TryFrom<&str> for EmbeddingFormat {
+    type Error = Error;
+
+    fn try_from(format: &str) -> Result<Self> {
+        use self::EmbeddingFormat::*;
+
+        match format {
+            "finalfusion" => Ok(FinalFusion),
+            "word2vec" => Ok(Word2Vec),
+            "text" => Ok(Text),
+            "textdims" => Ok(TextDims),
+            unknown => Err(anyhow!("Unknown embedding format: {}", unknown)),
+        }
+    }
 }
 
 /// A progress bar that implements the `Read` trait.
@@ -227,7 +252,12 @@ pub trait WriteModelBinary<W>
 where
     W: Write,
 {
-    fn write_model_binary(self, write: &mut W, train_info: TrainInfo) -> Result<()>;
+    fn write_model_binary(
+        self,
+        write: &mut W,
+        train_info: TrainInfo,
+        format: EmbeddingFormat,
+    ) -> Result<()>;
 }
 
 fn whitespace_tokenize(line: &str) -> Vec<String> {
