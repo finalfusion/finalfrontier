@@ -123,11 +123,13 @@ impl FinalfrontierApp for SkipgramApp {
             .unwrap_or_else(|| cmp::min(num_cpus::get() / 2, 20));
         let train_info = TrainInfo::new(corpus, output, n_threads);
 
+        let common_config = Self::parse_common_config(&matches)?;
+
         Ok(SkipgramApp {
             train_info,
-            common_config: Self::parse_common_config(&matches)?,
+            common_config,
             skipgram_config: Self::skipgram_config_from_matches(&matches)?,
-            vocab_config: Self::parse_vocab_config(&matches)?,
+            vocab_config: Self::parse_vocab_config(common_config, &matches)?,
         })
     }
 

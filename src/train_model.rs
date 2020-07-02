@@ -2,6 +2,7 @@ use std::io::{Seek, Write};
 use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Result};
+use finalfusion::compat::fasttext::WriteFastText;
 use finalfusion::compat::text::{WriteText, WriteTextDims};
 use finalfusion::compat::word2vec::WriteWord2Vec;
 use finalfusion::io::WriteEmbeddings;
@@ -221,14 +222,24 @@ where
         let storage = NdArray::new(input_matrix);
         let norms = NdNorms::new(Array1::from(norms));
 
-        let embeddings = Embeddings::new(Some(Metadata::new(metadata)), vocab, storage, norms);
-
         use self::EmbeddingFormat::*;
         match format {
-            FinalFusion => embeddings.write_embeddings(write)?,
-            Word2Vec => embeddings.write_word2vec_binary(write, true)?,
-            Text => embeddings.write_text(write, true)?,
-            TextDims => embeddings.write_text_dims(write, true)?,
+            FastText => {
+                let vocab = match vocab {
+                    VocabWrap::FastTextSubwordVocab(vocab) => vocab,
+                    _ => bail!("Only fastText vocabularies can be written to fastText files"),
+                };
+                Embeddings::new(Some(Metadata::new(metadata)), vocab, storage, norms)
+                    .write_fasttext(write)?
+            }
+            FinalFusion => Embeddings::new(Some(Metadata::new(metadata)), vocab, storage, norms)
+                .write_embeddings(write)?,
+            Word2Vec => Embeddings::new(Some(Metadata::new(metadata)), vocab, storage, norms)
+                .write_word2vec_binary(write, true)?,
+            Text => Embeddings::new(Some(Metadata::new(metadata)), vocab, storage, norms)
+                .write_text(write, true)?,
+            TextDims => Embeddings::new(Some(Metadata::new(metadata)), vocab, storage, norms)
+                .write_text_dims(write, true)?,
         };
 
         Ok(())

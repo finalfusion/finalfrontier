@@ -64,7 +64,7 @@ impl TryFrom<u8> for LossType {
 }
 
 /// Bucket Indexer Types
-#[derive(Copy, Clone, Debug, Serialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
 pub enum BucketIndexerType {
     /// FinalfusionBucketIndexer
     Finalfusion,
