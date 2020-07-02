@@ -53,6 +53,19 @@ OPTIONS
     typically decreases with the corpus size. The default number of epochs
     is *15*.
 
+`-f`, `--format` *FORMAT*
+
+:   The output format. This must be one of *fasttext*, *finalfusion*,
+	*word2vec*, *text*, and *textdims*.
+
+	All formats, except *finalfusion*, result in a loss of
+	information: *word2vec*, *text*, and *textdims* do not store
+	subword embeddings, nor hyperparameters. The *fastText* format
+	does not store all hyperparemeters.
+
+	The *fasttext* format can only be used in conjunction with
+    `--subwords buckets` and `--hash-indexer fasttext`.
+
 `--lr` *LEARNING_RATE*
 
 :   The learning rate determines what fraction of a gradient is used for
