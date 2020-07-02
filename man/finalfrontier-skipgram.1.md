@@ -56,15 +56,26 @@ OPTIONS
 `-f`, `--format` *FORMAT*
 
 :   The output format. This must be one of *fasttext*, *finalfusion*,
-	*word2vec*, *text*, and *textdims*.
+    *word2vec*, *text*, and *textdims*.
 
-	All formats, except *finalfusion*, result in a loss of
-	information: *word2vec*, *text*, and *textdims* do not store
-	subword embeddings, nor hyperparameters. The *fastText* format
-	does not store all hyperparemeters.
+    All formats, except *finalfusion*, result in a loss of
+    information: *word2vec*, *text*, and *textdims* do not store
+    subword embeddings, nor hyperparameters. The *fastText* format
+    does not store all hyperparemeters.
 
-	The *fasttext* format can only be used in conjunction with
+    The *fasttext* format can only be used in conjunction with
     `--subwords buckets` and `--hash-indexer fasttext`.
+
+`--hash-indexer` *INDEXER*
+
+:   The indexer to use when bucket-based subwords are used (see
+    `--subwords`). The possible values are *finalfusion* or
+    *fasttext*. Default: finalfusion
+
+    *finalfusion* uses the FNV-1a hasher, whereas *fasttext* emulates
+    the (broken) implementation of FNV-1a in fastText. Use of
+    *finalfusion* is recommended, unless the resulting embeddings
+    should be compatible with fastText.
 
 `--lr` *LEARNING_RATE*
 
@@ -81,12 +92,6 @@ OPTIONS
 :   The minimum count controls discarding of infrequent. Words occuring
     fewer than *FREQ* times are not considered during training. The
     default minimum count is 5.
-
-`--target-size` *SIZE*
-
-:   The target size for the token vocabulary. At most *SIZE* tokens are
-    included for training. Only tokens appearing more frequently than the token
-    at *SIZE* are included.
 
 `--minn` *LEN*
 
@@ -144,6 +149,12 @@ OPTIONS
     The considered n-gram lengths are specified using the `minn` and
     `maxn` options.  The number of buckets is controlled with the
     `buckets` option.
+
+`--target-size` *SIZE*
+
+:   The target size for the token vocabulary. At most *SIZE* tokens are
+    included for training. Only tokens appearing more frequently than the token
+    at *SIZE* are included.
 
 `--threads` *N*
 
