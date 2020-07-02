@@ -6,14 +6,20 @@
 
 ## Introduction
 
-finalfrontier is a Rust library and set of utilities for learning and using
-word embeddings. finalfrontier currently has the following features:
+finalfrontier is a Rust program for training word embeddings.
+finalfrontier currently has the following features:
 
   * Models:
     - skip-gram (Mikolov et al., 2013)
     - structured skip-gram (Ling et al., 2015)
     - directional skip-gram (Song et al., 2018)
     - dependency (Levy and Goldberg, 2014)
+  * Output formats:
+	- [finalfusion](https://finalfusion.github.io)
+	- fastText
+	- word2vec binary
+	- word2vec text
+	- GloVe text
   * Noise contrastive estimation (Gutmann and Hyvärinen, 2012)
   * Subword representations (Bojanowski et al., 2016)
   * Hogwild SGD (Recht et al., 2011)
@@ -21,8 +27,8 @@ word embeddings. finalfrontier currently has the following features:
     quantize`](https://github.com/finalfusion/finalfusion-utils)
     command.
 
-The trained embeddings are stored in `finalfusion` format, which can
-be read and used with the
+The trained embeddings can be stored in the versatile `finalfusion`
+format, which can be read and used with the
 [finalfusion](https://github.com/finalfusion/finalfusion-rust) crate
 and the
 [finalfusion](https://github.com/finalfusion/finalfusion-python)
