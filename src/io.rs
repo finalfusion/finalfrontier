@@ -15,6 +15,7 @@ pub struct FileProgress {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmbeddingFormat {
+    FastText,
     FinalFusion,
     Word2Vec,
     Text,
@@ -28,6 +29,7 @@ impl TryFrom<&str> for EmbeddingFormat {
         use self::EmbeddingFormat::*;
 
         match format {
+            "fasttext" => Ok(FastText),
             "finalfusion" => Ok(FinalFusion),
             "word2vec" => Ok(Word2Vec),
             "text" => Ok(Text),

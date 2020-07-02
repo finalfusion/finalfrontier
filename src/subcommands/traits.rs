@@ -1,10 +1,11 @@
 use std::convert::TryInto;
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use clap::{App, AppSettings, Arg, ArgMatches};
+use finalfrontier::io::EmbeddingFormat;
 use finalfrontier::{
-    BucketConfig, CommonConfig, Cutoff, LossType, NGramConfig, SimpleVocabConfig,
-    SubwordVocabConfig,
+    BucketConfig, BucketIndexerType, CommonConfig, Cutoff, LossType, NGramConfig,
+    SimpleVocabConfig, SubwordVocabConfig,
 };
 
 use crate::subcommands::{cutoff_from_matches, VocabConfig};
@@ -31,6 +32,12 @@ static NGRAM_TARGET_SIZE: &str = "ngram-target-size";
 static SUBWORDS: &str = "subwords";
 static NS: &str = "ns";
 static ZIPF_EXPONENT: &str = "zipf";
+
+const FASTTEXT_FORMAT_ERROR: &str = "Only embeddings trained with:
+
+  --subwords buckets --hash-indexer fasttext
+
+can be stored in fastText format.";
 
 pub trait FinalfrontierApp
 where
@@ -86,7 +93,8 @@ where
                     .value_name("FORMAT")
                     .help("Output format")
                     .takes_value(true)
-                    .default_value("finalfusion"),
+                    .default_value("finalfusion")
+                    .possible_values(&["fasttext", "finalfusion", "word2vec", "text", "textdims"]),
             )
             .arg(
                 Arg::with_name(HASH_INDEXER_TYPE)
@@ -250,7 +258,10 @@ where
     }
 
     /// Construct `SubwordVocabConfig` from `matches`.
-    fn parse_vocab_config(matches: &ArgMatches) -> Result<VocabConfig> {
+    fn parse_vocab_config(
+        common_config: CommonConfig,
+        matches: &ArgMatches,
+    ) -> Result<VocabConfig> {
         let discard_threshold = matches
             .value_of(DISCARD)
             .map(|v| v.parse().context("Cannot parse discard threshold"))
@@ -280,6 +291,13 @@ where
                     .map(|v| v.try_into().context("Unknown subword indexer type"))
                     .transpose()?
                     .unwrap();
+
+                ensure!(
+                    common_config.format != EmbeddingFormat::FastText
+                        || indexer == BucketIndexerType::FastText,
+                    FASTTEXT_FORMAT_ERROR
+                );
+
                 Ok(VocabConfig::SubwordVocab(SubwordVocabConfig {
                     discard_threshold,
                     cutoff,
@@ -292,6 +310,11 @@ where
                 }))
             }
             "ngrams" => {
+                ensure!(
+                    common_config.format != EmbeddingFormat::FastText,
+                    FASTTEXT_FORMAT_ERROR
+                );
+
                 let ngram_cutoff = cutoff_from_matches(matches, NGRAM_MINCOUNT, NGRAM_TARGET_SIZE)?
                     .unwrap_or_else(|| Cutoff::MinCount(5));
                 Ok(VocabConfig::NGramVocab(SubwordVocabConfig {
@@ -304,10 +327,17 @@ where
                     },
                 }))
             }
-            "none" => Ok(VocabConfig::SimpleVocab(SimpleVocabConfig {
-                cutoff,
-                discard_threshold,
-            })),
+            "none" => {
+                ensure!(
+                    common_config.format != EmbeddingFormat::FastText,
+                    FASTTEXT_FORMAT_ERROR
+                );
+
+                Ok(VocabConfig::SimpleVocab(SimpleVocabConfig {
+                    cutoff,
+                    discard_threshold,
+                }))
+            }
             // unreachable as long as possible values in clap are in sync with this `VocabConfig`'s
             // variants
             s => unreachable!(format!("Unhandled vocab type: {}", s)),
