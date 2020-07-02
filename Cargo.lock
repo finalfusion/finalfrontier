@@ -171,7 +171,7 @@ dependencies = [
  "chrono 0.4.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "conllu 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "finalfusion 0.12.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "finalfusion 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "git2 0.13.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "indicatif 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -193,7 +193,7 @@ dependencies = [
 
 [[package]]
 name = "finalfusion"
-version = "0.12.2"
+version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -866,7 +866,7 @@ dependencies = [
 "checksum crossbeam-utils 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)" = "c3c7c73a2d1e9fc0886a08b93e98eb643461230d5f1925e4036204d5f2e261a8"
 "checksum either 1.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "bb1f6b1ce1c140482ea30ddd3335fc0024ac7ee112895426e0a629a6c20adfe3"
 "checksum encode_unicode 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
-"checksum finalfusion 0.12.2 (registry+https://github.com/rust-lang/crates.io-index)" = "69282af3a78bd214774cb55a0995fd02b3f290a1328c3da128d901d8e46236d0"
+"checksum finalfusion 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)" = "450baeb334279c81421601b3c7e21f624c1f0766c2777ffe0c86b32e2af61279"
 "checksum fixedbitset 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "37ab347416e802de484e4d03c7316c48f1ecb56574dfd4a46a80f173ce1de04d"
 "checksum fnv 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)" = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 "checksum getrandom 0.1.14 (registry+https://github.com/rust-lang/crates.io-index)" = "7abc8dd8451921606d809ba32e95b6111925cd2906060d2dcc29c070220503eb"

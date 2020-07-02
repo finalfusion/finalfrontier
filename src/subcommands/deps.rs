@@ -186,12 +186,13 @@ impl FinalfrontierApp for DepsApp {
             discard_threshold,
         };
         let train_info = TrainInfo::new(corpus, output, n_threads);
+        let common_config = Self::parse_common_config(&matches)?;
 
         Ok(DepsApp {
             train_info,
-            common_config: Self::parse_common_config(&matches)?,
+            common_config,
             depembeds_config: Self::depembeds_config_from_matches(&matches)?,
-            input_vocab_config: Self::parse_vocab_config(&matches)?,
+            input_vocab_config: Self::parse_vocab_config(common_config, &matches)?,
             output_vocab_config,
         })
     }
