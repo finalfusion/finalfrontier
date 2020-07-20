@@ -1,5 +1,3 @@
-use std::mem;
-
 use conllu::graph::{DepGraph, DepTriple};
 
 use crate::DepembedsConfig;
@@ -274,11 +272,11 @@ where
                 match tuple.1 {
                     Dependency::Untyped(ref mut form) => {
                         let normalized = form.to_lowercase();
-                        mem::replace(form, normalized);
+                        *form = normalized;
                     }
                     Dependency::Typed { ref mut form, .. } => {
                         let normalized = form.to_lowercase();
-                        mem::replace(form, normalized);
+                        *form = normalized;
                     }
                 }
                 tuple
