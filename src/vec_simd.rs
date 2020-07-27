@@ -356,6 +356,7 @@ mod tests {
 
     use super::{dot_unvectorized, l2_normalize, scale_unvectorized, scaled_add_unvectorized};
 
+    #[cfg(target_feature = "sse")]
     use super::sse;
 
     #[cfg(target_feature = "avx")]
@@ -373,6 +374,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_feature = "sse")]
     fn add_sse_test() {
         let mut u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
@@ -394,6 +396,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_feature = "sse")]
     fn dot_sse_test() {
         let u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
@@ -448,6 +451,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_feature = "sse")]
     fn scaled_add_sse_test() {
         let mut u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         let v = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
@@ -476,6 +480,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_feature = "sse")]
     fn scale_sse_test() {
         let mut u = Array1::random((102,), Uniform::new_inclusive(-1.0, 1.0));
         let mut check = u.clone();
