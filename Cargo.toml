@@ -2,7 +2,7 @@
 name = "finalfrontier"
 version = "0.9.0"
 edition = "2018"
-authors = ["Daniël de Kok <me@danieldk.eu>", "Sebastian Pütz <sebastian.puetz@student.uni-tuebingen.de>"]
+authors = ["Daniël de Kok <me@danieldk.eu>", "Sebastian Pütz <seb.puetz@gmail.com>"]
 description = "Train/use word embeddings with subword units"
 documentation = "https://docs.rs/finalfrontier/"
 homepage = "https://finalfusion.github.io/finalfrontier"
