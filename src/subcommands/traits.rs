@@ -267,8 +267,8 @@ where
             .map(|v| v.parse().context("Cannot parse discard threshold"))
             .transpose()?
             .unwrap();
-        let cutoff = cutoff_from_matches(matches, MINCOUNT, TARGET_SIZE)?
-            .unwrap_or_else(|| Cutoff::MinCount(5));
+        let cutoff =
+            cutoff_from_matches(matches, MINCOUNT, TARGET_SIZE)?.unwrap_or(Cutoff::MinCount(5));
         let min_n = matches
             .value_of(MINN)
             .map(|v| v.parse().context("Cannot parse minimum n-gram length"))
@@ -316,7 +316,7 @@ where
                 );
 
                 let ngram_cutoff = cutoff_from_matches(matches, NGRAM_MINCOUNT, NGRAM_TARGET_SIZE)?
-                    .unwrap_or_else(|| Cutoff::MinCount(5));
+                    .unwrap_or(Cutoff::MinCount(5));
                 Ok(VocabConfig::NGramVocab(SubwordVocabConfig {
                     discard_threshold,
                     cutoff,
