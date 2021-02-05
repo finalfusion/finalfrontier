@@ -35,18 +35,35 @@ jobs:
       with:
         command: test
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
+  tests:
+    name: Test
+    strategy:
+      matrix:
+        platform:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v1
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
-      - run: rustup component add clippy
+          components: clippy
       - uses: actions-rs/cargo@v1
+        name: Clippy
         with:
           command: clippy
           args: -- -D warnings
+      - uses: actions-rs/cargo@v1
+        name: Test
+        with:
+          command: test
