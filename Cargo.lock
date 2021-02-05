@@ -197,7 +197,7 @@ dependencies = [
  "lazy_static",
  "maplit",
  "memmap",
- "ndarray",
+ "ndarray 0.14.0",
  "ndarray-rand",
  "num_cpus",
  "rand",
@@ -219,7 +219,7 @@ dependencies = [
  "fnv",
  "itertools",
  "memmap",
- "ndarray",
+ "ndarray 0.13.1",
  "ordered-float 2.1.1",
  "rand",
  "rand_xorshift",
@@ -451,11 +451,24 @@ checksum = "ac06db03ec2f46ee0ecdca1a1c34a99c0d188a0d83439b84bf0cb4b386e4ab09"
 dependencies = [
  "approx",
  "matrixmultiply",
- "num-complex",
+ "num-complex 0.2.4",
  "num-integer",
  "num-traits",
  "rawpointer",
  "rayon",
+]
+
+[[package]]
+name = "ndarray"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c0d5c9540a691d153064dc47a4db2504587a75eae07bf1d73f7a596ebc73c04"
+dependencies = [
+ "matrixmultiply",
+ "num-complex 0.3.1",
+ "num-integer",
+ "num-traits",
+ "rawpointer",
 ]
 
 [[package]]
@@ -464,7 +477,7 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04f32fec793307a7299dc1c05d2e9bda21d30b13b7e5bf9b9f8afec6ad6c3ce7"
 dependencies = [
- "ndarray",
+ "ndarray 0.13.1",
  "rand",
  "rand_distr",
 ]
@@ -476,6 +489,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6b19411a9719e753aff12e5187b74d60d3dc449ec3f4dc21e3989c3f554bc95"
 dependencies = [
  "autocfg",
+ "num-traits",
+]
+
+[[package]]
+name = "num-complex"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "747d632c0c558b87dbabbe6a82f3b4ae03720d0646ac5b7b4dae89394be5f2c5"
+dependencies = [
  "num-traits",
 ]
 
@@ -704,7 +726,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb6290d118ac85e3046623f9515b43537f8bbaa39ec37f27bb1f433972400f86"
 dependencies = [
  "log",
- "ndarray",
+ "ndarray 0.13.1",
  "num-traits",
  "ordered-float 1.1.0",
  "rand",
