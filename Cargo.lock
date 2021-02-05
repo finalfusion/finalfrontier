@@ -211,16 +211,16 @@ dependencies = [
 
 [[package]]
 name = "finalfusion"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38e6bf99a822f4bae0c8dc0245e9b12aeb18478052e89c36e3106d6535317e47"
+checksum = "7c103bf188c0eada5a0b9756460ba6405bdba5cc420917a2fdffc873fe1e985e"
 dependencies = [
  "byteorder",
  "fnv",
  "itertools",
  "memmap",
  "ndarray",
- "ordered-float",
+ "ordered-float 2.1.1",
  "rand",
  "rand_xorshift",
  "reductive",
@@ -543,6 +543,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordered-float"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "766f840da25490628d8e63e529cd21c014f6600c6b8517add12a6fa6167a6218"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -697,7 +706,7 @@ dependencies = [
  "log",
  "ndarray",
  "num-traits",
- "ordered-float",
+ "ordered-float 1.1.0",
  "rand",
  "rand_core",
  "rand_xorshift",
