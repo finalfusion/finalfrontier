@@ -19,30 +19,9 @@ jobs:
           command: fmt
           args: --all -- --check
 
-  windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        rust: [stable]
-    steps:
-    - uses: actions/checkout@v1
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: ${{ matrix.rust }}
-        override: true
-    - uses: actions-rs/cargo@v1
-      with:
-        command: test
-
   tests:
     name: Test
-    strategy:
-      matrix:
-        platform:
-          - ubuntu-latest
-          - macos-latest
-    runs-on: ${{ matrix.platform }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
       - uses: actions/cache@v2
