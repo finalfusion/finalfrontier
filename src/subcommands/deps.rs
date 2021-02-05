@@ -179,7 +179,7 @@ impl FinalfrontierApp for DepsApp {
             .transpose()?
             .unwrap();
         let cutoff = cutoff_from_matches(matches, CONTEXT_MINCOUNT, CONTEXT_TARGET_SIZE)?
-            .unwrap_or_else(|| Cutoff::MinCount(5));
+            .unwrap_or(Cutoff::MinCount(5));
 
         let output_vocab_config = SimpleVocabConfig {
             cutoff,
