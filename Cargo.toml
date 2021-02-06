@@ -13,7 +13,7 @@ license = "Apache-2.0 OR BlueOak-1.0.0"
 anyhow = "1"
 chrono = "0.4"
 clap = "2"
-conllu = "0.5.1"
+conllu = "0.6"
 finalfusion = "0.14"
 fnv = "1"
 indicatif = "0.15"
@@ -27,6 +27,8 @@ rand_xorshift = "0.2"
 serde = { version = "1", features = ["derive"] }
 superslice = "1.0"
 toml = "0.5"
+udgraph = "0.6"
+udgraph-projectivize = "0.6"
 zipf = "6"
 
 [build-dependencies]
