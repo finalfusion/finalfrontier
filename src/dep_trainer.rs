@@ -2,9 +2,9 @@ use std::borrow::Borrow;
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
-use conllu::graph::Sentence;
 use rand::{Rng, SeedableRng};
 use serde::Serialize;
+use udgraph::graph::Sentence;
 
 use crate::idx::WordIdx;
 use crate::sampling::ZipfRangeGenerator;

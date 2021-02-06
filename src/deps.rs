@@ -1,4 +1,4 @@
-use conllu::graph::{DepGraph, DepTriple};
+use udgraph::graph::{DepGraph, DepTriple};
 
 use crate::DepembedsConfig;
 
@@ -318,8 +318,8 @@ mod tests {
 
     use crate::deps::{DepIter, Dependency, Dependency::Untyped, DependencyIterator, PathIter};
 
-    use conllu::graph::Node;
     use conllu::io::{ReadSentence, Reader};
+    use udgraph::graph::Node;
 
     static DEP: &[u8; 143] = b"1	Er	a	_	_	_	2	SUBJ	_	_\n\
     2	geht	b	_	_	_	0	ROOT	_	_\n\

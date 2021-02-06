@@ -98,13 +98,13 @@ dependencies = [
 
 [[package]]
 name = "conllu"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01d7664c35fb4599e61f8f423a170331501fb2a2a36b691beb5d261707443dd1"
+checksum = "6028c5904fccbda78f6ed6c50630ff5c8b58f58dc9df8ecab380e3634b8e6f37"
 dependencies = [
  "itertools",
- "petgraph",
  "thiserror",
+ "udgraph",
 ]
 
 [[package]]
@@ -208,6 +208,8 @@ dependencies = [
  "serde",
  "superslice",
  "toml",
+ "udgraph",
+ "udgraph-projectivize",
  "zipf",
 ]
 
@@ -850,6 +852,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ffc92d160b1eef40665be3a05630d003936a3bc7da7421277846c2613e92c71a"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "udgraph"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a8abeedb97ece847696e6d956f8899fddcdd96e5552c5401ba10ac69faecd42"
+dependencies = [
+ "petgraph",
+]
+
+[[package]]
+name = "udgraph-projectivize"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e74b934fb927eb357a296e8077dc38595df76d26ec055a44e7eb2dc8ca653f86"
+dependencies = [
+ "itertools",
+ "petgraph",
+ "thiserror",
+ "udgraph",
 ]
 
 [[package]]

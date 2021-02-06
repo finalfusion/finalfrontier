@@ -7,9 +7,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use clap::{App, Arg, ArgMatches};
-use conllu::graph::{Node, Sentence};
 use conllu::io::{ReadSentence, Reader, Sentences};
-use conllu::proj::{HeadProjectivizer, Projectivize};
 use finalfrontier::io::{thread_data_conllu, FileProgress, TrainInfo};
 use finalfrontier::{
     BucketIndexerType, CommonConfig, Cutoff, DepembedsConfig, DepembedsTrainer, Dependency,
@@ -22,6 +20,8 @@ use finalfusion::subword::FinalfusionHashIndexer;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use serde::Serialize;
+use udgraph::graph::{Node, Sentence};
+use udgraph_projectivize::{HeadProjectivizer, Projectivize};
 
 use crate::subcommands::{cutoff_from_matches, show_progress, FinalfrontierApp, VocabConfig};
 
