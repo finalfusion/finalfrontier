@@ -23,7 +23,7 @@ ndarray-rand = "0.11"
 num_cpus = "1"
 rand = "0.7"
 rand_core = "0.5"
-rand_xorshift = "0.2"
+rand_xorshift = "0.3"
 serde = { version = "1", features = ["derive"] }
 superslice = "1.0"
 toml = "0.5"
