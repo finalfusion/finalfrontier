@@ -1,10 +1,10 @@
 use std::thread;
 use std::time::Duration;
 
-use finalfrontier::{CommonConfig, Trainer, Vocab, SGD};
+use finalfrontier::{CommonConfig, Sgd, Trainer, Vocab};
 use indicatif::{ProgressBar, ProgressStyle};
 
-pub fn show_progress<T, V>(config: &CommonConfig, sgd: &SGD<T>, update_interval: Duration)
+pub fn show_progress<T, V>(config: &CommonConfig, sgd: &Sgd<T>, update_interval: Duration)
 where
     T: Trainer<InputVocab = V>,
     V: Vocab,

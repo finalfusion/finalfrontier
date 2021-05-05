@@ -22,7 +22,7 @@ pub(crate) mod loss;
 pub(crate) mod sampling;
 
 mod sgd;
-pub use crate::sgd::SGD;
+pub use crate::sgd::Sgd;
 
 mod train_model;
 pub use crate::train_model::{TrainModel, Trainer};

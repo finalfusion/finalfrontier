@@ -10,8 +10,8 @@ use anyhow::{Context, Result};
 use clap::{App, Arg, ArgMatches};
 use finalfrontier::io::{thread_data_text, FileProgress, TrainInfo};
 use finalfrontier::{
-    BucketIndexerType, CommonConfig, ModelType, SentenceIterator, SimpleVocab, SkipGramConfig,
-    SkipgramTrainer, SubwordVocab, Vocab, VocabBuilder, WriteModelBinary, SGD,
+    BucketIndexerType, CommonConfig, ModelType, SentenceIterator, Sgd, SimpleVocab, SkipGramConfig,
+    SkipgramTrainer, SubwordVocab, Vocab, VocabBuilder, WriteModelBinary,
 };
 use finalfusion::compat::fasttext::FastTextIndexer;
 use finalfusion::prelude::VocabWrap;
@@ -179,7 +179,7 @@ where
         common_config,
         app.skipgram_config(),
     );
-    let sgd = SGD::new(trainer.into());
+    let sgd = Sgd::new(trainer.into());
 
     let mut children = Vec::with_capacity(n_threads);
     for thread in 0..n_threads {
@@ -220,7 +220,7 @@ where
 
 fn do_work<P, R, V>(
     corpus_path: P,
-    mut sgd: SGD<SkipgramTrainer<R, V>>,
+    mut sgd: Sgd<SkipgramTrainer<R, V>>,
     thread: usize,
     n_threads: usize,
     epochs: u32,

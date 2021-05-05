@@ -11,8 +11,8 @@ use conllu::io::{ReadSentence, Reader, Sentences};
 use finalfrontier::io::{thread_data_conllu, FileProgress, TrainInfo};
 use finalfrontier::{
     BucketIndexerType, CommonConfig, Cutoff, DepembedsConfig, DepembedsTrainer, Dependency,
-    DependencyIterator, SimpleVocab, SimpleVocabConfig, SubwordVocab, Vocab, VocabBuilder,
-    WriteModelBinary, SGD,
+    DependencyIterator, Sgd, SimpleVocab, SimpleVocabConfig, SubwordVocab, Vocab, VocabBuilder,
+    WriteModelBinary,
 };
 use finalfusion::compat::fasttext::FastTextIndexer;
 use finalfusion::prelude::VocabWrap;
@@ -267,7 +267,7 @@ where
         app.depembeds_config(),
         XorShiftRng::from_entropy(),
     );
-    let sgd = SGD::new(trainer.into());
+    let sgd = Sgd::new(trainer.into());
 
     let projectivize = app.depembeds_config().projectivize;
     let mut children = Vec::with_capacity(n_threads);
@@ -310,7 +310,7 @@ where
 
 fn do_work<P, R, V>(
     corpus_path: P,
-    mut sgd: SGD<DepembedsTrainer<R, V>>,
+    mut sgd: Sgd<DepembedsTrainer<R, V>>,
     thread: usize,
     n_threads: usize,
     epochs: u32,
