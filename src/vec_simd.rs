@@ -1,3 +1,8 @@
+//! Operators vectorized with SIMD.
+//!
+//! This module is not for public consumption, but is made public
+//! for benchmarking.
+
 use ndarray::{ArrayView1, ArrayViewMut1};
 
 /// Dot product: u · v
@@ -63,7 +68,7 @@ pub fn scaled_add(mut u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-mod sse {
+pub mod sse {
     #[cfg(target_arch = "x86")]
     use std::arch::x86::*;
 
@@ -75,7 +80,7 @@ mod sse {
     use super::{dot_unvectorized, scale_unvectorized, scaled_add_unvectorized};
 
     #[target_feature(enable = "sse")]
-    #[allow(dead_code)]
+    #[allow(clippy::missing_safety_doc, dead_code)]
     pub unsafe fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
         assert_eq!(u.len(), v.len());
 
@@ -106,7 +111,7 @@ mod sse {
 
     #[target_feature(enable = "sse")]
     #[allow(dead_code)]
-    pub unsafe fn scale(mut u: ArrayViewMut1<f32>, a: f32) {
+    pub(crate) unsafe fn scale(mut u: ArrayViewMut1<f32>, a: f32) {
         let mut u = u
             .as_slice_mut()
             .expect("Cannot apply SIMD instructions on non-contiguous data.");
@@ -125,7 +130,7 @@ mod sse {
 
     #[target_feature(enable = "sse")]
     #[allow(dead_code, clippy::float_cmp)]
-    pub unsafe fn scaled_add(mut u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
+    pub(crate) unsafe fn scaled_add(mut u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
         assert_eq!(u.len(), v.len());
 
         let mut u = u
@@ -162,7 +167,7 @@ mod sse {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-mod avx {
+pub mod avx {
     #[cfg(target_arch = "x86")]
     use std::arch::x86::*;
 
@@ -174,6 +179,7 @@ mod avx {
     use super::{dot_unvectorized, scale_unvectorized, scaled_add_unvectorized};
 
     #[target_feature(enable = "avx")]
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
         assert_eq!(u.len(), v.len());
 
@@ -206,7 +212,7 @@ mod avx {
     }
 
     #[target_feature(enable = "avx")]
-    pub unsafe fn scale(mut u: ArrayViewMut1<f32>, a: f32) {
+    pub(crate) unsafe fn scale(mut u: ArrayViewMut1<f32>, a: f32) {
         let mut u = u
             .as_slice_mut()
             .expect("Cannot apply SIMD instructions on non-contiguous data.");
@@ -225,7 +231,7 @@ mod avx {
 
     #[target_feature(enable = "avx")]
     #[allow(clippy::float_cmp)]
-    pub unsafe fn scaled_add(mut u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
+    pub(crate) unsafe fn scaled_add(mut u: ArrayViewMut1<f32>, v: ArrayView1<f32>, a: f32) {
         assert_eq!(u.len(), v.len());
 
         let mut u = u
@@ -266,7 +272,7 @@ mod avx {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-mod avx_fma {
+pub mod avx_fma {
     #[cfg(target_arch = "x86")]
     use std::arch::x86::*;
 
@@ -278,6 +284,7 @@ mod avx_fma {
     use super::dot_unvectorized;
 
     #[target_feature(enable = "avx", enable = "fma")]
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
         assert_eq!(u.len(), v.len());
 
