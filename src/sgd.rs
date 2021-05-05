@@ -10,15 +10,15 @@ use crate::vec_simd::scaled_add;
 ///
 /// This data type applies stochastic gradient descent on sentences.
 #[derive(Clone)]
-pub struct SGD<T> {
+pub struct Sgd<T> {
     loss: Hogwild<f32>,
     model: TrainModel<T>,
     n_examples: Hogwild<usize>,
     n_tokens_processed: Hogwild<usize>,
-    sgd_impl: NegativeSamplingSGD,
+    sgd_impl: NegativeSamplingSgd,
 }
 
-impl<T> SGD<T>
+impl<T> Sgd<T>
 where
     T: Trainer,
 {
@@ -28,9 +28,9 @@ where
 
     /// Construct a new SGD instance,
     pub fn new(model: TrainModel<T>) -> Self {
-        let sgd_impl = NegativeSamplingSGD::new(model.config().negative_samples as usize);
+        let sgd_impl = NegativeSamplingSgd::new(model.config().negative_samples as usize);
 
-        SGD {
+        Sgd {
             loss: Hogwild::default(),
             model,
             n_examples: Hogwild::default(),
@@ -106,14 +106,14 @@ where
 /// for all words that do not co-occur in every step. Instead, such
 /// negatives are sampled, weighted by word frequency.
 #[derive(Clone)]
-pub struct NegativeSamplingSGD {
+pub struct NegativeSamplingSgd {
     negative_samples: usize,
 }
 
-impl NegativeSamplingSGD {
+impl NegativeSamplingSgd {
     /// Create a new loss function.
     pub fn new(negative_samples: usize) -> Self {
-        NegativeSamplingSGD { negative_samples }
+        NegativeSamplingSgd { negative_samples }
     }
 
     /// Perform a step of gradient descent.
