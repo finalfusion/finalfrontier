@@ -79,6 +79,18 @@ pub mod sse {
 
     use super::{dot_unvectorized, scale_unvectorized, scaled_add_unvectorized};
 
+    #[inline(always)]
+    #[allow(dead_code)]
+    pub(crate) unsafe fn sse_add(values: __m128) -> f32 {
+        // Sum upper and lower 64-bit pairwise
+        let sums = _mm_add_ps(values, _mm_movehl_ps(values, values));
+
+        // Final sum.
+        let sums = _mm_add_ps(sums, _mm_movehdup_ps(sums));
+
+        _mm_cvtss_f32(sums)
+    }
+
     #[target_feature(enable = "sse")]
     #[allow(clippy::missing_safety_doc, dead_code)]
     pub unsafe fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
@@ -103,10 +115,7 @@ pub mod sse {
             v = &v[4..];
         }
 
-        sums = _mm_hadd_ps(sums, sums);
-        sums = _mm_hadd_ps(sums, sums);
-
-        _mm_cvtss_f32(sums) + dot_unvectorized(u, v)
+        sse_add(sums) + dot_unvectorized(u, v)
     }
 
     #[target_feature(enable = "sse")]
@@ -178,6 +187,16 @@ pub mod avx {
 
     use super::{dot_unvectorized, scale_unvectorized, scaled_add_unvectorized};
 
+    #[inline(always)]
+    pub(crate) unsafe fn avx_add(value: __m256) -> f32 {
+        // Add upper and lower 128-bits pairwise.
+        let sums = _mm_add_ps(
+            _mm256_castps256_ps128(value),
+            _mm256_extractf128_ps(value, 1),
+        );
+        super::sse::sse_add(sums)
+    }
+
     #[target_feature(enable = "avx")]
     #[allow(clippy::missing_safety_doc)]
     pub unsafe fn dot(u: ArrayView1<f32>, v: ArrayView1<f32>) -> f32 {
@@ -202,13 +221,7 @@ pub mod avx {
             v = &v[8..];
         }
 
-        sums = _mm256_hadd_ps(sums, sums);
-        sums = _mm256_hadd_ps(sums, sums);
-
-        // Sum sums[0..4] and sums[4..8].
-        let sums = _mm_add_ps(_mm256_castps256_ps128(sums), _mm256_extractf128_ps(sums, 1));
-
-        _mm_cvtss_f32(sums) + dot_unvectorized(u, v)
+        avx_add(sums) + dot_unvectorized(u, v)
     }
 
     #[target_feature(enable = "avx")]
@@ -295,25 +308,28 @@ pub mod avx_fma {
             .as_slice()
             .expect("Cannot apply SIMD instructions on non-contiguous data.")[..u.len()];
 
-        let mut sums = _mm256_setzero_ps();
+        let mut sums0 = _mm256_setzero_ps();
+        let mut sums1 = _mm256_setzero_ps();
 
-        while u.len() >= 8 {
+        while u.len() >= 16 {
             let ux8 = _mm256_loadu_ps(&u[0] as *const f32);
             let vx8 = _mm256_loadu_ps(&v[0] as *const f32);
 
-            sums = _mm256_fmadd_ps(ux8, vx8, sums);
+            sums0 = _mm256_fmadd_ps(ux8, vx8, sums0);
 
-            u = &u[8..];
-            v = &v[8..];
+            let ux8 = _mm256_loadu_ps(&u[8] as *const f32);
+            let vx8 = _mm256_loadu_ps(&v[8] as *const f32);
+
+            sums1 = _mm256_fmadd_ps(ux8, vx8, sums1);
+
+            u = &u[16..];
+            v = &v[16..];
         }
 
-        sums = _mm256_hadd_ps(sums, sums);
-        sums = _mm256_hadd_ps(sums, sums);
+        // Sum the two sums pair-wise.
+        let sums = _mm256_add_ps(sums0, sums1);
 
-        // Sum sums[0..4] and sums[4..8].
-        let sums = _mm_add_ps(_mm256_castps256_ps128(sums), _mm256_extractf128_ps(sums, 1));
-
-        _mm_cvtss_f32(sums) + dot_unvectorized(u, v)
+        super::avx::avx_add(sums) + dot_unvectorized(u, v)
     }
 }
 
