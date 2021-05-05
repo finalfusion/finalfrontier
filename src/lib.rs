@@ -32,7 +32,8 @@ pub use crate::skipgram_trainer::SkipgramTrainer;
 
 pub(crate) mod util;
 
-pub(crate) mod vec_simd;
+#[doc(hidden)]
+pub mod vec_simd;
 
 mod vocab;
 pub use crate::vocab::{

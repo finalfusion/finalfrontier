@@ -35,5 +35,10 @@ zipf = "6"
 git2 = "0.13"
 
 [dev-dependencies]
+criterion = "0.3"
 lazy_static = "1"
 maplit = "1"
+
+[[bench]]
+name = "dot_product"
+harness = false
