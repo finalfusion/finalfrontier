@@ -29,7 +29,7 @@ superslice = "1.0"
 toml = "0.5"
 udgraph = "0.6"
 udgraph-projectivize = "0.6"
-zipf = "6"
+zipf = "7"
 
 [build-dependencies]
 git2 = "0.13"
