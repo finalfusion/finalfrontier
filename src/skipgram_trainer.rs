@@ -83,7 +83,7 @@ where
         let mut ids = Vec::new();
         for t in sequence {
             if let Some(idx) = self.vocab.idx(t) {
-                if self.rng.gen_range(0f32, 1f32) < self.vocab.discard(idx.word_idx() as usize) {
+                if self.rng.gen_range(0f32..1f32) < self.vocab.discard(idx.word_idx() as usize) {
                     ids.push(idx);
                 }
             }
@@ -211,7 +211,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         if self.i < self.ids.len() {
             // Bojanowski, et al., 2017 uniformly sample the context size between 1 and c.
-            let context_size = self.rng.gen_range(1, self.ctx_size + 1) as usize;
+            let context_size = self.rng.gen_range(1..self.ctx_size + 1) as usize;
             let left = self.i - cmp::min(self.i, context_size);
             let right = cmp::min(self.i + context_size + 1, self.ids.len());
             let contexts = (left..right)

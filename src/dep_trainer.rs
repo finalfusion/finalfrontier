@@ -95,7 +95,7 @@ where
         let mut tokens = vec![WordIdx::from_word_idx(invalid_idx); sentence.len() - 1];
         for (idx, token) in sentence.iter().filter_map(|node| node.token()).enumerate() {
             if let Some(vocab_idx) = self.input_vocab.idx(token.form()) {
-                if self.rng.gen_range(0f32, 1f32)
+                if self.rng.gen_range(0f32..1f32)
                     < self.input_vocab.discard(vocab_idx.word_idx() as usize)
                 {
                     tokens[idx] = vocab_idx
@@ -109,7 +109,7 @@ where
             .filter(|(focus, _dep)| tokens[*focus].word_idx() != invalid_idx)
         {
             if let Some(dep_id) = self.output_vocab.idx(&dep) {
-                if self.rng.gen_range(0f32, 1f32) < self.output_vocab.discard(dep_id.idx() as usize)
+                if self.rng.gen_range(0f32..1f32) < self.output_vocab.discard(dep_id.idx() as usize)
                 {
                     contexts[focus].push(dep_id.idx() as usize)
                 }
