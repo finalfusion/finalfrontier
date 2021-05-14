@@ -55,7 +55,7 @@ where
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let val = self.rng.gen_range(1, self.upper);
+        let val = self.rng.gen_range(1..self.upper);
 
         let idx = match self.prefix_sum.binary_search(&val) {
             Ok(idx) => idx,
