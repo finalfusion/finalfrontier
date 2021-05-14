@@ -1,0 +1,31 @@
+version: 2
+updates:
+- package-ecosystem: cargo
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "04:00"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: ndarray
+    versions:
+    - 0.14.0
+    - 0.15.0
+  - dependency-name: anyhow
+    versions:
+    - 1.0.39
+  - dependency-name: serde
+    versions:
+    - 1.0.124
+  - dependency-name: rand_core
+    versions:
+    - 0.6.1
+  - dependency-name: ndarray-rand
+    versions:
+    - 0.13.0
+  - dependency-name: conllu
+    versions:
+    - 0.6.0
+  - dependency-name: clap
+    versions:
+    - 2.33.3
