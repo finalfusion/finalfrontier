@@ -149,6 +149,6 @@ mod test {
         // Two simultaneous mutable borrows of the underlying array.
         a2.as_mut().view_mut()[(1, 1)] = *c00 * 2.0;
 
-        assert_eq!(&[1.0, 0.0, 0.0, 2.0], a2.as_ref().as_slice().unwrap());
+        assert_eq!(&[1f32, 0f32, 0f32, 2f32], a2.as_ref().as_slice().unwrap());
     }
 }

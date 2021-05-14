@@ -59,10 +59,10 @@ impl DepsApp {
 
         Ok(DepembedsConfig {
             depth,
-            untyped,
+            use_root,
             normalize,
             projectivize,
-            use_root,
+            untyped,
         })
     }
 

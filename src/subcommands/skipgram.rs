@@ -84,8 +84,8 @@ impl SkipgramApp {
             .unwrap();
 
         Ok(SkipGramConfig {
-            context_size,
             model,
+            context_size,
         })
     }
 }
