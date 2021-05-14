@@ -345,11 +345,11 @@ mod tests {
 
     #[test]
     pub fn model_embed_methods() {
-        let mut vocab_config = VOCAB_CONF.clone();
+        let mut vocab_config = VOCAB_CONF;
         vocab_config.cutoff = Cutoff::MinCount(1);
 
-        let common_config = TEST_COMMON_CONFIG.clone();
-        let skipgram_config = TEST_SKIP_CONFIG.clone();
+        let common_config = TEST_COMMON_CONFIG;
+        let skipgram_config = TEST_SKIP_CONFIG;
         // We just need some bogus vocabulary
         let mut builder: VocabBuilder<_, String> = VocabBuilder::new(vocab_config);
         builder.count("bla".to_string());

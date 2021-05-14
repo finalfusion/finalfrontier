@@ -49,10 +49,10 @@ where
         let discards = create_discards(config.discard_threshold, &words, n_tokens);
         SubwordVocab {
             config,
-            discards,
-            indexer,
             words,
+            indexer,
             subwords,
+            discards,
             index,
             n_tokens,
         }
@@ -237,7 +237,7 @@ mod tests {
 
     #[test]
     pub fn vocab_is_sorted() {
-        let mut config = TEST_SUBWORDCONFIG.clone();
+        let mut config = TEST_SUBWORDCONFIG;
         config.cutoff = Cutoff::MinCount(1);
 
         let mut builder: VocabBuilder<_, &str> = VocabBuilder::new(config);
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     pub fn test_bucket_vocab_builder() {
-        let mut builder: VocabBuilder<_, &str> = VocabBuilder::new(TEST_SUBWORDCONFIG.clone());
+        let mut builder: VocabBuilder<_, &str> = VocabBuilder::new(TEST_SUBWORDCONFIG);
         builder.count("to");
         builder.count("be");
         builder.count("or");
@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     pub fn test_ngram_vocab_builder() {
-        let mut builder: VocabBuilder<_, &str> = VocabBuilder::new(TEST_NGRAMCONFIG.clone());
+        let mut builder: VocabBuilder<_, &str> = VocabBuilder::new(TEST_NGRAMCONFIG);
         builder.count("to");
         builder.count("be");
         builder.count("or");

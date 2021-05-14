@@ -24,7 +24,7 @@ pub struct CountedType<T> {
 impl<T> CountedType<T> {
     /// Construct a new type.
     pub fn new(label: T, count: usize) -> Self {
-        CountedType { label, count }
+        CountedType { count, label }
     }
     pub fn count(&self) -> usize {
         self.count
@@ -248,7 +248,9 @@ mod test {
         ];
         assert!(
             filtered == target_items,
-            format!("{:#?}\n != \n {:#?}", filtered, target_items)
+            "{:#?}\n != \n {:#?}",
+            filtered,
+            target_items
         );
     }
 
@@ -263,7 +265,9 @@ mod test {
         ];
         assert!(
             filtered == target_items,
-            format!("{:#?}\n != \n {:#?}", filtered, target_items)
+            "{:#?}\n != \n {:#?}",
+            filtered,
+            target_items
         );
     }
 
@@ -275,7 +279,9 @@ mod test {
         let target_items = vec![];
         assert!(
             filtered == target_items,
-            format!("{:#?}\n != \n {:#?}", filtered, target_items)
+            "{:#?}\n != \n {:#?}",
+            filtered,
+            target_items
         );
     }
 
@@ -293,7 +299,9 @@ mod test {
         ];
         assert!(
             filtered == target_items,
-            format!("{:#?}\n != \n {:#?}", filtered, target_items)
+            "{:#?}\n != \n {:#?}",
+            filtered,
+            target_items
         );
     }
 
@@ -305,7 +313,9 @@ mod test {
         let target_items = vec![];
         assert!(
             filtered == target_items,
-            format!("{:#?}\n != \n {:#?}", filtered, target_items)
+            "{:#?}\n != \n {:#?}",
+            filtered,
+            target_items
         );
     }
 }
